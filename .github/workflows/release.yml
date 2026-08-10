@@ -1,0 +1,129 @@
+name: Release YouGlass
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish arm64 release
+    runs-on: macos-14
+    env:
+      REPOSITORY: appleforever11/YouGlass
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Validate tag and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/YouTubeMac/Info.plist)"
+          [[ "$version" == "$plist_version" ]]
+          test -s "RELEASE_NOTES/${version}.md"
+
+      - name: Validate distribution secrets
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER: ${{ secrets.APPLE_NOTARY_ISSUER }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          for name in APPLE_SIGNING_IDENTITY APPLE_CERTIFICATE_P12_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_NOTARY_KEY_ID APPLE_NOTARY_ISSUER APPLE_NOTARY_KEY_P8_BASE64 SPARKLE_PRIVATE_KEY; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required GitHub Actions secret: $name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Import Developer ID certificate
+        shell: bash
+        env:
+          APPLE_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          keychain="$RUNNER_TEMP/youglass-build.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          printf '%s' "$APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/developer-id.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/developer-id.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+
+      - name: Resolve dependencies
+        run: swift package resolve
+
+      - name: Build release archives
+        shell: bash
+        env:
+          YOUGLASS_BUILD_CONFIGURATION: release
+          YOUGLASS_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          ./script/package_release.sh "$version" "$RUNNER_TEMP/YouGlass-${version}-arm64.zip"
+          ./script/package_dmg.sh "$RUNNER_TEMP/YouGlass-${version}-arm64.dmg"
+
+      - name: Notarize release archives
+        shell: bash
+        env:
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER: ${{ secrets.APPLE_NOTARY_ISSUER }}
+          APPLE_NOTARY_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARY_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
+          for archive in "$RUNNER_TEMP"/YouGlass-*.zip "$RUNNER_TEMP"/YouGlass-*.dmg; do
+            xcrun notarytool submit "$archive" --key "$RUNNER_TEMP/AuthKey_${APPLE_NOTARY_KEY_ID}.p8" --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER" --wait
+          done
+
+      - name: Generate Sparkle appcast
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          input="$RUNNER_TEMP/youglass-appcast-input"
+          mkdir -p "$input"
+          cp "$RUNNER_TEMP/YouGlass-${version}-arm64.zip" "$input/YouGlass-${version}-arm64.zip"
+          cp "RELEASE_NOTES/${version}.md" "$input/YouGlass-${version}-arm64.md"
+          curl --fail --location --silent --show-error \
+            "https://github.com/${REPOSITORY}/releases/latest/download/appcast.xml" \
+            --output "$input/appcast.xml" || true
+          sparkle_bin=".build/artifacts/sparkle/Sparkle/bin"
+          printf '%s' "$SPARKLE_PRIVATE_KEY" | "$sparkle_bin/generate_appcast" \
+            --ed-key-file - \
+            --embed-release-notes \
+            --download-url-prefix "https://github.com/${REPOSITORY}/releases/download/v${version}/" \
+            --link "https://github.com/${REPOSITORY}" \
+            "$input"
+          cp "$input/appcast.xml" "$RUNNER_TEMP/appcast.xml"
+
+      - name: Publish GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            "$RUNNER_TEMP/YouGlass-${version}-arm64.zip" \
+            "$RUNNER_TEMP/YouGlass-${version}-arm64.dmg" \
+            "$RUNNER_TEMP/appcast.xml" \
+            --repo "$REPOSITORY" \
+            --title "YouGlass ${version}" \
+            --notes-file "RELEASE_NOTES/${version}.md"
