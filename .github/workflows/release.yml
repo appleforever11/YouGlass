@@ -68,6 +68,9 @@ jobs:
       - name: Resolve dependencies
         run: swift package resolve
 
+      - name: Run tests
+        run: ./script/test.sh
+
       - name: Build release archives
         shell: bash
         env:

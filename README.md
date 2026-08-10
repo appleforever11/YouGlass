@@ -24,10 +24,11 @@ After installation, use **YouGlass > Check for Updates...** to check the GitHub-
 
 ```sh
 swift package resolve
+./script/test.sh
 ./script/build_and_run.sh
 ```
 
-The build script stages a complete `.app` bundle, including `Sparkle.framework` and its updater helpers. `./script/build_and_run.sh --verify` builds, launches, and verifies the signed bundle. `./script/package_dmg.sh` creates the installable DMG. `./script/package_release.sh 1.0.0` creates the Sparkle-compatible arm64 ZIP.
+The test script stages Sparkle for SwiftPM's test runner before running the test suite. The build script stages a complete `.app` bundle, including `Sparkle.framework` and its updater helpers. `./script/build_and_run.sh --verify` builds, launches, and verifies the signed bundle. `./script/package_dmg.sh` creates the installable DMG. `./script/package_release.sh 1.0.0` creates the Sparkle-compatible arm64 ZIP.
 
 ## Version policy
 
