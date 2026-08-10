@@ -3,6 +3,33 @@
     <channel>
         <title>YouGlass</title>
         <item>
+            <title>1.0.4</title>
+            <pubDate>Mon, 10 Aug 2026 16:12:06 -0400</pubDate>
+            <link>https://github.com/appleforever11/YouGlass</link>
+            <sparkle:version>1.0.4</sparkle:version>
+            <sparkle:shortVersionString>1.0.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# YouGlass 1.0.4
+
+This patch hardens video playback and PIP cleanup on Apple Silicon Macs.
+
+## Highlights
+
+- Fixed a crash that could occur when switching videos, dismissing PIP, or closing the player while WebKit was committing a media frame.
+- Kept the native player surface lifetime stable during video changes to reduce stale WebKit layer-tree callbacks.
+- Ignored late playback, navigation, and snapshot callbacks after a player has been dismissed.
+- Made desktop PIP teardown orderly so closed player surfaces do not continue using stale WebKit resources.
+
+## Compatibility
+
+- Apple Silicon only.
+- macOS 14 or later.
+- Existing Google/YouTube account data, settings, and Sparkle preferences are preserved.
+]]></description>
+            <enclosure url="https://github.com/appleforever11/YouGlass/releases/download/v1.0.4/YouGlass-1.0.4-arm64.zip" length="4343452" type="application/octet-stream" sparkle:edSignature="rqrhUdlubs+fPGjmmlLII0LOwtOo6kg/H+WYE98h+hGNOL4jr+qkG3f11el/J/S+ZyCAmQgad86IjcMn8qFGAA=="/>
+        </item>
+        <item>
             <title>1.0.3</title>
             <pubDate>Mon, 10 Aug 2026 15:20:01 -0400</pubDate>
             <link>https://github.com/appleforever11/YouGlass</link>
@@ -54,33 +81,6 @@ This maintenance patch makes the updater easier to find and use.
 - macOS 14 or later.
 ]]></description>
             <enclosure url="https://github.com/appleforever11/YouGlass/releases/download/v1.0.2/YouGlass-1.0.2-arm64.zip" length="4322924" type="application/octet-stream" sparkle:edSignature="oOyrdbFE1xnRAYjiudW5lQ6CjUCLXTcnu7kP4uk9e/GhjNZwQidJrPHnk48++VzSmOCX+1aJn+k88VngBI+EAA=="/>
-        </item>
-        <item>
-            <title>1.0.1</title>
-            <pubDate>Sun, 09 Aug 2026 22:37:53 -0400</pubDate>
-            <link>https://github.com/appleforever11/YouGlass</link>
-            <sparkle:version>1.0.1</sparkle:version>
-            <sparkle:shortVersionString>1.0.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# YouGlass 1.0.1
-
-This patch adds a more tactile way to browse video artwork in YouGlass.
-
-## Highlights
-
-- Added a pointer-reactive parallax hover effect to home feed thumbnails, compact recommendations, channel videos, and Up Next items.
-- Added a restrained liquid-glass lift with gentle tilt, image drift, and spring-back motion.
-- Kept thumbnail motion inside each artwork frame so hovering does not reflow or resize surrounding cards.
-- Improved hover hit testing across the full thumbnail surface.
-
-## Compatibility
-
-- Apple Silicon only.
-- macOS 14 or later.
-- No account, playback, or YouTube API behavior changed in this patch.
-]]></description>
-            <enclosure url="https://github.com/appleforever11/YouGlass/releases/download/v1.0.1/YouGlass-1.0.1-arm64.zip" length="4324281" type="application/octet-stream" sparkle:edSignature="4b7LsfqBQjwOJ6Fv5GTF+7CeguaXgtS9YksGZ4GZ7TMSlNalTWTuOmxKRnIX11rMYBh4JXtedMwVn1+GQDWpBA=="/>
         </item>
     </channel>
 </rss>

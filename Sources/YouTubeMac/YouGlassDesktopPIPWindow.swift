@@ -102,14 +102,30 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         // same run-loop turn, which can crash SwiftUI's platform responder.
         // Order out immediately, then detach the old host on the next turn.
         let oldContainer = contentContainer
+        let oldHostingView = hostingView
         let panel = panel
+        panel?.ignoresMouseEvents = true
+
+        // Replace the SwiftUI tree first. This gives NSViewRepresentable a
+        // normal removal transaction while the content container is still
+        // attached, instead of destroying a WebKit layer tree and its host
+        // view in the same AppKit operation.
+        oldHostingView?.rootView = AnyView(Color.clear)
         contentContainer = nil
         hostingView = nil
         panel?.orderOut(nil)
+
+        // Keep the old container alive for two main-queue turns. WebKit can
+        // deliver a final remote layer-tree commit after the SwiftUI removal
+        // callback; releasing the host only after that transaction prevents
+        // the macOS 26 WebKit/SwiftUI lifetime race.
         DispatchQueue.main.async { [weak panel] in
             guard let panel, let oldContainer,
                   panel.contentView === oldContainer else { return }
-            panel.contentView = nil
+            DispatchQueue.main.async {
+                guard panel.contentView === oldContainer else { return }
+                panel.contentView = nil
+            }
         }
         logger.notice("Closed desktop PIP")
     }

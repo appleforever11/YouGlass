@@ -28,10 +28,12 @@ final class YouTubePlaybackController: ObservableObject {
     private var pictureInPictureFallbackTask: Task<Void, Never>?
     private var loadWatchdogTask: Task<Void, Never>?
     private var loadGeneration = 0
+    private var isAttached = false
 
     func attach(to webView: WKWebView, video: VideoItem) {
         clearPictureInPictureFallback()
         self.webView = webView
+        isAttached = true
         prepareAmbientPalette(for: video)
         startAmbientSampling()
         isSurfaceReady = false
@@ -42,6 +44,7 @@ final class YouTubePlaybackController: ObservableObject {
     func detach(from webView: WKWebView) {
         if self.webView === webView {
             self.webView = nil
+            isAttached = false
         }
         visualPaletteTask?.cancel()
         visualPaletteTask = nil
@@ -72,10 +75,9 @@ final class YouTubePlaybackController: ObservableObject {
     }
 
     func stopAndDetach(from webView: WKWebView) {
-        // NSViewRepresentable teardown must not publish SwiftUI state while
-        // AttributeGraph is destroying the view.
-        webView.evaluateJavaScript("window.__youglassControls?.stopPlayback()", completionHandler: nil)
-        webView.stopLoading()
+        // Do not call into WebKit synchronously while SwiftUI/AppKit is dismantling the view.
+        // macOS 26 can be committing a remote layer tree at this point; local detachment is safe,
+        // while stopLoading/evaluateJavaScript are deferred by the representable.
         detach(from: webView)
     }
 
@@ -276,15 +278,19 @@ final class YouTubePlaybackController: ObservableObject {
     }
 
     private func sampleLiveFrame() {
-        guard isPlaying, !snapshotInFlight, let webView else { return }
+        guard isAttached, isPlaying, !snapshotInFlight, let webView else { return }
         snapshotInFlight = true
+        let snapshotWebView = webView
 
         let configuration = WKSnapshotConfiguration()
-        configuration.rect = webView.bounds
-        webView.takeSnapshot(with: configuration) { [weak self] image, _ in
+        configuration.rect = snapshotWebView.bounds
+        snapshotWebView.takeSnapshot(with: configuration) { [weak self, weak snapshotWebView] image, _ in
             let nextPalette = image.flatMap { VideoAmbientPalette.from(image: $0) }
             Task { @MainActor [weak self] in
-                guard let self else { return }
+                guard let self,
+                      self.isAttached,
+                      let snapshotWebView,
+                      self.webView === snapshotWebView else { return }
                 self.snapshotInFlight = false
                 if let nextPalette {
                     self.ambientPalette = nextPalette
@@ -1027,10 +1033,18 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.deactivate()
         coordinator.controller.stopAndDetach(from: webView)
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "youglassPlayback")
-        webView.navigationDelegate = nil
-        webView.uiDelegate = nil
+
+        // Let the current SwiftUI/AppKit transaction finish before touching the WebKit view.
+        // This avoids a macOS 26 crash in WebKit's RemoteLayerTreePropertyApplier when a view is
+        // removed while a layer-tree commit is in flight.
+        DispatchQueue.main.async {
+            webView.stopLoading()
+            webView.configuration.userContentController.removeScriptMessageHandler(forName: "youglassPlayback")
+            webView.navigationDelegate = nil
+            webView.uiDelegate = nil
+        }
     }
 
     fileprivate struct PlaybackMessage: Sendable {
@@ -1097,18 +1111,25 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         let controller: YouTubePlaybackController
         var autoMuteOnStart = false
         private var loadedVideoID: String?
+        private var isActive = true
 
         init(controller: YouTubePlaybackController) {
             self.controller = controller
         }
 
+        func deactivate() {
+            isActive = false
+            loadedVideoID = nil
+        }
+
         @MainActor
         fileprivate func handlePlaybackMessage(_ payload: PlaybackMessage) {
+            guard isActive else { return }
             controller.update(from: payload.dictionary)
         }
 
         func load(video: VideoItem, in webView: WKWebView) {
-            guard video.isPlayableOnYouTube, loadedVideoID != video.id else { return }
+            guard isActive, video.isPlayableOnYouTube, loadedVideoID != video.id else { return }
             var components = URLComponents(url: video.playbackURL, resolvingAgainstBaseURL: false)
             var queryItems = components?.queryItems ?? []
             if !queryItems.contains(where: { $0.name == "autoplay" }) {
@@ -1135,6 +1156,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            guard isActive else { return }
             // YouTube is a client-rendered application. Reapply the player
             // surface and muted-start logic after its initial navigation too.
             let playerScript = YouTubeInlinePlayerView.playerChromeScript.replacingOccurrences(
@@ -1148,6 +1170,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         }
 
         func applyAudioPolicy(in webView: WKWebView) {
+            guard isActive else { return }
             webView.evaluateJavaScript(
                 "window.__youglassControls?.applyAudioPolicy(\(autoMuteOnStart ? "true" : "false"))",
                 completionHandler: nil
@@ -1177,6 +1200,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            guard isActive else { return }
             loadedVideoID = nil
             Task { @MainActor [weak controller] in
                 controller?.handleNavigationFailure(error)
@@ -1184,6 +1208,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            guard isActive else { return }
             loadedVideoID = nil
             Task { @MainActor [weak controller] in
                 controller?.handleNavigationFailure(error)
@@ -1191,6 +1216,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         }
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            guard isActive else { return }
             loadedVideoID = nil
             let error = NSError(
                 domain: "YouGlassPlayback",

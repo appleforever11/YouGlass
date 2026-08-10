@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.4] - 2026-08-10
+
+Hardened player and PIP teardown on Apple Silicon, with a focus on the macOS 26 WebKit crash reported on M4 Mac mini. See [the complete end-user release notes](RELEASE_NOTES/1.0.4.md).
+
 ## [1.0.3] - 2026-08-10
 
 Improved the first-load video transition so the native player keeps a stable frame while the new YouTube media surface connects. See [the complete end-user release notes](RELEASE_NOTES/1.0.3.md).

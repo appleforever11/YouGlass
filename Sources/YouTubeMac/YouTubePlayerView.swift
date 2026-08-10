@@ -35,11 +35,6 @@ struct YouTubePlayerOverlay: View {
                 onCompactDragEnded: onCompactDragEnded
             )
                 .environmentObject(store)
-                // A WKWebView keeps its old document while SwiftUI updates
-                // value inputs. Re-keying the watch surface makes a video
-                // change an explicit media-surface replacement, so the old
-                // frame cannot participate in the new video's first layout.
-                .id(video.id)
         }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.ultraThinMaterial)
@@ -993,7 +988,6 @@ private struct NativeYouTubePlayer: View {
                 // handler receive clicks consistently instead of letting
                 // YouTube's page layer swallow them.
                 .opacity(playbackController.isSurfaceReady ? 1 : 0)
-                .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
                 .allowsHitTesting(false)
 
                 // YouTube's web player can take a few frames to create its
@@ -1005,7 +999,6 @@ private struct NativeYouTubePlayer: View {
                     .id(video.id)
                     .overlay(Color.black.opacity(0.18))
                     .opacity(playbackController.isSurfaceReady ? 0 : 1)
-                    .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
                     .allowsHitTesting(false)
             }
 
