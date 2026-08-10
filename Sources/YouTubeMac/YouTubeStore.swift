@@ -344,9 +344,9 @@ final class YouTubeStore: ObservableObject {
            !cachedVideos.isEmpty {
             let cached = mergeVideos(cachedVideos)
             feed.hero = cached.first ?? feed.hero
-            feed.forYou = Array(cached.prefix(4))
-            feed.trending = Array(cached.dropFirst(4).prefix(4))
-            feed.queue = Array(cached.dropFirst(8).prefix(4))
+            feed.forYou = Array(cached.prefix(8))
+            feed.trending = Array(cached.dropFirst(8).prefix(8))
+            feed.queue = Array(cached.dropFirst(16).prefix(4))
         }
         defer {
             isLoading = false
@@ -456,8 +456,8 @@ final class YouTubeStore: ObservableObject {
                 }
             }
             let result = matches.isEmpty ? VideoItem.samples : matches
-            feed.forYou = Array(result.prefix(4))
-            feed.trending = Array(result.dropFirst(4).prefix(4))
+            feed.forYou = Array(result.prefix(8))
+            feed.trending = Array(result.dropFirst(8).prefix(8))
             feed.queue = Array(result.suffix(min(4, result.count)))
             connectionMessage = "Local results"
             return
@@ -469,8 +469,8 @@ final class YouTubeStore: ObservableObject {
         do {
             let videos = try await client.searchVideos(query: searchTerm, maxResults: 12)
             guard !videos.isEmpty else { return }
-            feed.forYou = Array(videos.prefix(4))
-            feed.trending = Array(videos.dropFirst(4).prefix(4))
+            feed.forYou = Array(videos.prefix(8))
+            feed.trending = Array(videos.dropFirst(8).prefix(8))
             feed.queue = Array(videos.suffix(4))
             connectionMessage = "Connected to YouTube"
         } catch {
@@ -902,9 +902,9 @@ final class YouTubeStore: ObservableObject {
         guard !merged.isEmpty else { return }
         sectionEmptyMessage = nil
         feed.hero = merged.first ?? feed.hero
-        feed.forYou = Array(merged.prefix(4))
-        feed.trending = Array(merged.dropFirst(4).prefix(4))
-        feed.queue = Array(merged.dropFirst(8).prefix(4))
+        feed.forYou = Array(merged.prefix(8))
+        feed.trending = Array(merged.dropFirst(8).prefix(8))
+        feed.queue = Array(merged.dropFirst(16).prefix(4))
         connectionMessage = message
         if cacheFeed, let data = try? JSONEncoder().encode(merged) {
             defaults.set(data, forKey: DefaultsKey.cachedFeed)

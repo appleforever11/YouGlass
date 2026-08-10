@@ -10,6 +10,7 @@ final class YouTubePlaybackController: ObservableObject {
     @Published private(set) var isPlaying = false
     @Published private(set) var isPictureInPictureAvailable = false
     @Published private(set) var isPictureInPictureActive = false
+    @Published private(set) var isSurfaceReady = false
     @Published private(set) var status = "Loading player..."
     @Published private(set) var canRetry = false
     @Published private(set) var currentTime: Double = 0
@@ -33,6 +34,7 @@ final class YouTubePlaybackController: ObservableObject {
         self.webView = webView
         prepareAmbientPalette(for: video)
         startAmbientSampling()
+        isSurfaceReady = false
         status = "Player connected"
         startLoadWatchdog(for: video.id)
     }
@@ -60,6 +62,7 @@ final class YouTubePlaybackController: ObservableObject {
         isPlaying = false
         isPictureInPictureAvailable = false
         isPictureInPictureActive = false
+        isSurfaceReady = false
         canRetry = false
         currentTime = 0
         duration = 0
@@ -84,6 +87,7 @@ final class YouTubePlaybackController: ObservableObject {
         cancelLoadWatchdog()
         visualPaletteTask?.cancel()
         ambientPalette = .neutral
+        isSurfaceReady = false
         currentTime = 0
         duration = 0
         isCaptionsEnabled = false
@@ -118,6 +122,7 @@ final class YouTubePlaybackController: ObservableObject {
             return
         }
         cancelLoadWatchdog()
+        isSurfaceReady = false
         canRetry = true
         status = "Playback unavailable"
     }
@@ -132,6 +137,7 @@ final class YouTubePlaybackController: ObservableObject {
         loadGeneration &+= 1
         canRetry = false
         isPlaying = false
+        isSurfaceReady = false
         currentTime = 0
         duration = 0
         status = "Retrying playback..."
@@ -197,6 +203,17 @@ final class YouTubePlaybackController: ObservableObject {
     }
 
     func update(from payload: [String: Any]) {
+        // WebKit can finish dispatching a callback from the previous watch
+        // page after a new video has already been selected. Those late
+        // callbacks used to mark the new surface ready while it still showed
+        // the previous video's frame. Require the page identity before
+        // allowing media state to affect SwiftUI.
+        guard let activeVideoID,
+              let payloadVideoID = payload["videoID"] as? String,
+              payloadVideoID == activeVideoID else {
+            return
+        }
+
         if let value = payload["muted"] as? Bool { isMuted = value }
         if let value = payload["captionsEnabled"] as? Bool { isCaptionsEnabled = value }
         if let value = payload["playing"] as? Bool { isPlaying = value }
@@ -225,6 +242,7 @@ final class YouTubePlaybackController: ObservableObject {
         if let value = payload["currentTime"] as? NSNumber { currentTime = max(0, value.doubleValue) }
         if let value = payload["duration"] as? NSNumber { duration = max(0, value.doubleValue) }
         if isPlaying || duration > 0 {
+            isSurfaceReady = true
             canRetry = false
             cancelLoadWatchdog()
         }
@@ -442,6 +460,35 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
     let video: VideoItem
     let controller: YouTubePlaybackController
     let autoMuteOnStart: Bool
+
+    // Keep WebKit's first paint dark while YouTube builds its client-rendered
+    // player. The native thumbnail remains visible until a real media frame
+    // is reported, so the watch layout never flashes a white page.
+    private static let initialSurfaceScript = """
+    (() => {
+      const styleID = 'youglass-initial-surface-style';
+      const styleText = `
+        html, body {
+          background: #000 !important;
+          margin: 0 !important;
+        }
+      `;
+      const install = () => {
+        const root = document.documentElement;
+        if (!root) return;
+        root.style.backgroundColor = '#000';
+        let style = document.getElementById(styleID);
+        if (!style) {
+          style = document.createElement('style');
+          style.id = styleID;
+          (document.head || root).appendChild(style);
+        }
+        if (style.textContent !== styleText) style.textContent = styleText;
+      };
+      install();
+      document.addEventListener('DOMContentLoaded', install, { once: true });
+    })();
+    """
 
     private static let playerChromeScript = """
     (() => {
@@ -686,6 +733,18 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         return Boolean(window.__youglassCaptionsEnabled);
       };
 
+      const currentVideoID = () => {
+        try {
+          const url = new URL(window.location.href);
+          const watchID = url.searchParams.get('v');
+          if (watchID) return watchID;
+          const match = url.pathname.match(/\\/(?:embed\\/|shorts\\/)?([A-Za-z0-9_-]{11})(?:$|\\/)/);
+          return match ? match[1] : null;
+        } catch (_) {
+          return null;
+        }
+      };
+
       const emitState = status => {
         const media = document.querySelector('video');
         if (!media || !window.webkit?.messageHandlers?.youglassPlayback) return;
@@ -695,6 +754,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           media.webkitSupportsPresentationMode('picture-in-picture')
         );
         window.webkit.messageHandlers.youglassPlayback.postMessage({
+          videoID: currentVideoID(),
           muted: Boolean(media.muted || media.volume === 0),
           captionsEnabled: readCaptionsState(),
           playing: !media.paused && !media.ended,
@@ -918,6 +978,13 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         configuration.allowsAirPlayForMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        configuration.userContentController.addUserScript(
+            WKUserScript(
+                source: Self.initialSurfaceScript,
+                injectionTime: .atDocumentStart,
+                forMainFrameOnly: true
+            )
+        )
         let playerScript = Self.playerChromeScript.replacingOccurrences(
             of: "__YOUGLASS_AUTO_MUTE__",
             with: autoMuteOnStart ? "true" : "false"
@@ -940,6 +1007,8 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+        webView.wantsLayer = true
+        webView.layer?.backgroundColor = NSColor.black.cgColor
         webView.underPageBackgroundColor = .black
         controller.attach(to: webView, video: video)
         context.coordinator.autoMuteOnStart = autoMuteOnStart
@@ -965,6 +1034,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
     }
 
     fileprivate struct PlaybackMessage: Sendable {
+        let videoID: String?
         let muted: Bool?
         let captionsEnabled: Bool?
         let playing: Bool?
@@ -977,6 +1047,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         init?(body: Any) {
             guard let payload = body as? [String: Any] else { return nil }
 
+            videoID = payload["videoID"] as? String
             muted = payload["muted"] as? Bool
             captionsEnabled = payload["captionsEnabled"] as? Bool
             playing = payload["playing"] as? Bool
@@ -986,13 +1057,14 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             pipActive = payload["pipActive"] as? Bool
             status = payload["status"] as? String
 
-            guard muted != nil || captionsEnabled != nil || playing != nil || currentTime != nil || duration != nil || pipAvailable != nil || pipActive != nil || status != nil else {
+            guard videoID != nil || muted != nil || captionsEnabled != nil || playing != nil || currentTime != nil || duration != nil || pipAvailable != nil || pipActive != nil || status != nil else {
                 return nil
             }
         }
 
         var dictionary: [String: Any] {
             var result: [String: Any] = [:]
+            if let videoID { result["videoID"] = videoID }
             if let muted { result["muted"] = muted }
             if let captionsEnabled { result["captionsEnabled"] = captionsEnabled }
             if let playing { result["playing"] = playing }
@@ -1055,7 +1127,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
 
             var request = URLRequest(
                 url: url,
-                cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+                cachePolicy: .useProtocolCachePolicy,
                 timeoutInterval: 30
             )
             request.setValue("https://www.youtube.com/", forHTTPHeaderField: "Referer")

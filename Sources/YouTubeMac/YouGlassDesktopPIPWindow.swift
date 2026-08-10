@@ -59,9 +59,9 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         }
 
         let visibleFrame = visibleFrame(for: panel)
-        let fittedSize = fittedSize(for: panel.frame.size, in: visibleFrame)
-        if panel.frame.size != fittedSize {
-            setFrame(NSRect(origin: panel.frame.origin, size: fittedSize), on: panel)
+        let fittedFrameSize = fittedFrameSize(for: panel.frame.size, in: visibleFrame, window: panel)
+        if panel.frame.size != fittedFrameSize {
+            setFrame(NSRect(origin: panel.frame.origin, size: fittedFrameSize), on: panel)
         }
 
         panel.alphaValue = 1
@@ -77,17 +77,17 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         windowController?.showWindow(nil)
         panel.orderFrontRegardless()
         panel.makeKey()
-        // Ordering a newly-created borderless panel can restore its initial
+        // Ordering a newly-created floating window can restore its initial
         // origin. Snap after it is visible so the desktop coordinates win.
         move(to: store.compactPlayerCorner, animated: false)
         let corner = store.compactPlayerCorner
         schedulePlacement(of: corner, after: 0)
         schedulePlacement(of: corner, after: 0.12)
         schedulePlacement(of: corner, after: 0.35)
-        // A borderless panel can report windowNumber == 0 for the first
-        // instant after ordering. Visibility is verified after the delayed
-        // placement callbacks; the caller must not treat that transient value
-        // as a failed presentation.
+        // A newly-created floating window can report windowNumber == 0 for
+        // the first instant after ordering. Visibility is verified after the
+        // delayed placement callbacks; the caller must not treat that
+        // transient value as a failed presentation.
         let presented = panel.isVisible || panel.windowNumber != 0
         logger.notice("Presented desktop PIP frame=\(String(describing: panel.frame), privacy: .public) visible=\(panel.isVisible, privacy: .public) windowNumber=\(panel.windowNumber, privacy: .public)")
         return presented
@@ -155,6 +155,13 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         // when the main SwiftUI window changes state during presentation.
         let panel = NSWindow(
             contentRect: initialFrame(for: corner),
+            // Keep the titled content window as the AppKit lifecycle anchor.
+            // A borderless NSWindow can be closed during the SwiftUI handoff
+            // when the main player is removed, which leaves the app reporting
+            // PIP active without a visible floating host. The transparent
+            // titlebar is still visually hidden below, while the content
+            // view's full-bleed constraints keep the player and controls
+            // inside the actual window bounds.
             styleMask: [.titled, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -163,7 +170,7 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         panel.level = .floating
         panel.isMovable = true
         panel.isMovableByWindowBackground = true
-        panel.minSize = minimumSize
+        panel.minSize = frameSize(forContentSize: minimumSize, window: panel)
         panel.contentAspectRatio = NSSize(width: 16, height: 9)
         panel.resizeIncrements = NSSize(width: 16, height: 9)
         panel.hasShadow = true
@@ -198,7 +205,7 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
 
     private func frame(for corner: CompactPlayerCorner, window: NSWindow) -> NSRect {
         let visibleFrame = visibleFrame(for: window)
-        let size = fittedSize(for: window.frame.size, in: visibleFrame)
+        let size = fittedFrameSize(for: window.frame.size, in: visibleFrame, window: window)
         let x = corner == .topLeading || corner == .bottomLeading
             ? visibleFrame.minX + screenInset
             : visibleFrame.maxX - size.width - screenInset
@@ -216,7 +223,7 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
 
     private func clamped(_ frame: NSRect, for window: NSWindow) -> NSRect {
         let visibleFrame = visibleFrame(for: window, proposedFrame: frame)
-        let size = fittedSize(for: frame.size, in: visibleFrame)
+        let size = fittedFrameSize(for: frame.size, in: visibleFrame, window: window)
         var result = frame
         result.size = size
         result.origin.x = min(
@@ -230,14 +237,29 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         return result
     }
 
-    private func fittedSize(for proposedSize: NSSize, in visibleFrame: NSRect) -> NSSize {
-        let availableWidth = max(1, visibleFrame.width - screenInset * 2)
-        let availableHeight = max(1, visibleFrame.height - screenInset * 2)
+    private func fittedFrameSize(
+        for proposedFrameSize: NSSize,
+        in visibleFrame: NSRect,
+        window: NSWindow
+    ) -> NSSize {
+        // `NSWindow.frame` includes the titlebar even with a transparent,
+        // full-size content view. Keep the aspect-ratio math in content
+        // coordinates, then convert the result back to a frame size. Treating
+        // the frame height as content height is what clipped the PIP toolbar
+        // below the window's visible bottom edge.
+        let availableFrameSize = NSSize(
+            width: max(1, visibleFrame.width - screenInset * 2),
+            height: max(1, visibleFrame.height - screenInset * 2)
+        )
+        let availableContentSize = contentSize(forFrameSize: availableFrameSize, window: window)
+        let proposedContentSize = contentSize(forFrameSize: proposedFrameSize, window: window)
+        let availableWidth = max(1, availableContentSize.width)
+        let availableHeight = max(1, availableContentSize.height)
         let minimumWidth = min(minimumSize.width, availableWidth)
         let minimumHeight = min(minimumSize.height, availableHeight)
         let aspectRatio = CGFloat(16.0 / 9.0)
 
-        var width = min(max(proposedSize.width, minimumWidth), availableWidth)
+        var width = min(max(proposedContentSize.width, minimumWidth), availableWidth)
         var height = width / aspectRatio
         if height > availableHeight {
             height = availableHeight
@@ -246,14 +268,24 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
 
         width = max(minimumWidth, width)
         height = max(minimumHeight, min(availableHeight, width / aspectRatio))
-        return NSSize(width: width, height: height)
+        return frameSize(forContentSize: NSSize(width: width, height: height), window: window)
+    }
+
+    private func contentSize(forFrameSize size: NSSize, window: NSWindow) -> NSSize {
+        let frameRect = NSRect(origin: .zero, size: size)
+        return window.contentRect(forFrameRect: frameRect).size
+    }
+
+    private func frameSize(forContentSize size: NSSize, window: NSWindow) -> NSSize {
+        let contentRect = NSRect(origin: .zero, size: size)
+        return window.frameRect(forContentRect: contentRect).size
     }
 
     private func setFrame(_ frame: NSRect, on window: NSWindow, animated: Bool = false) {
         guard !applyingFrame else { return }
         applyingFrame = true
         window.setFrame(frame, display: true, animate: animated)
-        // Borderless panels can retain the launch origin when their hosting
+        // Floating windows can retain the launch origin when their hosting
         // view finishes its first layout pass. Set the origin directly as a
         // second step so the desktop corner is applied in AppKit coordinates.
         if !animated {
@@ -270,7 +302,7 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
                 await Task.yield()
             }
             guard let self, let panel else { return }
-            // A newly-created borderless panel may report isVisible == false
+            // A newly-created floating window may report isVisible == false
             // for the first run-loop turns even though it has been ordered.
             // Ordering it here makes the delayed placement deterministic.
             panel.makeKeyAndOrderFront(nil)

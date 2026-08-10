@@ -3,6 +3,34 @@
     <channel>
         <title>YouGlass</title>
         <item>
+            <title>1.0.3</title>
+            <pubDate>Mon, 10 Aug 2026 15:20:01 -0400</pubDate>
+            <link>https://github.com/appleforever11/YouGlass</link>
+            <sparkle:version>1.0.3</sparkle:version>
+            <sparkle:shortVersionString>1.0.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# YouGlass 1.0.3
+
+This patch makes opening a video feel more immediate and stable.
+
+## Highlights
+
+- Re-keyed the native player surface for each selected video so the previous video's WebKit frame cannot flash into the new player.
+- Ignored late playback callbacks from an earlier video during fast navigation.
+- Reserved the final watch layout before the media surface mounts, reducing the visible resize jump on first load.
+- Limited the connection fade to the media pixels so the player frame, controls, and surrounding details stay fixed.
+- Kept responsive sizing intact across compact MacBook displays, Mac mini setups, and larger screens.
+
+## Compatibility
+
+- Apple Silicon only.
+- macOS 14 or later.
+- No account, playback, or YouTube API permissions change is required.
+]]></description>
+            <enclosure url="https://github.com/appleforever11/YouGlass/releases/download/v1.0.3/YouGlass-1.0.3-arm64.zip" length="4342921" type="application/octet-stream" sparkle:edSignature="ZEfHgZ1+UjEminJ/FQoiJ0h5vuU7hO+kjRCCtmYCeiNH56HYpj5BwOXBFn3IJyeXuN4JnWqziOCc6zmFubZzCg=="/>
+        </item>
+        <item>
             <title>1.0.2</title>
             <pubDate>Sun, 09 Aug 2026 22:48:31 -0400</pubDate>
             <link>https://github.com/appleforever11/YouGlass</link>
@@ -53,37 +81,6 @@ This patch adds a more tactile way to browse video artwork in YouGlass.
 - No account, playback, or YouTube API behavior changed in this patch.
 ]]></description>
             <enclosure url="https://github.com/appleforever11/YouGlass/releases/download/v1.0.1/YouGlass-1.0.1-arm64.zip" length="4324281" type="application/octet-stream" sparkle:edSignature="4b7LsfqBQjwOJ6Fv5GTF+7CeguaXgtS9YksGZ4GZ7TMSlNalTWTuOmxKRnIX11rMYBh4JXtedMwVn1+GQDWpBA=="/>
-        </item>
-        <item>
-            <title>1.0.0</title>
-            <pubDate>Sun, 09 Aug 2026 22:18:16 -0400</pubDate>
-            <link>https://github.com/appleforever11/YouGlass</link>
-            <sparkle:version>1.0.0</sparkle:version>
-            <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# YouGlass 1.0.0
-
-YouGlass is now ready for its first GitHub release on Apple Silicon Macs.
-
-## Highlights
-
-- Added the native YouGlass desktop shell with dark and light appearance modes.
-- Added Google/YouTube account connection and persistent Keychain-backed session storage.
-- Added account-aware home, subscriptions, channel, search, Shorts, library, and history navigation.
-- Added the native player with captions, scrubbing, playback controls, comments, live chat, likes, saves, and resume position support when the corresponding YouTube data is available.
-- Added desktop Picture in Picture with corner pinning and drag repositioning.
-- Added responsive window sizing for MacBook Neo-sized displays, M4 Mac mini displays, and larger external screens.
-- Added the YouGlass app icon and liquid-glass visual system.
-- Added Sparkle update support through signed GitHub release assets.
-
-## Compatibility
-
-- Apple Silicon only for this release.
-- macOS 14 or later.
-- A YouTube/Google sign-in is required for account-specific data. Some official YouTube API features also require the app's configured Data API access.
-]]></description>
-            <enclosure url="https://github.com/appleforever11/YouGlass/releases/download/v1.0.0/YouGlass-1.0.0-arm64.zip" length="4312868" type="application/octet-stream" sparkle:edSignature="mw9zdzIwUfsgxifL4hxv6pdNq4ZN89Pq7bK1j7A5J0JnEXSlCzPl+BAs9OHFDSBogQ9IsALQ0Rwf2dZDnc5kBQ=="/>
         </item>
     </channel>
 </rss>

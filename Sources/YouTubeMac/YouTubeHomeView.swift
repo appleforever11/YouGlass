@@ -236,7 +236,11 @@ struct YouTubeHomeView: View {
         VStack(spacing: 0) {
             topBar
 
-            ScrollView(showsIndicators: false) {
+            // Keep this as the single vertical scroll owner for the home
+            // surface. Nested adaptive grids can otherwise consume the
+            // available height without giving the user a reliable way to
+            // reach the lower recommendation rows on smaller displays.
+            ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 28) {
                     Text(store.selectedSection)
                         .font(.system(size: 24, weight: .bold))
@@ -262,10 +266,20 @@ struct YouTubeHomeView: View {
                         HeroSection(palette: palette)
 
                         if !store.feed.forYou.isEmpty {
-                            VideoRow(title: "For You", videos: store.feed.forYou, palette: palette)
+                            VideoRow(
+                                title: "For You",
+                                videos: store.feed.forYou,
+                                palette: palette,
+                                compact: compact
+                            )
                         }
                         if !store.feed.trending.isEmpty {
-                            VideoRow(title: "Trending", videos: store.feed.trending, palette: palette)
+                            VideoRow(
+                                title: "Trending",
+                                videos: store.feed.trending,
+                                palette: palette,
+                                compact: compact
+                            )
                         }
                     }
                 }
@@ -929,19 +943,27 @@ struct HeroSection: View {
 }
 
 struct VideoRow: View {
+    @EnvironmentObject private var store: YouTubeStore
     let title: String
     let videos: [VideoItem]
     let palette: Palette
+    let compact: Bool
 
     var body: some View {
-        let visibleVideos = Array(videos.prefix(4))
+        // Four columns match the desktop composition. At compact widths,
+        // two larger cards remain readable instead of allowing an adaptive
+        // grid to create tiny cards and unused phantom columns.
+        let columns = Array(
+            repeating: GridItem(.flexible(minimum: 0), spacing: 18),
+            count: compact ? 2 : 4
+        )
 
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text(title)
                     .font(.system(size: 18, weight: .bold))
                 Spacer()
-                Button(action: {}) {
+                Button(action: { store.showSection(title) }) {
                     HStack(spacing: 8) {
                         Text("See All")
                         Image(systemName: "chevron.right")
@@ -957,10 +979,10 @@ struct VideoRow: View {
             }
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 170, maximum: 320), spacing: 18)],
+                columns: columns,
                 spacing: 18
             ) {
-                ForEach(visibleVideos) { video in
+                ForEach(videos) { video in
                     VideoCard(video: video, palette: palette)
                 }
             }
@@ -979,11 +1001,9 @@ struct VideoCard: View {
             VStack(alignment: .leading, spacing: 9) {
                 ZStack(alignment: .bottomTrailing) {
                     RemoteImage(url: video.imageURL)
-                        .frame(height: 132)
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .videoThumbnailParallax()
                         .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
 
                     if !video.duration.isEmpty {
                         Text(video.duration)
@@ -993,9 +1013,16 @@ struct VideoCard: View {
                             .padding(.vertical, 3)
                             .background(.black.opacity(0.82))
                             .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .padding(7)
+                        .padding(7)
                     }
                 }
+                .frame(maxWidth: .infinity)
+                // Apply the ratio to the box the grid measures, rather than
+                // to a child image. This prevents LazyVGrid from receiving
+                // an unbounded height while a thumbnail is loading.
+                .aspectRatio(16 / 9, contentMode: .fit)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
 
                 Text(video.title)
                     .font(.system(size: 14, weight: .semibold))
@@ -1020,8 +1047,9 @@ struct VideoCard: View {
                     .foregroundStyle(palette.secondaryText)
                     .lineLimit(1)
             }
-            .frame(height: 214, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .buttonStyle(.plain)
     }
 }
@@ -1033,7 +1061,7 @@ struct CompactVideoCard: View {
     var body: some View {
         HStack(spacing: 12) {
             RemoteImage(url: video.imageURL)
-                .frame(width: 92, height: 64)
+                .frame(width: 92, height: 58)
                 .videoThumbnailParallax(translation: 3.5, rotation: 2.2)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -1052,8 +1080,8 @@ struct CompactVideoCard: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(8)
-        .frame(height: 78)
+        .padding(7)
+        .frame(height: 76)
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))

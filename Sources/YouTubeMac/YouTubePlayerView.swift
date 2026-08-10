@@ -35,6 +35,11 @@ struct YouTubePlayerOverlay: View {
                 onCompactDragEnded: onCompactDragEnded
             )
                 .environmentObject(store)
+                // A WKWebView keeps its old document while SwiftUI updates
+                // value inputs. Re-keying the watch surface makes a video
+                // change an explicit media-surface replacement, so the old
+                // frame cannot participate in the new video's first layout.
+                .id(video.id)
         }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.ultraThinMaterial)
@@ -49,29 +54,40 @@ struct YouTubePlayerOverlay: View {
                                 }
                             } label: {
                                 Image(systemName: "arrow.up.and.down.and.arrow.left.and.right")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .frame(width: 32, height: 32, alignment: .center)
+                                    .font(.system(size: 15, weight: .bold))
                             }
-                            .buttonStyle(GlassIconButtonStyle(palette: palette))
+                            .buttonStyle(PIPWindowControlButtonStyle())
                             .contentShape(Circle())
+                            .accessibilityIdentifier("pip-position-button")
                             .help("Move Picture in Picture")
 
                             Button(action: store.expandPlayer) {
                                 Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .frame(width: 32, height: 32, alignment: .center)
+                                    .font(.system(size: 14, weight: .bold))
                             }
-                            .buttonStyle(GlassIconButtonStyle(palette: palette))
+                            .buttonStyle(PIPWindowControlButtonStyle())
+                            .accessibilityIdentifier("pip-expand-button")
                             .help("Expand player")
 
                             Button(action: store.dismissPlayer) {
                                 Image(systemName: "xmark")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .frame(width: 32, height: 32, alignment: .center)
+                                    .font(.system(size: 14, weight: .bold))
                             }
-                            .buttonStyle(GlassIconButtonStyle(palette: palette))
+                            .buttonStyle(PIPWindowControlButtonStyle())
+                            .accessibilityIdentifier("pip-close-button")
                             .help("Stop playback")
                         }
+                        .padding(4)
+                        .background(.regularMaterial, in: Capsule())
+                        .overlay {
+                            Capsule()
+                                .fill(Color.black.opacity(0.42))
+                        }
+                        .overlay {
+                            Capsule()
+                                .stroke(.white.opacity(0.5), lineWidth: 1)
+                        }
+                        .shadow(color: .black.opacity(0.65), radius: 10, y: 4)
 
                         if cornerMenuPresented {
                             VStack(alignment: .leading, spacing: 6) {
@@ -106,12 +122,18 @@ struct YouTubePlayerOverlay: View {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .stroke(palette.stroke, lineWidth: 1)
                             }
-                            .padding(.top, 44)
+                            .padding(.top, 52)
                             .zIndex(2)
                         }
                     }
-                    .padding(10)
+                    // Keep the shelf below the borderless window edge. This
+                    // explicit top inset also protects against a restored
+                    // display scale reporting a fractional hosting origin.
+                    .padding(.top, 30)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .zIndex(20)
                 }
             }
             .overlay {
@@ -161,10 +183,12 @@ private struct NativeWatchScreen: View {
             }
 
             if isCompact {
-                // The desktop PIP host is a fixed-size window. Keep the
-                // player out of the full watch screen's ScrollView so its
-                // bottom transport row receives the complete content height
-                // instead of being clipped by the scroll content viewport.
+                // The desktop PIP host already enforces a 16:9 window. Let
+                // the player consume the complete proposed content rect
+                // instead of asking a nested GeometryReader to infer its
+                // height inside a VStack. The latter can receive an
+                // unbounded/zero height during the hosting view's first
+                // layout pass, which hides both the video and transport row.
                 NativeYouTubePlayer(
                     video: video,
                     palette: palette,
@@ -174,7 +198,9 @@ private struct NativeWatchScreen: View {
                     onCompactDragChanged: onCompactDragChanged,
                     onCompactDragEnded: onCompactDragEnded
                 )
+                .aspectRatio(CompactPlayerMetrics.aspectRatio, contentMode: .fit)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .layoutPriority(1)
                 .accessibilityIdentifier("player-main-scroll")
             } else {
                 // Measuring two complete watch-screen hierarchies with
@@ -182,10 +208,19 @@ private struct NativeWatchScreen: View {
                 // the pointer is moving. Choose one stable hierarchy from the
                 // available width instead.
                 GeometryReader { geometry in
-                    if geometry.size.width >= 900 {
-                        watchWideLayout
+                    let availableSize = geometry.size
+                    if availableSize.width > 1, availableSize.height > 1 {
+                        if availableSize.width >= 900 {
+                            watchWideLayout(availableSize: availableSize)
+                        } else {
+                            watchNarrowLayout(availableSize: availableSize)
+                        }
                     } else {
-                        watchNarrowLayout
+                        // Avoid mounting WebKit into a zero-size first pass.
+                        // The next layout pass supplies the real watch rect,
+                        // at which point the player is created at its final
+                        // size instead of visibly growing into it.
+                        Color.black
                     }
                 }
             }
@@ -285,13 +320,29 @@ private struct NativeWatchScreen: View {
         }
     }
 
-    private var watchWideLayout: some View {
-        HStack(alignment: .top, spacing: 18) {
+    private func watchWideLayout(availableSize: CGSize) -> some View {
+        let horizontalPadding: CGFloat = 18
+        let columnSpacing: CGFloat = 18
+        let sideColumnWidth: CGFloat = 280
+        let playerWidth = max(
+            1,
+            availableSize.width - (horizontalPadding * 2) - columnSpacing - sideColumnWidth
+        )
+
+        return HStack(alignment: .top, spacing: 18) {
             ScrollView(showsIndicators: true) {
-                watchDetailsContent
+                watchDetailsContent(playerWidth: playerWidth)
                     .padding(.bottom, 24)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // The scroll view previously left the player height to an
+            // unconstrained aspect-ratio negotiation. That caused WebKit to
+            // mount in a temporary oversized rectangle before the async side
+            // rail finished loading. Reserve the exact left-column width and
+            // 16:9 height before the media surface is attached.
+            // Pin the scroll viewport to the already-resolved watch height.
+            // Leaving this to ScrollView's intrinsic negotiation is what
+            // allowed the first player mount to briefly use the wrong height.
+            .frame(width: playerWidth, height: availableSize.height, alignment: .top)
             .accessibilityIdentifier("player-main-scroll")
 
             watchSideColumn
@@ -300,19 +351,23 @@ private struct NativeWatchScreen: View {
         .padding(.bottom, 18)
     }
 
-    private var watchNarrowLayout: some View {
-        ScrollView(showsIndicators: true) {
+    private func watchNarrowLayout(availableSize: CGSize) -> some View {
+        let horizontalPadding: CGFloat = 12
+        let playerWidth = max(1, availableSize.width - horizontalPadding * 2)
+
+        return ScrollView(showsIndicators: true) {
             VStack(alignment: .leading, spacing: 16) {
-                watchDetailsContent
+                watchDetailsContent(playerWidth: playerWidth)
                 compactRelatedRail
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, horizontalPadding)
             .padding(.bottom, 24)
         }
+        .frame(width: availableSize.width, height: availableSize.height, alignment: .top)
         .accessibilityIdentifier("player-main-scroll")
     }
 
-    private var watchDetailsContent: some View {
+    private func watchDetailsContent(playerWidth: CGFloat? = nil) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             NativeYouTubePlayer(
                 video: video,
@@ -323,8 +378,11 @@ private struct NativeWatchScreen: View {
                 onCompactDragChanged: nil,
                 onCompactDragEnded: nil
             )
-            .frame(maxWidth: .infinity)
-            .aspectRatio(16 / 9, contentMode: .fit)
+            .frame(
+                width: playerWidth,
+                height: playerWidth.map { $0 / CompactPlayerMetrics.aspectRatio }
+            )
+            .frame(maxWidth: playerWidth == nil ? .infinity : nil)
 
             Text(video.title)
                 .font(.system(size: 24, weight: .bold))
@@ -915,22 +973,41 @@ private struct NativeYouTubePlayer: View {
     let onCompactDragChanged: ((CGSize) -> Void)?
     let onCompactDragEnded: ((CGSize) -> Void)?
     @State private var controlsVisible = false
+    @State private var isPointerHovering = false
     @State private var controlsHideTask: Task<Void, Never>?
     @State private var scrubPosition = 0.0
     @State private var isScrubbing = false
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            YouTubeInlinePlayerView(
-                video: video,
-                controller: playbackController,
-                autoMuteOnStart: autoMuteOnStart
-            )
-            // WKWebView is deliberately playback-only. Keeping it out of the
-            // hit-test chain lets the native toolbar and surface tap handler
-            // receive clicks consistently instead of letting YouTube's page
-            // layer swallow them.
-            .allowsHitTesting(false)
+            ZStack {
+                Color.black
+
+                YouTubeInlinePlayerView(
+                    video: video,
+                    controller: playbackController,
+                    autoMuteOnStart: autoMuteOnStart
+                )
+                // WKWebView is deliberately playback-only. Keeping it out of
+                // the hit-test chain lets the native toolbar and surface tap
+                // handler receive clicks consistently instead of letting
+                // YouTube's page layer swallow them.
+                .opacity(playbackController.isSurfaceReady ? 1 : 0)
+                .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
+                .allowsHitTesting(false)
+
+                // YouTube's web player can take a few frames to create its
+                // media element. Keep the already-known thumbnail on screen
+                // until that player reports a real duration or playing state.
+                // This removes the white WebKit flash and makes the first
+                // presentation feel like one stable native surface.
+                RemoteImage(url: video.imageURL)
+                    .id(video.id)
+                    .overlay(Color.black.opacity(0.18))
+                    .opacity(playbackController.isSurfaceReady ? 0 : 1)
+                    .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
+                    .allowsHitTesting(false)
+            }
 
             // Keep pointer movement and the click-to-pause surface in AppKit.
             // A transparent SwiftUI Rectangle with both onHover and
@@ -943,6 +1020,7 @@ private struct NativeYouTubePlayer: View {
                     playbackController.togglePlayback()
                 },
                 onHoverChanged: { isHovering in
+                    isPointerHovering = isHovering
                     if isHovering {
                         revealControls()
                     } else {
@@ -952,6 +1030,12 @@ private struct NativeYouTubePlayer: View {
                 onCompactDragChanged: onCompactDragChanged,
                 onCompactDragEnded: onCompactDragEnded
             )
+            // Give the AppKit interaction surface the exact video bounds.
+            // An NSViewRepresentable without an explicit frame can collapse
+            // to its intrinsic size, which makes hover reveal unreliable in
+            // the normal player even though the transport controls are laid
+            // out correctly.
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityHidden(true)
 
             LinearGradient(
@@ -988,104 +1072,128 @@ private struct NativeYouTubePlayer: View {
                 .zIndex(2)
             }
 
-            VStack(spacing: 0) {
-                Spacer()
-                VStack(spacing: 6) {
-                    PlaybackScrubber(
-                        value: scrubberBinding,
-                        duration: durationForScrubber,
-                        elapsedLabel: formatPlaybackTime(displayedScrubTime),
-                        durationLabel: formatPlaybackTime(playbackController.duration),
-                        onEditingChanged: handleScrubbing
+        }
+        // Align the transport to the actual bottom edge of the player. This
+        // overlay is intentionally outside the content ZStack so its height
+        // cannot participate in the media/title layout or push the buttons
+        // into the title band below the video.
+        .overlay(alignment: .bottom) {
+            VStack(spacing: 6) {
+                PlaybackScrubber(
+                    value: scrubberBinding,
+                    duration: durationForScrubber,
+                    elapsedLabel: formatPlaybackTime(displayedScrubTime),
+                    durationLabel: formatPlaybackTime(playbackController.duration),
+                    onEditingChanged: handleScrubbing
+                )
+
+                HStack(spacing: isCompact ? 6 : 10) {
+                    PlayerControlButton(
+                        symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
+                        help: playbackController.isPlaying ? "Pause" : "Play",
+                        controlSize: isCompact ? 32 : 38,
+                        action: playbackController.togglePlayback
                     )
-
-                    HStack(spacing: isCompact ? 6 : 8) {
-                        PlayerControlButton(
-                            symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
-                            help: playbackController.isPlaying ? "Pause" : "Play",
-                            controlSize: isCompact ? 32 : 38,
-                            action: playbackController.togglePlayback
-                        )
-                        PlayerControlButton(symbol: "gobackward.15", help: "Back 15 seconds", controlSize: isCompact ? 32 : 38) {
-                            playbackController.seek(by: -15)
-                        }
-                        PlayerControlButton(symbol: "goforward.15", help: "Forward 15 seconds", controlSize: isCompact ? 32 : 38) {
-                            playbackController.seek(by: 15)
-                        }
-                        PlayerControlButton(
-                            symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                            help: playbackController.isMuted ? "Unmute" : "Mute",
-                            controlSize: isCompact ? 32 : 38,
-                            action: playbackController.toggleMute
-                        )
-                        PlayerControlButton(
-                            symbol: playbackController.isCaptionsEnabled
-                                ? "captions.bubble.fill"
-                                : "captions.bubble",
-                            help: playbackController.isCaptionsEnabled
-                                ? "Turn off closed captions"
-                                : "Turn on closed captions",
-                            controlSize: isCompact ? 32 : 38,
-                            action: playbackController.toggleCaptions
-                        )
-                        .accessibilityIdentifier("captions-button")
-
-                        if !isCompact {
-                            Text(playbackController.isMuted ? "Click to unmute" : playbackController.status)
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.white.opacity(0.88))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.78)
-                                .frame(width: 180, alignment: .leading)
-                        }
-
-                        PlayerControlButton(
-                            symbol: playbackController.isPictureInPictureActive ? "pip.exit" : "pip.enter",
-                            help: playbackController.isPictureInPictureActive
-                                ? "Exit Picture in Picture"
-                                : "Picture in Picture",
-                            isEnabled: true,
-                            controlSize: isCompact ? 32 : 38,
-                            action: {
-                                if isCompact {
-                                    playbackController.togglePictureInPicture {
-                                        // WebKit can reject a system PiP request
-                                        // for a YouTube media element. Keep the
-                                        // YouGlass floating player available as
-                                        // the deterministic fallback.
-                                        store.expandPlayer()
-                                    }
-                                } else {
-                                    store.presentDesktopPIP()
-                                }
-                            }
-                        )
+                    PlayerControlButton(symbol: "gobackward.15", help: "Back 15 seconds", controlSize: isCompact ? 32 : 38) {
+                        playbackController.seek(by: -15)
                     }
-                    // Keep transport controls centered as one stable group.
-                    // The previous spacer pushed PIP to the trailing edge and
-                    // made the toolbar appear to move when the video resized.
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .frame(height: 42)
+                    PlayerControlButton(symbol: "goforward.15", help: "Forward 15 seconds", controlSize: isCompact ? 32 : 38) {
+                        playbackController.seek(by: 15)
+                    }
+                    PlayerControlButton(
+                        symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                        help: playbackController.isMuted ? "Unmute" : "Mute",
+                        controlSize: isCompact ? 32 : 38,
+                        action: playbackController.toggleMute
+                    )
+                    PlayerControlButton(
+                        symbol: playbackController.isCaptionsEnabled
+                            ? "captions.bubble.fill"
+                            : "captions.bubble",
+                        help: playbackController.isCaptionsEnabled
+                            ? "Turn off closed captions"
+                            : "Turn on closed captions",
+                        controlSize: isCompact ? 32 : 38,
+                        action: playbackController.toggleCaptions
+                    )
+                    .accessibilityIdentifier("captions-button")
+
+                    if !isCompact {
+                        Text(playbackController.isMuted ? "Click to unmute" : playbackController.status)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.88))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                            .frame(minWidth: 0, maxWidth: 180, alignment: .leading)
+                    }
+
+                    PlayerControlButton(
+                        symbol: playbackController.isPictureInPictureActive ? "pip.exit" : "pip.enter",
+                        help: playbackController.isPictureInPictureActive
+                            ? "Exit Picture in Picture"
+                            : "Picture in Picture",
+                        isEnabled: true,
+                        controlSize: isCompact ? 32 : 38,
+                        action: {
+                            if isCompact {
+                                playbackController.togglePictureInPicture {
+                                    // WebKit can reject a system PiP request
+                                    // for a YouTube media element. Keep the
+                                    // YouGlass floating player available as
+                                    // the deterministic fallback.
+                                    store.expandPlayer()
+                                }
+                            } else {
+                                store.presentDesktopPIP()
+                            }
+                        }
+                    )
                 }
-                .frame(maxWidth: isCompact ? 320 : 640)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, isCompact ? 10 : 16)
-                .padding(.bottom, isCompact ? 8 : 12)
+                .frame(height: isCompact ? 42 : 46)
             }
-            .opacity(controlsVisible && !playbackController.canRetry ? 1 : 0)
-            .allowsHitTesting(controlsVisible && !playbackController.canRetry)
+            // The overlay gets the player's proposal, so this cap is
+            // responsive: it shrinks with narrow windows and remains centered
+            // at the same width on large displays.
+            .frame(maxWidth: isCompact ? 340 : 820)
+            .padding(.horizontal, isCompact ? 10 : 18)
+            // Leave room for the circular glass treatment itself. The
+            // button's visual radius can extend beyond its nominal row
+            // height, so a small inset is required to keep the lower arc
+            // inside the clipped player surface.
+            // The normal watch page can be scrolled until the player's lower
+            // edge meets the title baseline. Keep the full glass circle,
+            // shadow, and pointer target inside the media surface instead of
+            // letting them spill into the title row.
+            .padding(.bottom, isCompact ? 30 : 72)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .opacity(transportControlsVisible && !playbackController.canRetry ? 1 : 0)
+            .allowsHitTesting(transportControlsVisible && !playbackController.canRetry)
             .zIndex(1)
         }
         .background(.black)
-        .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 24).stroke(.white.opacity(0.12), lineWidth: 1))
+        // Apply the final mask after the transport and its glass effects have
+        // been composed. This keeps optical highlights and shadows from
+        // painting outside the actual player bounds during scroll.
+        .mask(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .onDisappear {
             controlsHideTask?.cancel()
         }
         .onChange(of: video.id) { _, _ in
             scrubPosition = 0
             isScrubbing = false
+            revealControls()
+        }
+        .onChange(of: playbackController.isSurfaceReady) { _, isReady in
+            // WebKit can finish creating the media surface after this view
+            // appears. Reveal the native transport when the first usable
+            // frame is ready instead of letting the initial timer expire
+            // while the player is still loading.
+            if isReady {
+                revealControls()
+            }
         }
         .onAppear {
             // Give the native controls a short discoverable window when a
@@ -1102,6 +1210,14 @@ private struct NativeYouTubePlayer: View {
     private var displayedScrubTime: Double {
         let value = isScrubbing ? scrubPosition : playbackController.currentTime
         return min(max(0, value), durationForScrubber)
+    }
+
+    private var transportControlsVisible: Bool {
+        // A desktop PIP window has no surrounding playback page to reveal
+        // controls on hover. Keep its compact transport row available so the
+        // floating player never appears to be missing playback controls;
+        // the full watch player still follows the transient hover behavior.
+        isCompact || controlsVisible
     }
 
     private var scrubberBinding: Binding<Double> {
@@ -1148,6 +1264,7 @@ private struct NativeYouTubePlayer: View {
         controlsHideTask = Task { @MainActor in
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
             guard !Task.isCancelled else { return }
+            guard !isPointerHovering else { return }
             controlsVisible = false
             controlsHideTask = nil
         }
@@ -1240,7 +1357,10 @@ private final class PlayerInteractionNSView: NSView {
         }
         let area = NSTrackingArea(
             rect: bounds,
-            options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+            // The desktop PIP panel can be ordered above the main window
+            // without being the app's key window. Always-active tracking is
+            // required so its transport controls reveal while hovered.
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
             owner: self,
             userInfo: nil
         )
@@ -1500,8 +1620,14 @@ private struct PlayerControlButton: View {
         .foregroundStyle(.white.opacity(isEnabled ? 1 : 0.42))
         .youGlassControlSurface()
         .overlay {
+            // Keep the native transport legible over bright footage while
+            // preserving the underlying Liquid Glass refraction.
             Circle()
-                .stroke(.white.opacity(0.34), lineWidth: 1)
+                .fill(Color.black.opacity(0.28))
+        }
+        .overlay {
+            Circle()
+                .stroke(.white.opacity(0.52), lineWidth: 1)
         }
         .overlay(alignment: .topLeading) {
             Capsule()
@@ -1515,6 +1641,30 @@ private struct PlayerControlButton: View {
         .contentShape(Circle())
         .disabled(!isEnabled)
         .help(help)
+    }
+}
+
+/// The compact player controls sit directly over arbitrary YouTube imagery.
+/// A generic thin material can disappear over dark footage, so the window
+/// controls use a stable black-glass contrast layer while retaining a glossy
+/// border and a generous pointer target.
+private struct PIPWindowControlButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(.white)
+            .frame(width: 40, height: 40, alignment: .center)
+            .background(.regularMaterial, in: Circle())
+            .overlay {
+                Circle()
+                    .fill(Color.black.opacity(0.48))
+            }
+            .overlay {
+                Circle()
+                    .stroke(.white.opacity(0.72), lineWidth: 1.2)
+            }
+            .shadow(color: .black.opacity(0.58), radius: 8, y: 3)
+            .scaleEffect(configuration.isPressed ? 0.93 : 1)
+            .contentShape(Circle())
     }
 }
 
