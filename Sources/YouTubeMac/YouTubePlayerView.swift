@@ -1608,6 +1608,7 @@ private struct RelatedVideoCard: View {
         HStack(spacing: 10) {
             RemoteImage(url: video.imageURL)
                 .frame(width: 116, height: 66)
+                .videoThumbnailParallax(translation: 3.5, rotation: 2.2)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 

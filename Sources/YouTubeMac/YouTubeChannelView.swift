@@ -304,6 +304,7 @@ private struct ChannelVideoCard: View {
                     RemoteImage(url: video.imageURL)
                         .aspectRatio(16 / 9, contentMode: .fit)
                         .frame(maxWidth: .infinity)
+                        .videoThumbnailParallax()
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 

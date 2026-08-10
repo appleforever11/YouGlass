@@ -981,6 +981,7 @@ struct VideoCard: View {
                     RemoteImage(url: video.imageURL)
                         .frame(height: 132)
                         .frame(maxWidth: .infinity)
+                        .videoThumbnailParallax()
                         .clipped()
                         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
 
@@ -1033,6 +1034,7 @@ struct CompactVideoCard: View {
         HStack(spacing: 12) {
             RemoteImage(url: video.imageURL)
                 .frame(width: 92, height: 64)
+                .videoThumbnailParallax(translation: 3.5, rotation: 2.2)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
