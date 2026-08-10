@@ -25,20 +25,13 @@ struct YouTubeMacApp: App {
         .defaultSize(width: 1160, height: 740)
         .windowResizability(.contentMinSize)
         .commands {
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings...") {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }
-                .keyboardShortcut(",", modifiers: [.command])
-            }
-
-            CommandMenu("YouGlass") {
+            CommandGroup(after: .appSettings) {
                 Button("Check for Updates...") {
                     appDelegate.checkForUpdates()
                 }
+            }
 
-                Divider()
-
+            CommandMenu("YouGlass") {
                 Button("Refresh YouTube Account") {
                     store.refreshAccount()
                 }

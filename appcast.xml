@@ -3,6 +3,31 @@
     <channel>
         <title>YouGlass</title>
         <item>
+            <title>1.0.2</title>
+            <pubDate>Sun, 09 Aug 2026 22:48:31 -0400</pubDate>
+            <link>https://github.com/appleforever11/YouGlass</link>
+            <sparkle:version>1.0.2</sparkle:version>
+            <sparkle:shortVersionString>1.0.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# YouGlass 1.0.2
+
+This maintenance patch makes the updater easier to find and use.
+
+## Highlights
+
+- Added **Check for Updates...** to the native YouGlass application menu.
+- Placed the command directly below About and above Settings, following standard macOS menu placement.
+- Kept Sparkle’s signed GitHub update flow unchanged.
+
+## Compatibility
+
+- Apple Silicon only.
+- macOS 14 or later.
+]]></description>
+            <enclosure url="https://github.com/appleforever11/YouGlass/releases/download/v1.0.2/YouGlass-1.0.2-arm64.zip" length="4322924" type="application/octet-stream" sparkle:edSignature="oOyrdbFE1xnRAYjiudW5lQ6CjUCLXTcnu7kP4uk9e/GhjNZwQidJrPHnk48++VzSmOCX+1aJn+k88VngBI+EAA=="/>
+        </item>
+        <item>
             <title>1.0.1</title>
             <pubDate>Sun, 09 Aug 2026 22:37:53 -0400</pubDate>
             <link>https://github.com/appleforever11/YouGlass</link>
