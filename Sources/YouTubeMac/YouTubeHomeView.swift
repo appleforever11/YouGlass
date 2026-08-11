@@ -10,6 +10,16 @@ struct YouTubeHomeView: View {
     var body: some View {
         GeometryReader { geometry in
             let compactShell = geometry.size.width < 980
+            let shellInset: CGFloat = compactShell ? 8 : 14
+            let sidebarWidth: CGFloat = compactShell ? 76 : 236
+            let mainContentWidth = max(
+                1,
+                geometry.size.width - shellInset * 2 - sidebarWidth
+            )
+            // Base the content breakpoint on the space left after the
+            // sidebar. This keeps medium windows from forcing desktop-sized
+            // grids into a layout that cannot hold them.
+            let compactContent = mainContentWidth < 1_000
 
             ZStack {
                 LiquidBackground(palette: palette, ambientPalette: store.ambientPalette)
@@ -17,7 +27,7 @@ struct YouTubeHomeView: View {
 
                 HStack(spacing: 0) {
                     SidebarView(palette: palette, compact: compactShell)
-                        .frame(width: compactShell ? 76 : 236)
+                        .frame(width: sidebarWidth)
                         .frame(maxHeight: .infinity, alignment: .top)
 
                     ZStack(alignment: .topLeading) {
@@ -25,7 +35,7 @@ struct YouTubeHomeView: View {
                             channelContent
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         } else {
-                            mainContent(compact: compactShell)
+                            mainContent(compact: compactContent)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         }
 
@@ -63,7 +73,7 @@ struct YouTubeHomeView: View {
                 // The hidden title-bar region already contributes a safe inset.
                 // Add only a small visual breathing room so the app surface does
                 // not create a second, oversized black band above the content.
-                .padding(.horizontal, compactShell ? 8 : 14)
+                .padding(.horizontal, shellInset)
                 .padding(.top, compactShell ? 8 : 12)
                 .padding(.bottom, compactShell ? 8 : 14)
             }
@@ -259,11 +269,11 @@ struct YouTubeHomeView: View {
                         }
                         .frame(maxWidth: .infinity, minHeight: 260, alignment: .center)
                     } else if let playlist = store.selectedPlaylist {
-                    PlaylistDetailView(playlist: playlist, palette: palette)
+                        PlaylistDetailView(playlist: playlist, palette: palette)
                     } else if store.selectedSection == "Playlists" {
                         PlaylistLibraryView(palette: palette)
                     } else {
-                        HeroSection(palette: palette)
+                        HeroSection(palette: palette, compact: compact)
 
                         if !store.feed.forYou.isEmpty {
                             VideoRow(
@@ -281,10 +291,30 @@ struct YouTubeHomeView: View {
                                 compact: compact
                             )
                         }
+                        if !store.feed.more.isEmpty {
+                            VideoRow(
+                                title: "More to watch",
+                                videos: store.feed.more,
+                                palette: palette,
+                                compact: compact,
+                                showsSeeAll: false
+                            )
+
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle")
+                                Text("You're all caught up")
+                            }
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(palette.secondaryText)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 24)
+                        }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .padding(.horizontal, compact ? 14 : 30)
-                .padding(.bottom, compact ? 20 : 34)
+                // Leave a real, reachable breathing room after the final row.
+                .padding(.bottom, compact ? 72 : 88)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -778,32 +808,34 @@ private struct PlaylistCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            ZStack(alignment: .bottomTrailing) {
-                RemoteImage(url: playlist.thumbnailURL)
-                    .frame(height: 138)
-                    .frame(maxWidth: .infinity)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            YouGlassVideoPreview {
+                ZStack(alignment: .bottomTrailing) {
+                    RemoteImage(url: playlist.thumbnailURL)
+                        .clipped()
 
-                Label("Open", systemImage: "play.fill")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 9)
-                    .frame(height: 26)
-                    .background(.black.opacity(0.76))
-                    .clipShape(Capsule())
-                    .padding(8)
+                    Label("Open", systemImage: "play.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .frame(height: 26)
+                        .background(.black.opacity(0.76))
+                        .clipShape(Capsule())
+                        .padding(8)
+                }
             }
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
             Text(playlist.title)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(palette.text)
                 .lineLimit(2)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .frame(height: 36, alignment: .topLeading)
             Text(playlist.itemCount > 0 ? "\(playlist.itemCount) videos" : "Playlist")
                 .font(.system(size: 12))
                 .foregroundStyle(palette.secondaryText)
         }
-        .frame(height: 194, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 }
 
@@ -858,13 +890,14 @@ struct SidebarGroup: View {
 struct HeroSection: View {
     @EnvironmentObject private var store: YouTubeStore
     let palette: Palette
+    let compact: Bool
 
     var body: some View {
         GeometryReader { geometry in
             // The queue needs roughly 240 points beside the hero card. Start
             // the compact presentation before that combination can overflow
             // a mid-size MacBook window.
-            let narrow = geometry.size.width < 1_060
+            let narrow = compact
             let ambient = store.ambientPalette
             let heroHeight: CGFloat = narrow ? 240 : 290
             let hasQueue = !narrow && !store.feed.queue.isEmpty
@@ -923,8 +956,8 @@ struct HeroSection: View {
                     .frame(width: copyWidth)
 
                     ZStack(alignment: .bottomLeading) {
-                        RemoteImage(url: store.feed.hero.imageURL)
-                            .frame(maxWidth: .infinity, maxHeight: narrow ? 240 : 290)
+                        RemoteImage(url: store.feed.hero.thumbnailURL)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipped()
 
                         LinearGradient(
@@ -986,7 +1019,7 @@ struct HeroSection: View {
         }
             .frame(width: geometry.size.width, height: heroHeight, alignment: .leading)
         }
-        .frame(height: 290)
+        .frame(height: compact ? 240 : 290)
     }
 }
 
@@ -996,6 +1029,7 @@ struct VideoRow: View {
     let videos: [VideoItem]
     let palette: Palette
     let compact: Bool
+    var showsSeeAll: Bool = true
 
     var body: some View {
         // Four columns match the desktop composition. At compact widths,
@@ -1014,23 +1048,26 @@ struct VideoRow: View {
                 Text(title)
                     .font(.system(size: 19, weight: .bold))
                 Spacer()
-                Button(action: { store.showSection(title) }) {
-                    HStack(spacing: 8) {
-                        Text("See All")
-                        Image(systemName: "chevron.right")
+                if showsSeeAll {
+                    Button(action: { store.showSection(title) }) {
+                        HStack(spacing: 8) {
+                            Text("See All")
+                            Image(systemName: "chevron.right")
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 15)
+                        .frame(height: 36)
+                        .background(palette.accent.opacity(palette.isDark ? 0.12 : 0.08))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
                     }
-                    .font(.system(size: 12, weight: .semibold))
-                    .padding(.horizontal, 15)
-                    .frame(height: 36)
-                    .background(palette.accent.opacity(palette.isDark ? 0.12 : 0.08))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
 
             LazyVGrid(
                 columns: columns,
+                alignment: .leading,
                 spacing: 20
             ) {
                 ForEach(videos) { video in
@@ -1050,35 +1087,30 @@ struct VideoCard: View {
     var body: some View {
         Button(action: { store.open(video) }) {
             VStack(alignment: .leading, spacing: 9) {
-                ZStack(alignment: .bottomTrailing) {
-                    RemoteImage(url: video.imageURL)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .videoThumbnailParallax()
-                        .clipped()
+                YouGlassVideoPreview {
+                    ZStack(alignment: .bottomTrailing) {
+                        RemoteImage(url: video.thumbnailURL)
+                            .videoThumbnailParallax()
+                            .clipped()
 
-                    LinearGradient(
-                        colors: [.clear, .black.opacity(0.28)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.28)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
 
-                    if !video.duration.isEmpty {
-                        Text(video.duration)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 3)
-                            .background(.black.opacity(0.82))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .padding(7)
+                        if !video.duration.isEmpty {
+                            Text(video.duration)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 3)
+                                .background(.black.opacity(0.82))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .padding(7)
+                        }
                     }
                 }
-                .frame(maxWidth: .infinity)
-                // Apply the ratio to the box the grid measures, rather than
-                // to a child image. This prevents LazyVGrid from receiving
-                // an unbounded height while a thumbnail is loading.
-                .aspectRatio(16 / 9, contentMode: .fit)
-                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
@@ -1121,8 +1153,8 @@ struct CompactVideoCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            RemoteImage(url: video.imageURL)
-                .frame(width: 92, height: 58)
+            RemoteImage(url: video.thumbnailURL)
+                .frame(width: 92, height: 52)
                 .videoThumbnailParallax(translation: 3.5, rotation: 2.2)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -1194,6 +1226,27 @@ struct RemoteImage: View {
                 Rectangle().fill(.gray.opacity(0.15))
             }
         }
+    }
+}
+
+/// Keeps every video preview at a deterministic 16:9 size while its remote
+/// image moves through loading, success, or failure states.
+struct YouGlassVideoPreview<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .aspectRatio(16 / 9, contentMode: .fit)
+            .overlay {
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .clipped()
     }
 }
 

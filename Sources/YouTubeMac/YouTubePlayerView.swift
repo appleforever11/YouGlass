@@ -46,10 +46,6 @@ struct YouTubePlayerOverlay: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: isCompact ? 18 : 0, style: .continuous))
-            // Keep the compact chrome in tight overlays. A full-window
-            // transparent ZStack here makes every empty pixel hit-testable,
-            // which blocks the native transport controls underneath it even
-            // though only the three top buttons are visible.
             .overlay(alignment: .topLeading) {
                 if isCompact {
                     HStack(spacing: 8) {
@@ -82,12 +78,6 @@ struct YouTubePlayerOverlay: View {
                         .accessibilityIdentifier("pip-close-button")
                         .help("Stop playback")
                     }
-                    // The compact desktop host uses a full-size content view
-                    // whose safe-area origin can remain at zero even when
-                    // SwiftUI reports the top padding. Offset the rendered
-                    // shelf itself so its circular hit targets cannot be
-                    // clipped by the window's upper edge.
-                    .offset(y: 18)
                     .onHover { isHovering in
                         compactChromePointerHovering = isHovering
                         if isHovering {
@@ -96,9 +86,7 @@ struct YouTubePlayerOverlay: View {
                             scheduleCompactChromeHide(after: 0.9)
                         }
                     }
-                    // Keep only the shelf's own padded bounds interactive;
-                    // the rest of the player remains available to playback
-                    // and the bottom transport.
+                    .offset(y: 18)
                     .padding(.top, 30)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
@@ -328,6 +316,20 @@ private struct NativeWatchScreen: View {
             }
             if details?.isLive == true {
                 await pollLiveChat(liveChatID: details?.liveChatID)
+            }
+        }
+        .task(id: "playback-checkpoint-\(video.id)-\(isCompact)") {
+            // Keep a small rolling checkpoint so dismissing the player, moving
+            // it to desktop PIP, or a process interruption can resume close to
+            // the last visible position without touching the media element.
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                guard !Task.isCancelled else { return }
+                store.savePlaybackPosition(
+                    for: video,
+                    at: playbackController.currentTime,
+                    duration: playbackController.duration
+                )
             }
         }
         .onAppear {
@@ -561,7 +563,11 @@ private struct NativeWatchScreen: View {
                       !actionBusy else { return }
                 actionBusy = true
                 Task {
-                    let succeeded = await store.subscribe(to: channelID)
+                    let succeeded = await store.subscribe(
+                        to: channelID,
+                        channelName: video.channel,
+                        avatarURL: details?.channelAvatarURL
+                    )
                     await MainActor.run {
                         if succeeded { subscribed = true }
                         actionBusy = false
@@ -1051,7 +1057,7 @@ private struct NativeYouTubePlayer: View {
                 // until that player reports a real duration or playing state.
                 // This removes the white WebKit flash and makes the first
                 // presentation feel like one stable native surface.
-                RemoteImage(url: video.imageURL)
+                RemoteImage(url: video.thumbnailURL)
                     .id(video.id)
                     .overlay(Color.black.opacity(0.18))
                     .opacity(playbackController.isSurfaceReady ? 0 : 1)
@@ -1166,7 +1172,7 @@ private struct NativeYouTubePlayer: View {
 
     @ViewBuilder
     private var transportControls: some View {
-            VStack(spacing: 6) {
+        VStack(spacing: 6) {
                 PlaybackScrubber(
                     value: scrubberBinding,
                     duration: durationForScrubber,
@@ -1304,17 +1310,11 @@ private struct NativeYouTubePlayer: View {
             // button's visual radius can extend beyond its nominal row
             // height, so a small inset is required to keep the lower arc
             // inside the clipped player surface.
-            // The normal watch page can be scrolled until the player's lower
-            // edge meets the title baseline. Keep the full glass circle,
-            // shadow, and pointer target inside the media surface instead of
-            // letting them spill into the title row.
             .padding(.bottom, isCompact ? 22 : 72)
             .frame(maxWidth: .infinity, alignment: .center)
-            // Keep the compact transport inside the actual desktop PIP
-            // surface. The floating NSWindow's content rect can be shorter
-            // than its proposed frame by the transparent titlebar inset;
-            // an explicit visual lift prevents the lower half of the circles
-            // from being clipped while retaining the same layout width.
+            // The compact player reserves a small bottom band for its chrome;
+            // lift the row into that band so its circular hit targets stay
+            // completely inside the clipped PIP content rect.
             .offset(y: isCompact ? -22 : 0)
             .onHover { isHovering in
                 isPointerHovering = isHovering
@@ -1350,7 +1350,7 @@ private struct NativeYouTubePlayer: View {
         // Play click can be used as the WebKit user gesture that starts the
         // media element. Once a frame is ready, controls return to the normal
         // hover-driven behavior.
-        isCompact || controlsVisible || (!playbackController.isSurfaceReady && !playbackController.canRetry)
+        isCompact || controlsVisible || isPointerHovering || (!playbackController.isSurfaceReady && !playbackController.canRetry)
     }
 
     private var scrubberBinding: Binding<Double> {
@@ -1720,7 +1720,7 @@ private struct PIPWindowControlButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(.white)
-            .frame(width: 34, height: 34, alignment: .center)
+            .frame(width: 34, height: 34)
             .youGlassControlSurface()
             .overlay {
                 Circle()
@@ -1834,7 +1834,7 @@ private struct RelatedVideoCard: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            RemoteImage(url: video.imageURL)
+            RemoteImage(url: video.thumbnailURL)
                 .frame(width: 116, height: 66)
                 .videoThumbnailParallax(translation: 3.5, rotation: 2.2)
                 .clipped()

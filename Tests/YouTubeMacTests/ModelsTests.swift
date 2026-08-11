@@ -2,6 +2,33 @@ import XCTest
 @testable import YouTubeMac
 
 final class ModelsTests: XCTestCase {
+    func testPIPTransitionOnlyMatchesItsCurrentVideo() {
+        let presenting = PIPTransitionState.presenting(videoID: "video-a")
+        XCTAssertTrue(presenting.isTransitioning)
+        XCTAssertTrue(presenting.matches(videoID: "video-a"))
+        XCTAssertFalse(presenting.matches(videoID: "video-b"))
+
+        let active = PIPTransitionState.active(videoID: "video-a")
+        XCTAssertFalse(active.isTransitioning)
+        XCTAssertTrue(active.matches(videoID: "video-a"))
+        XCTAssertEqual(PIPTransitionState.idle, .idle)
+    }
+
+    func testPIPHandoffUsesShortAnimatedWindow() {
+        XCTAssertGreaterThan(PIPTransitionPolicy.sourceTeardownDelayNanoseconds, 0)
+        XCTAssertLessThan(PIPTransitionPolicy.sourceTeardownDelayNanoseconds, 500_000_000)
+        XCTAssertGreaterThan(PIPTransitionPolicy.panelFadeDuration, 0)
+        XCTAssertLessThan(PIPTransitionPolicy.panelFadeDuration, 0.5)
+    }
+
+    func testPlaybackCheckpointPolicyHasBoundedResumeData() {
+        XCTAssertEqual(PlaybackCheckpointPolicy.maxEntries, 200)
+        XCTAssertGreaterThan(PlaybackCheckpointPolicy.completionGraceSeconds, 0)
+        XCTAssertLessThan(PlaybackCheckpointPolicy.completionGraceSeconds, 10)
+        XCTAssertGreaterThan(PlaybackCheckpointPolicy.completionFraction, 0.9)
+        XCTAssertLessThan(PlaybackCheckpointPolicy.completionFraction, 1)
+    }
+
     func testParsesStandardWatchURL() {
         let video = VideoItem.fromYouTubeInput("https://www.youtube.com/watch?v=5sTQfGJiVdc")
         XCTAssertEqual(video?.id, "5sTQfGJiVdc")
@@ -62,6 +89,22 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(sameNameDifferentID.matches(channelID: "UC1234567890123456789012", channelName: "Example Channel"))
     }
 
+    func testSubscriptionItemRoundTripsThroughJSON() throws {
+        let item = SubscriptionItem(
+            id: "UC1234567890123456789012",
+            name: "Example Channel",
+            avatarURL: URL(string: "https://example.com/avatar.jpg"),
+            channelURL: URL(string: "https://www.youtube.com/channel/UC1234567890123456789012"),
+            isLive: true
+        )
+
+        let data = try JSONEncoder().encode(item)
+        let decoded = try JSONDecoder().decode(SubscriptionItem.self, from: data)
+
+        XCTAssertEqual(decoded, item)
+        XCTAssertEqual(decoded.canonicalChannelID, item.canonicalChannelID)
+    }
+
     func testParsesShortLiveAndEmbedURLs() {
         let id = "5sTQfGJiVdc"
         XCTAssertEqual(VideoItem.fromYouTubeInput("https://youtu.be/\(id)")?.id, id)
@@ -74,6 +117,25 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(VideoItem.fromYouTubeInput("https://example.com/watch?v=5sTQfGJiVdc"))
         XCTAssertNil(VideoItem.fromYouTubeInput("too-short"))
         XCTAssertNil(VideoItem.fromYouTubeInput("invalid id!"))
+    }
+
+    func testVideoThumbnailFallsBackToYouTubeHostedImage() {
+        let videoID = "5sTQfGJiVdc"
+        let video = VideoItem(
+            id: videoID,
+            title: "Video",
+            channel: "YouTube",
+            views: "",
+            age: "",
+            duration: "",
+            imageURL: nil,
+            verified: false
+        )
+
+        XCTAssertEqual(
+            video.thumbnailURL?.absoluteString,
+            "https://i.ytimg.com/vi/\(videoID)/hqdefault.jpg"
+        )
     }
 
     func testYouTubeAPIErrorClassifiesQuotaAndTransientFailures() {

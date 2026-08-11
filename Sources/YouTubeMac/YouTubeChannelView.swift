@@ -300,25 +300,25 @@ private struct ChannelVideoCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                ZStack(alignment: .bottomTrailing) {
-                    RemoteImage(url: video.imageURL)
-                        .aspectRatio(16 / 9, contentMode: .fit)
-                        .frame(maxWidth: .infinity)
-                        .videoThumbnailParallax()
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                YouGlassVideoPreview {
+                    ZStack(alignment: .bottomTrailing) {
+                        RemoteImage(url: video.thumbnailURL)
+                            .videoThumbnailParallax()
+                            .clipped()
 
-                    if !video.duration.isEmpty {
-                        Text(video.duration)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 3)
-                            .background(.black.opacity(0.82))
-                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                            .padding(7)
+                        if !video.duration.isEmpty {
+                            Text(video.duration)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 3)
+                                .background(.black.opacity(0.82))
+                                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                                .padding(7)
+                        }
                     }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                 Text(video.title)
                     .font(.system(size: 13, weight: .bold))

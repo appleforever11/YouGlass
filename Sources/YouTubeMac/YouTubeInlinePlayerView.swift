@@ -32,8 +32,8 @@ final class YouTubePlaybackController: ObservableObject {
     func attach(to webView: WKWebView, video: VideoItem) {
         clearPictureInPictureFallback()
         self.webView = webView
+        resetPublishedStateForAttachment()
         prepareAmbientPalette(for: video)
-        isSurfaceReady = false
         status = "Player connected"
         startLoadWatchdog(for: video.id)
     }
@@ -46,6 +46,10 @@ final class YouTubePlaybackController: ObservableObject {
         visualPaletteTask = nil
         cancelLoadWatchdog()
         clearPictureInPictureFallback()
+    }
+
+    func isAttached(to webView: WKWebView) -> Bool {
+        self.webView === webView
     }
 
     func stopPlayback() {
@@ -67,10 +71,54 @@ final class YouTubePlaybackController: ObservableObject {
         status = "Playback stopped"
     }
 
-    func stopAndDetach(from webView: WKWebView) {
+    func stopAndDetachDeferred(from webView: WKWebView) {
+        // Pause without removing the media source. Removing src + calling
+        // load() while WebKit is committing a layer tree is the crash-prone
+        // part of the old teardown path.
         webView.evaluateJavaScript("window.__youglassControls?.stopPlayback()", completionHandler: nil)
-        webView.stopLoading()
-        detach(from: webView)
+
+        if self.webView === webView {
+            clearPictureInPictureFallback()
+            cancelLoadWatchdog()
+            loadGeneration &+= 1
+            self.webView = nil
+            // Do not publish SwiftUI state from NSViewRepresentable teardown.
+            // On macOS 26.6, dismantleNSView can run while NSHostingView is
+            // destroying its AttributeGraph. Publishing here re-enters the
+            // graph and aborts with a Swift exclusivity failure. The next
+            // attachment resets the presentation state instead.
+            activeVideoID = nil
+            visualPaletteTask?.cancel()
+            visualPaletteTask = nil
+            pendingResumeVideoID = nil
+            pendingResumePosition = nil
+        }
+
+        // Give the current SwiftUI transaction and WebKit remote layer commit
+        // two main-loop turns before detaching delegates and script handlers.
+        DispatchQueue.main.async { [weak self, weak webView] in
+            DispatchQueue.main.async { [weak self, weak webView] in
+                guard let webView else { return }
+                webView.stopLoading()
+                webView.configuration.userContentController.removeScriptMessageHandler(forName: "youglassPlayback")
+                webView.navigationDelegate = nil
+                webView.uiDelegate = nil
+                self?.detach(from: webView)
+            }
+        }
+    }
+
+    private func resetPublishedStateForAttachment() {
+        isMuted = false
+        isCaptionsEnabled = false
+        isPlaying = false
+        isPictureInPictureAvailable = false
+        isPictureInPictureActive = false
+        isSurfaceReady = false
+        canRetry = false
+        currentTime = 0
+        duration = 0
+        status = "Loading player..."
     }
 
     func prepareAmbientPalette(for video: VideoItem) {
@@ -103,14 +151,17 @@ final class YouTubePlaybackController: ObservableObject {
         }
     }
 
-    func didFinishNavigation() {
-        guard activeVideoID != nil else { return }
+    func didFinishNavigation(for webView: WKWebView) {
+        guard self.webView === webView, activeVideoID != nil else { return }
         canRetry = false
         status = "Preparing player..."
         startLoadWatchdog(for: activeVideoID)
     }
 
-    func handleNavigationFailure(_ error: Error) {
+    func handleNavigationFailure(_ error: Error, for webView: WKWebView? = nil) {
+        if let webView, self.webView !== webView {
+            return
+        }
         let nsError = error as NSError
         if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
             return
@@ -921,8 +972,6 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             media.pause();
             media.muted = true;
             media.volume = 0;
-            media.removeAttribute('src');
-            media.load();
           }
 
           if (document.pictureInPictureElement && document.exitPictureInPicture) {
@@ -1153,10 +1202,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
 
     static func dismantleNSView(_ hostView: YouTubeInlinePlayerHostView, coordinator: Coordinator) {
         let webView = hostView.webView
-        coordinator.controller.stopAndDetach(from: webView)
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "youglassPlayback")
-        webView.navigationDelegate = nil
-        webView.uiDelegate = nil
+        coordinator.controller.stopAndDetachDeferred(from: webView)
     }
 
     fileprivate struct PlaybackMessage: Sendable {
@@ -1275,9 +1321,11 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
                 of: "__YOUGLASS_VIDEO_ID__",
                 with: loadedVideoID ?? ""
             )
-            webView.evaluateJavaScript(playerScript, completionHandler: nil)
-            Task { @MainActor [weak controller] in
-                controller?.didFinishNavigation()
+            Task { @MainActor [weak controller, weak webView] in
+                guard let controller, let webView,
+                      controller.isAttached(to: webView) else { return }
+                webView.evaluateJavaScript(playerScript, completionHandler: nil)
+                controller.didFinishNavigation(for: webView)
             }
         }
 
@@ -1311,30 +1359,33 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            loadedVideoID = nil
-            Task { @MainActor [weak controller] in
-                controller?.handleNavigationFailure(error)
+            Task { @MainActor [weak controller, weak webView] in
+                guard let controller, let webView else { return }
+                controller.handleNavigationFailure(error, for: webView)
             }
         }
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            loadedVideoID = nil
-            Task { @MainActor [weak controller] in
-                controller?.handleNavigationFailure(error)
+            Task { @MainActor [weak controller, weak webView] in
+                guard let controller, let webView else { return }
+                controller.handleNavigationFailure(error, for: webView)
             }
         }
 
         func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-            loadedVideoID = nil
             let error = NSError(
                 domain: "YouGlassPlayback",
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: "The YouTube player process stopped."]
             )
-            Task { @MainActor [weak controller] in
-                controller?.handleNavigationFailure(error)
+            Task { @MainActor [weak controller, weak webView] in
+                guard let controller, let webView else { return }
+                controller.handleNavigationFailure(error, for: webView)
             }
-            webView.reload()
+            // Do not automatically reload a terminated WebKit process. A
+            // reload can overlap a SwiftUI/AppKit detach or PIP handoff and
+            // trigger another remote layer-tree commit. The native retry UI
+            // now gives the user an explicit, isolated recovery action.
         }
     }
 }

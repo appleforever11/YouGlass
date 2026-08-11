@@ -39,6 +39,39 @@ enum CompactPlayerCorner: String, CaseIterable, Identifiable, Equatable {
     }
 }
 
+enum PIPTransitionState: Equatable {
+    case idle
+    case presenting(videoID: String)
+    case active(videoID: String)
+
+    var isTransitioning: Bool {
+        if case .presenting = self { return true }
+        return false
+    }
+
+    func matches(videoID: String) -> Bool {
+        switch self {
+        case .idle:
+            return false
+        case .presenting(let currentID), .active(let currentID):
+            return currentID == videoID
+        }
+    }
+}
+
+enum PIPTransitionPolicy {
+    // Give the source WebView a full SwiftUI/AppKit transaction to tear down
+    // before a new WebKit surface is created for the desktop PIP panel.
+    static let sourceTeardownDelayNanoseconds: UInt64 = 180_000_000
+    static let panelFadeDuration: TimeInterval = 0.18
+}
+
+enum PlaybackCheckpointPolicy {
+    static let maxEntries = 200
+    static let completionGraceSeconds = 3.0
+    static let completionFraction = 0.98
+}
+
 struct VideoAmbientColor: Equatable, Sendable {
     let red: Double
     let green: Double
@@ -109,6 +142,20 @@ struct VideoItem: Identifiable, Hashable, Codable {
         id.count == 11 && id.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil
     }
 
+    /// Web homepage cards can arrive before their lazy thumbnail has been
+    /// attached. A YouTube-hosted fallback keeps the card useful and, more
+    /// importantly, prevents an empty async-image phase from becoming the
+    /// visual state of an otherwise playable video.
+    var thumbnailURL: URL? {
+        if let imageURL {
+            return imageURL
+        }
+        guard isPlayableOnYouTube else {
+            return nil
+        }
+        return URL(string: "https://i.ytimg.com/vi/\(id)/hqdefault.jpg")
+    }
+
     var embedURL: URL? {
         guard isPlayableOnYouTube else {
             return nil
@@ -117,7 +164,7 @@ struct VideoItem: Identifiable, Hashable, Codable {
     }
 }
 
-struct SubscriptionItem: Identifiable, Hashable {
+struct SubscriptionItem: Identifiable, Hashable, Codable {
     let id: String
     let name: String
     let avatarURL: URL?
@@ -218,6 +265,7 @@ struct HomeFeed {
     var queue: [VideoItem]
     var forYou: [VideoItem]
     var trending: [VideoItem]
+    var more: [VideoItem]
 }
 
 /// A small, deterministic ranking layer for the sources YouGlass can access.
@@ -527,7 +575,8 @@ extension VideoItem {
                 samples[6]
             ],
             forYou: Array(samples.prefix(4)),
-            trending: Array(samples.dropFirst(4))
+            trending: Array(samples.dropFirst(4)),
+            more: []
         )
     }
 }

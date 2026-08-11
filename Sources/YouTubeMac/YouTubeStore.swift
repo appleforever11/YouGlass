@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import SwiftUI
 
 @MainActor
@@ -22,6 +23,7 @@ final class YouTubeStore: ObservableObject {
     @Published private(set) var savedVideos: [VideoItem] = []
     @Published private(set) var locallyLikedVideos: [VideoItem] = []
     private var playbackPositions: [String: Double] = [:]
+    private var playbackPositionUpdatedAt: [String: Date] = [:]
     @Published private(set) var playlists: [YouTubePlaylist] = []
     @Published var selectedPlaylist: YouTubePlaylist?
     @Published private(set) var playlistItems: [VideoItem] = []
@@ -32,6 +34,7 @@ final class YouTubeStore: ObservableObject {
     @Published var autoMuteOnStart = false
     @Published var isPlayerCompact = false
     @Published private(set) var isDesktopPIPActive = false
+    @Published private(set) var pipTransitionState: PIPTransitionState = .idle
     @Published var compactPlayerCorner: CompactPlayerCorner = .topTrailing
     @Published private(set) var ambientPalette = VideoAmbientPalette.neutral
     @Published private(set) var lastAccountSyncDate: Date?
@@ -57,7 +60,13 @@ final class YouTubeStore: ObservableObject {
     private var subscriptionsLoaded = false
     private var playbackStopHandler: (() -> Void)?
     private var playbackStopHandlerToken: UUID?
+    private var pipTransitionTask: Task<Void, Never>?
     private let defaults = UserDefaults.standard
+    private let playbackLogger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")
+
+    var isDesktopPIPTransitioning: Bool {
+        pipTransitionState.isTransitioning
+    }
 
     private enum DefaultsKey {
         static let isSignedIn = "YouGlass.isSignedIn"
@@ -71,6 +80,8 @@ final class YouTubeStore: ObservableObject {
         static let savedVideos = "YouGlass.savedVideos"
         static let locallyLikedVideos = "YouGlass.locallyLikedVideos"
         static let playbackPositions = "YouGlass.playbackPositions"
+        static let playbackPositionUpdatedAt = "YouGlass.playbackPositionUpdatedAt"
+        static let cachedSubscriptions = "YouGlass.cachedSubscriptions"
         static let theme = "YouGlass.theme"
         static let lastAccountSyncDate = "YouGlass.lastAccountSyncDate"
     }
@@ -90,6 +101,9 @@ final class YouTubeStore: ObservableObject {
         if let urlString = defaults.string(forKey: DefaultsKey.profileImageURL) {
             profileImageURL = URL(string: urlString)
         }
+        if isSignedIn {
+            subscriptions = decodeSubscriptions()
+        }
         recommendationSeeds = defaults.stringArray(forKey: DefaultsKey.recommendationSeeds) ?? []
         if let data = defaults.data(forKey: DefaultsKey.cachedPersonalizedFeed),
            let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
@@ -108,6 +122,7 @@ final class YouTubeStore: ObservableObject {
         savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
         locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
         playbackPositions = decodePlaybackPositions()
+        playbackPositionUpdatedAt = decodePlaybackPositionDates()
 
         authObservers = [
             NotificationCenter.default.addObserver(
@@ -145,6 +160,7 @@ final class YouTubeStore: ObservableObject {
                     self?.invalidateAccountSignalCache()
                     self?.defaults.set(false, forKey: DefaultsKey.isSignedIn)
                     self?.defaults.removeObject(forKey: DefaultsKey.profileImageURL)
+                    self?.defaults.removeObject(forKey: DefaultsKey.cachedSubscriptions)
                     self?.defaults.removeObject(forKey: DefaultsKey.lastAccountSyncDate)
                 }
             }
@@ -228,6 +244,7 @@ final class YouTubeStore: ObservableObject {
         profileImageURL = nil
         subscriptions = []
         subscriptionsLoaded = false
+        defaults.removeObject(forKey: DefaultsKey.cachedSubscriptions)
         lastAccountSyncDate = nil
         recommendationSeeds = []
         invalidateAccountSignalCache()
@@ -263,23 +280,34 @@ final class YouTubeStore: ObservableObject {
         let safePosition = max(0, seconds)
         let hasFiniteDuration = duration.isFinite && duration > 0
         let isNearCompletion = hasFiniteDuration && (
-            safePosition >= max(0, duration - 3) ||
-            safePosition / duration >= 0.98
+            safePosition >= max(0, duration - PlaybackCheckpointPolicy.completionGraceSeconds) ||
+            safePosition / duration >= PlaybackCheckpointPolicy.completionFraction
         )
 
         if isNearCompletion {
             playbackPositions.removeValue(forKey: video.id)
+            playbackPositionUpdatedAt.removeValue(forKey: video.id)
         } else {
             playbackPositions[video.id] = hasFiniteDuration
                 ? min(safePosition, duration)
                 : safePosition
+            playbackPositionUpdatedAt[video.id] = Date()
         }
 
         // Keep the resume cache bounded so a long-lived account does not turn
         // playback checkpoints into unbounded UserDefaults data.
-        if playbackPositions.count > 200 {
-            let excessIDs = playbackPositions.keys.sorted().prefix(playbackPositions.count - 200)
-            excessIDs.forEach { playbackPositions.removeValue(forKey: $0) }
+        if playbackPositions.count > PlaybackCheckpointPolicy.maxEntries {
+            let excessCount = playbackPositions.count - PlaybackCheckpointPolicy.maxEntries
+            let excessIDs = playbackPositions.keys.sorted { lhs, rhs in
+                let lhsDate = playbackPositionUpdatedAt[lhs] ?? .distantPast
+                let rhsDate = playbackPositionUpdatedAt[rhs] ?? .distantPast
+                if lhsDate == rhsDate { return lhs < rhs }
+                return lhsDate < rhsDate
+            }.prefix(excessCount)
+            excessIDs.forEach {
+                playbackPositions.removeValue(forKey: $0)
+                playbackPositionUpdatedAt.removeValue(forKey: $0)
+            }
         }
         persistPlaybackPositions()
     }
@@ -331,14 +359,14 @@ final class YouTubeStore: ObservableObject {
         if !force,
            let lastHomeLoadDate,
            Date().timeIntervalSince(lastHomeLoadDate) < 15,
-           !feed.forYou.isEmpty || !feed.trending.isEmpty || !feed.queue.isEmpty {
+           !feed.forYou.isEmpty || !feed.trending.isEmpty || !feed.more.isEmpty || !feed.queue.isEmpty {
             return
         }
 
         homeLoadInProgress = true
         isLoading = true
         sectionEmptyMessage = nil
-        if feed.forYou.isEmpty && feed.trending.isEmpty && feed.queue.isEmpty,
+        if feed.forYou.isEmpty && feed.trending.isEmpty && feed.more.isEmpty && feed.queue.isEmpty,
            let data = defaults.data(forKey: DefaultsKey.cachedFeed),
            let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
            !cachedVideos.isEmpty {
@@ -346,7 +374,8 @@ final class YouTubeStore: ObservableObject {
             feed.hero = cached.first ?? feed.hero
             feed.forYou = Array(cached.prefix(8))
             feed.trending = Array(cached.dropFirst(8).prefix(8))
-            feed.queue = Array(cached.dropFirst(16).prefix(4))
+            feed.more = Array(cached.dropFirst(16).prefix(8))
+            feed.queue = Array(cached.dropFirst(24).prefix(4))
         }
         defer {
             isLoading = false
@@ -363,7 +392,7 @@ final class YouTubeStore: ObservableObject {
         }
 
         connectionMessage = "Loading YouTube homepage recommendations..."
-        let webResult = await YouTubeWebFeedBridge.shared.loadHomeVideos(maxResults: 20)
+        let webResult = await YouTubeWebFeedBridge.shared.loadHomeVideos(maxResults: 32)
         if webResult.isSignedIn && !isSignedIn {
             isSignedIn = true
             defaults.set(true, forKey: DefaultsKey.isSignedIn)
@@ -430,7 +459,7 @@ final class YouTubeStore: ObservableObject {
             // project is temporarily rate-limited. Calling search again here
             // only compounds the quota problem and can replace useful content
             // with an error state.
-            connectionMessage = feed.forYou.isEmpty && feed.trending.isEmpty
+            connectionMessage = feed.forYou.isEmpty && feed.trending.isEmpty && feed.more.isEmpty
                 ? error.localizedDescription
                 : "Using saved recommendations. \(error.localizedDescription)"
         }
@@ -455,6 +484,7 @@ final class YouTubeStore: ObservableObject {
             let result = matches.isEmpty ? VideoItem.samples : matches
             feed.forYou = Array(result.prefix(8))
             feed.trending = Array(result.dropFirst(8).prefix(8))
+            feed.more = []
             feed.queue = Array(result.suffix(min(4, result.count)))
             connectionMessage = "Local results"
             return
@@ -468,6 +498,7 @@ final class YouTubeStore: ObservableObject {
             guard !videos.isEmpty else { return }
             feed.forYou = Array(videos.prefix(8))
             feed.trending = Array(videos.dropFirst(8).prefix(8))
+            feed.more = []
             feed.queue = Array(videos.suffix(4))
             connectionMessage = "Connected to YouTube"
         } catch {
@@ -552,8 +583,11 @@ final class YouTubeStore: ObservableObject {
     /// Called by AppKit when the user closes the floating PIP window directly
     /// with the window chrome or a system close command.
     func desktopPIPDidClose() {
-        guard isDesktopPIPActive else { return }
+        guard isDesktopPIPActive || isDesktopPIPTransitioning else { return }
+        pipTransitionTask?.cancel()
+        pipTransitionTask = nil
         isDesktopPIPActive = false
+        pipTransitionState = .idle
         stopCurrentPlayback()
         selectedVideo = nil
         isPlayerCompact = false
@@ -567,19 +601,52 @@ final class YouTubeStore: ObservableObject {
             return
         }
 
-        // Flip the feed into its interactive state immediately. The AppKit
-        // panel finishes its first layout pass on the next run-loop turn, so
-        // waiting for a synchronous window-number check can leave the player
-        // looking unchanged even though the panel is being ordered front.
-        isPlayerCompact = true
+        guard !isDesktopPIPActive, !isDesktopPIPTransitioning else { return }
+
+        pipTransitionTask?.cancel()
+        pipTransitionTask = nil
+
+        // Stop the source player and remove it from the SwiftUI tree before
+        // creating the floating player. WebKit can crash while committing a
+        // remote layer tree if the source and PIP WebViews are mounted or
+        // detached in the same transaction.
+        stopCurrentPlayback()
+        isPlayerCompact = false
+        pipTransitionState = .presenting(videoID: video.id)
         isDesktopPIPActive = true
-        connectionMessage = "Picture in Picture active"
-        _ = YouGlassDesktopPIPWindowController.shared.present(video: video, store: self)
+        connectionMessage = "Opening Picture in Picture..."
+        playbackLogger.notice("Starting PIP handoff for video=\(video.id, privacy: .public)")
+
+        pipTransitionTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: PIPTransitionPolicy.sourceTeardownDelayNanoseconds)
+            guard !Task.isCancelled, let self,
+                  self.pipTransitionState.matches(videoID: video.id),
+                  self.pipTransitionState.isTransitioning,
+                  self.selectedVideo?.id == video.id else { return }
+
+            let presented = YouGlassDesktopPIPWindowController.shared.present(video: video, store: self)
+            guard presented else {
+                self.isDesktopPIPActive = false
+                self.pipTransitionState = .idle
+                self.pipTransitionTask = nil
+                self.connectionMessage = "Picture in Picture could not be presented"
+                self.playbackLogger.error("PIP handoff failed to present for video=\(video.id, privacy: .public)")
+                return
+            }
+
+            self.pipTransitionState = .active(videoID: video.id)
+            self.pipTransitionTask = nil
+            self.connectionMessage = "Picture in Picture active"
+            self.playbackLogger.notice("Completed PIP handoff for video=\(video.id, privacy: .public)")
+        }
     }
 
     private func closeDesktopPIPWindow() {
-        guard isDesktopPIPActive else { return }
+        guard isDesktopPIPActive || isDesktopPIPTransitioning else { return }
+        pipTransitionTask?.cancel()
+        pipTransitionTask = nil
         isDesktopPIPActive = false
+        pipTransitionState = .idle
         YouGlassDesktopPIPWindowController.shared.close()
     }
 
@@ -629,7 +696,7 @@ final class YouTubeStore: ObservableObject {
     }
 
     func relatedVideos(for video: VideoItem) -> [VideoItem] {
-        let candidates = feed.forYou + feed.trending + feed.queue
+        let candidates = feed.forYou + feed.trending + feed.more + feed.queue
         let unique = candidates.filter { $0.id != video.id }
         return Array(unique.reduce(into: [VideoItem]()) { result, item in
             if !result.contains(where: { $0.id == item.id }) {
@@ -768,9 +835,30 @@ final class YouTubeStore: ObservableObject {
         }
     }
 
-    func subscribe(to channelID: String) async -> Bool {
+    func subscribe(
+        to channelID: String,
+        channelName: String? = nil,
+        avatarURL: URL? = nil,
+        channelURL: URL? = nil
+    ) async -> Bool {
         do {
             try await client.subscribe(to: channelID)
+            if let channelName, !channelName.isEmpty {
+                let resolvedChannelURL = channelURL
+                    ?? (channelID.hasPrefix("UC")
+                        ? URL(string: "https://www.youtube.com/channel/\(channelID)")
+                        : nil)
+                let item = SubscriptionItem(
+                    id: channelID,
+                    name: channelName,
+                    avatarURL: avatarURL,
+                    channelURL: resolvedChannelURL,
+                    isLive: false
+                )
+                subscriptions = mergeSubscriptions([item] + subscriptions)
+                subscriptionsLoaded = true
+                persistSubscriptions(subscriptions)
+            }
             return true
         } catch {
             connectionMessage = error.localizedDescription
@@ -861,9 +949,36 @@ final class YouTubeStore: ObservableObject {
         return positions.filter { $0.value.isFinite && $0.value > 0 }
     }
 
+    private func decodePlaybackPositionDates() -> [String: Date] {
+        guard let data = defaults.data(forKey: DefaultsKey.playbackPositionUpdatedAt),
+              let dates = try? JSONDecoder().decode([String: Date].self, from: data) else {
+            return [:]
+        }
+        return dates.filter { playbackPositions[$0.key] != nil }
+    }
+
+    private func decodeSubscriptions() -> [SubscriptionItem] {
+        guard let data = defaults.data(forKey: DefaultsKey.cachedSubscriptions),
+              let items = try? JSONDecoder().decode([SubscriptionItem].self, from: data) else {
+            return []
+        }
+        return mergeSubscriptions(items)
+    }
+
     private func persistPlaybackPositions() {
-        guard let data = try? JSONEncoder().encode(playbackPositions) else { return }
-        defaults.set(data, forKey: DefaultsKey.playbackPositions)
+        guard let positionsData = try? JSONEncoder().encode(playbackPositions),
+              let datesData = try? JSONEncoder().encode(playbackPositionUpdatedAt) else { return }
+        defaults.set(positionsData, forKey: DefaultsKey.playbackPositions)
+        defaults.set(datesData, forKey: DefaultsKey.playbackPositionUpdatedAt)
+    }
+
+    private func persistSubscriptions(_ items: [SubscriptionItem]) {
+        guard !items.isEmpty else {
+            defaults.removeObject(forKey: DefaultsKey.cachedSubscriptions)
+            return
+        }
+        guard let data = try? JSONEncoder().encode(items) else { return }
+        defaults.set(data, forKey: DefaultsKey.cachedSubscriptions)
     }
 
     private func persistVideos(_ videos: [VideoItem], key: String) {
@@ -901,7 +1016,8 @@ final class YouTubeStore: ObservableObject {
         feed.hero = merged.first ?? feed.hero
         feed.forYou = Array(merged.prefix(8))
         feed.trending = Array(merged.dropFirst(8).prefix(8))
-        feed.queue = Array(merged.dropFirst(16).prefix(4))
+        feed.more = Array(merged.dropFirst(16).prefix(8))
+        feed.queue = Array(merged.dropFirst(24).prefix(4))
         connectionMessage = message
         if cacheFeed, let data = try? JSONEncoder().encode(merged) {
             defaults.set(data, forKey: DefaultsKey.cachedFeed)
@@ -916,6 +1032,7 @@ final class YouTubeStore: ObservableObject {
     private func showEmptySection(_ message: String) {
         feed.forYou = []
         feed.trending = []
+        feed.more = []
         feed.queue = []
         sectionEmptyMessage = message
         connectionMessage = message
@@ -1341,15 +1458,18 @@ final class YouTubeStore: ObservableObject {
             connectionMessage = error.localizedDescription
         }
 
-        // The OAuth list has stable channel IDs and is the authoritative source
-        // for account actions. The persistent signed-in web session supplies a
-        // useful fallback for channels whose API metadata is temporarily slow.
-        let webSubscriptions = await subscriptionBridge.loadSubscriptions(maxResults: 200)
+        // The OAuth list has stable channel IDs and is authoritative, including
+        // an authenticated empty response. Only scrape the signed-in web
+        // session when the API request itself failed.
+        let webSubscriptions = apiRequestSucceeded
+            ? []
+            : await subscriptionBridge.loadSubscriptions(maxResults: 200)
 
         let mergedSubscriptions = mergeSubscriptions(apiSubscriptions + webSubscriptions)
         if !mergedSubscriptions.isEmpty {
             subscriptions = mergedSubscriptions
             subscriptionsLoaded = true
+            persistSubscriptions(mergedSubscriptions)
             lastAccountSyncDate = Date()
             defaults.set(lastAccountSyncDate, forKey: DefaultsKey.lastAccountSyncDate)
             connectionMessage = "Loaded \(mergedSubscriptions.count) subscriptions from YouTube"
@@ -1361,6 +1481,7 @@ final class YouTubeStore: ObservableObject {
             // subscriptions instead of continuing to display old channels.
             subscriptions = []
             subscriptionsLoaded = true
+            persistSubscriptions([])
             lastAccountSyncDate = Date()
             defaults.set(lastAccountSyncDate, forKey: DefaultsKey.lastAccountSyncDate)
             connectionMessage = "Your YouTube account has no subscriptions"

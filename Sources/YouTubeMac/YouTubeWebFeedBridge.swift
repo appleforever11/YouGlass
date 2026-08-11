@@ -155,6 +155,8 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     }
 
     private func extractVideosWithRetries(from webView: WKWebView) async {
+        var bestResult = YouTubeWebFeedResult.empty
+
         for attempt in 0..<12 {
             try? await Task.sleep(nanoseconds: attempt == 0 ? 1_200_000_000 : 850_000_000)
 
@@ -173,10 +175,28 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
                 isSignedIn: result.isSignedIn || sessionCookiePresent,
                 diagnostics: result.diagnostics
             )
-            if !sessionResult.videos.isEmpty {
-                finish(sessionResult)
+
+            // The homepage hydrates incrementally. Merge snapshots instead of
+            // keeping only the largest one: a later pass often adds the real
+            // thumbnail and channel metadata to cards already discovered.
+            let mergedVideos = mergeSnapshotVideos(bestResult.videos, with: sessionResult.videos)
+            if !mergedVideos.isEmpty || sessionResult.isSignedIn || bestResult.isSignedIn {
+                bestResult = YouTubeWebFeedResult(
+                    videos: Array(mergedVideos.prefix(maxResults)),
+                    isSignedIn: bestResult.isSignedIn || sessionResult.isSignedIn,
+                    diagnostics: sessionResult.diagnostics
+                )
+            }
+
+            if bestResult.videos.count >= maxResults {
+                finish(bestResult)
                 return
             }
+        }
+
+        if !bestResult.videos.isEmpty {
+            finish(bestResult)
+            return
         }
 
         let liveSession = await hasYouTubeSessionCookie()
@@ -186,6 +206,31 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             isSignedIn: currentSession,
             diagnostics: "YouTube loaded, but no homepage video cards were exposed"
         ))
+    }
+
+    private func mergeSnapshotVideos(_ existing: [VideoItem], with incoming: [VideoItem]) -> [VideoItem] {
+        var merged = existing
+
+        for candidate in incoming {
+            guard let index = merged.firstIndex(where: { $0.id == candidate.id }) else {
+                merged.append(candidate)
+                continue
+            }
+
+            let current = merged[index]
+            if shouldPrefer(candidate, over: current) {
+                merged[index] = candidate
+            }
+        }
+
+        return merged
+    }
+
+    private func shouldPrefer(_ candidate: VideoItem, over current: VideoItem) -> Bool {
+        if current.imageURL == nil && candidate.imageURL != nil { return true }
+        if current.channel == "YouTube" && candidate.channel != "YouTube" { return true }
+        if current.views == "Recommended" && candidate.views != "Recommended" { return true }
+        return current.age.isEmpty && !candidate.age.isEmpty
     }
 
     private func extractVideos(from webView: WKWebView) async -> YouTubeWebFeedResult {
@@ -305,6 +350,8 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             const metadata = Array.from(card.querySelectorAll('#metadata-line span, .metadata-line span, .yt-content-metadata-view-model__metadata-text'))
               .map(node => (node.textContent || '').trim()).filter(Boolean);
             const image = card.querySelector('img');
+            const srcset = image ? (image.getAttribute('srcset') || '') : '';
+            const srcsetURL = srcset.split(',')[0].trim().split(' ')[0] || '';
             const durationNode = card.querySelector('ytd-thumbnail-overlay-time-status-renderer span, .badge-shape-wiz__text');
             add({
               id,
@@ -313,7 +360,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
               views: metadata[0] || 'Recommended',
               age: metadata[1] || '',
               duration: durationNode ? durationNode.textContent : '',
-              imageURL: image ? (image.currentSrc || image.src || image.getAttribute('data-src') || '') : ''
+              imageURL: image ? (
+                image.currentSrc || image.src || image.getAttribute('data-src') ||
+                image.getAttribute('data-thumb') || image.getAttribute('data-original') ||
+                srcsetURL
+              ) : ''
             });
           }
 
