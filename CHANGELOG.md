@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.5] - 2026-08-11
+
+Improved caption placement and compact player controls. See [the complete end-user release notes](RELEASE_NOTES/1.0.5.md).
+
 ## [1.0.4] - 2026-08-10
 
 Hardened player and PIP teardown on Apple Silicon, with a focus on the macOS 26 WebKit crash reported on M4 Mac mini. See [the complete end-user release notes](RELEASE_NOTES/1.0.4.md).

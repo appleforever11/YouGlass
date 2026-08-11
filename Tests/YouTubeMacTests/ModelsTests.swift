@@ -95,4 +95,5 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(unauthorized.isRetryable)
         XCTAssertTrue(unauthorized.localizedDescription.localizedCaseInsensitiveContains("authorization"))
     }
+
 }

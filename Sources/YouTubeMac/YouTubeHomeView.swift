@@ -241,10 +241,10 @@ struct YouTubeHomeView: View {
             // available height without giving the user a reliable way to
             // reach the lower recommendation rows on smaller displays.
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 16) {
                     Text(store.selectedSection)
-                        .font(.system(size: 24, weight: .bold))
-                        .padding(.top, 20)
+                        .font(.system(size: 26, weight: .bold))
+                        .padding(.top, 6)
 
                     if let message = store.sectionEmptyMessage {
                         VStack(alignment: .leading, spacing: 12) {
@@ -283,7 +283,7 @@ struct YouTubeHomeView: View {
                         }
                     }
                 }
-                .padding(.horizontal, compact ? 14 : 34)
+                .padding(.horizontal, compact ? 14 : 30)
                 .padding(.bottom, compact ? 20 : 34)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -311,12 +311,12 @@ struct YouTubeHomeView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
-        .frame(height: 78)
+        .frame(height: 68)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(palette.hairline)
                 .frame(height: 1)
-                .padding(.horizontal, 28)
+                .padding(.horizontal, 22)
         }
         .sheet(isPresented: $store.settingsPresented) {
             YouGlassSettingsView()
@@ -449,8 +449,8 @@ struct LiquidBackground: View {
                 // the watch surface.
                 RadialGradient(
                     colors: [
-                        ambientPalette.primary.color.opacity((palette.isDark ? 0.18 : 0.12) * breathing * glow),
-                        ambientPalette.primary.color.opacity((palette.isDark ? 0.040 : 0.030) * breathing * glow),
+                        ambientPalette.primary.color.opacity((palette.isDark ? 0.23 : 0.15) * breathing * glow),
+                        ambientPalette.primary.color.opacity((palette.isDark ? 0.052 : 0.036) * breathing * glow),
                         .clear
                     ],
                     center: primaryCenter,
@@ -460,8 +460,8 @@ struct LiquidBackground: View {
 
                 RadialGradient(
                     colors: [
-                        ambientPalette.secondary.color.opacity((palette.isDark ? 0.14 : 0.095) * secondaryBreathing * glow),
-                        ambientPalette.secondary.color.opacity((palette.isDark ? 0.032 : 0.024) * secondaryBreathing * glow),
+                        ambientPalette.secondary.color.opacity((palette.isDark ? 0.18 : 0.12) * secondaryBreathing * glow),
+                        ambientPalette.secondary.color.opacity((palette.isDark ? 0.042 : 0.030) * secondaryBreathing * glow),
                         .clear
                     ],
                     center: secondaryCenter,
@@ -471,7 +471,7 @@ struct LiquidBackground: View {
 
                 RadialGradient(
                     colors: [
-                        ambientPalette.accent.color.opacity((palette.isDark ? 0.10 : 0.072) * (0.86 + breathing * 0.14) * glow),
+                        ambientPalette.accent.color.opacity((palette.isDark ? 0.14 : 0.09) * (0.86 + breathing * 0.14) * glow),
                         .clear
                     ],
                     center: accentCenter,
@@ -506,7 +506,7 @@ struct SidebarView: View {
     let compact: Bool
 
     private let topItems: [(String, String, Bool, String, String?)] = [
-        ("house.fill", "Home", true, "Home", nil),
+        ("house.fill", "Home", false, "Home", nil),
         ("safari", "Explore", false, "Explore", "trending technology"),
         ("play.rectangle", "Subscriptions", false, "Subscriptions", "latest from subscribed channels"),
         ("play.square.stack", "Shorts", false, "Shorts", "youtube shorts")
@@ -816,14 +816,15 @@ struct SidebarGroup: View {
     var body: some View {
         VStack(spacing: 7) {
             ForEach(items, id: \.1) { symbol, title, selected, section, query in
+                let active = selected || store.selectedSection == title
                 Button(action: { store.showSection(section, query: query) }) {
                     HStack(spacing: 13) {
                         Image(systemName: symbol)
-                            .font(.system(size: 18, weight: selected ? .bold : .regular))
+                            .font(.system(size: 18, weight: active ? .bold : .regular))
                             .frame(width: 20)
                         if !compact {
                             Text(title)
-                                .font(.system(size: 14, weight: selected ? .semibold : .regular))
+                                .font(.system(size: 14, weight: active ? .semibold : .regular))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.82)
                             Spacer()
@@ -833,11 +834,17 @@ struct SidebarGroup: View {
                 .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
                 .padding(.horizontal, compact ? 8 : 14)
                 .frame(height: 42)
-                    .background(selected || store.selectedSection == title ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.clear))
+                    .background(active ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.clear))
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .stroke((selected || store.selectedSection == title) ? palette.stroke : .clear, lineWidth: 1)
+                            .stroke(active ? palette.stroke : .clear, lineWidth: 1)
+                    }
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(active ? palette.accent : .clear)
+                            .frame(width: 3, height: 22)
+                            .padding(.leading, 4)
                     }
                 }
                 .buttonStyle(.plain)
@@ -858,73 +865,114 @@ struct HeroSection: View {
             // the compact presentation before that combination can overflow
             // a mid-size MacBook window.
             let narrow = geometry.size.width < 1_060
+            let ambient = store.ambientPalette
+            let heroHeight: CGFloat = narrow ? 240 : 290
+            let hasQueue = !narrow && !store.feed.queue.isEmpty
+            let queueWidth: CGFloat = hasQueue ? 242 : 0
+            let queueGap: CGFloat = hasQueue ? 16 : 0
+            // Reserve the queue column before laying out the hero. A flexible
+            // hero followed by a fixed rail can otherwise measure as the full
+            // width and push the rail beyond the visible window.
+            let heroWidth = max(1, geometry.size.width - queueWidth - queueGap)
+            let copyWidth = narrow
+                ? min(240, max(190, heroWidth * 0.44))
+                : min(300, max(250, heroWidth * 0.34))
 
-            HStack(spacing: narrow ? 10 : 16) {
-            HStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(spacing: 6) {
-                        Image(systemName: palette.isDark ? "star.fill" : "apple.logo")
-                            .font(.system(size: 10, weight: .medium))
-                        Text("Featured")
-                            .font(.system(size: 11))
-                    }
-                    .foregroundStyle(palette.tertiaryText)
-
-                    Text(store.feed.hero.title)
-                        .font(.system(size: narrow ? 20 : 26, weight: .bold))
-                        .lineLimit(2)
-                        .padding(.top, narrow ? 12 : 20)
-
-                    Text("From your YouTube homepage and subscribed channels.")
-                        .font(.system(size: narrow ? 12 : 14))
-                        .foregroundStyle(palette.secondaryText)
-                        .lineSpacing(5)
-                        .padding(.top, narrow ? 10 : 18)
-
-                    Button(action: { store.open(store.feed.hero) }) {
-                        HStack(spacing: 9) {
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 21))
-                            Text("Play Video")
-                                .font(.system(size: 14, weight: .semibold))
+            HStack(spacing: queueGap) {
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 6) {
+                            Image(systemName: palette.isDark ? "star.fill" : "apple.logo")
+                                .font(.system(size: 10, weight: .medium))
+                            Text("Featured")
+                                .font(.system(size: 11, weight: .medium))
                         }
-                        .foregroundStyle(palette.playText)
-                        .padding(.horizontal, 20)
-                        .frame(height: 44)
-                        .background(palette.playButton)
-                        .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, narrow ? 24 : 48)
+                        .foregroundStyle(palette.tertiaryText)
 
-                    Spacer()
-                }
-                .padding(.leading, narrow ? 16 : 26)
-                .padding(.top, narrow ? 28 : 42)
-                .frame(width: narrow ? min(240, max(190, geometry.size.width * 0.44)) : 300)
+                        Text(store.feed.hero.title)
+                            .font(.system(size: narrow ? 20 : 26, weight: .bold))
+                            .lineLimit(2)
+                            .padding(.top, narrow ? 10 : 16)
 
-                ZStack(alignment: .bottomLeading) {
-                    RemoteImage(url: store.feed.hero.imageURL)
-                        .frame(maxWidth: .infinity, maxHeight: narrow ? 240 : 290)
-                        .clipped()
+                        Text("From your YouTube homepage and subscribed channels.")
+                            .font(.system(size: narrow ? 12 : 14))
+                            .foregroundStyle(palette.secondaryText)
+                            .lineSpacing(4)
+                            .padding(.top, narrow ? 8 : 14)
 
-                    HStack(spacing: 8) {
-                        ForEach(0..<4, id: \.self) { index in
-                            Circle()
-                                .fill(index == 0 ? .white : .white.opacity(0.35))
-                                .frame(width: 8, height: 8)
+                        Button(action: { store.open(store.feed.hero) }) {
+                            HStack(spacing: 9) {
+                                Image(systemName: "play.circle.fill")
+                                    .font(.system(size: 21))
+                                Text("Play Video")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundStyle(palette.playText)
+                            .padding(.horizontal, 20)
+                            .frame(height: 44)
+                            .background(palette.playButton)
+                            .clipShape(Capsule())
                         }
-                    }
-                    .padding(16)
-                }
-            }
-            .frame(height: narrow ? 240 : 290)
-            .frame(maxWidth: .infinity)
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(palette.stroke, lineWidth: 1))
+                        .buttonStyle(.plain)
+                        .padding(.top, narrow ? 20 : 28)
 
-            if !narrow && !store.feed.queue.isEmpty {
+                        Spacer()
+                    }
+                    .padding(.leading, narrow ? 16 : 26)
+                    .padding(.top, narrow ? 22 : 30)
+                    .frame(width: copyWidth)
+
+                    ZStack(alignment: .bottomLeading) {
+                        RemoteImage(url: store.feed.hero.imageURL)
+                            .frame(maxWidth: .infinity, maxHeight: narrow ? 240 : 290)
+                            .clipped()
+
+                        LinearGradient(
+                            colors: [.clear, .black.opacity(0.26)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+
+                        HStack(spacing: 8) {
+                            ForEach(0..<4, id: \.self) { index in
+                                Circle()
+                                    .fill(index == 0 ? .white : .white.opacity(0.35))
+                                    .frame(width: 8, height: 8)
+                            }
+                        }
+                        .padding(16)
+                    }
+                }
+                .frame(width: heroWidth, height: heroHeight)
+                .background {
+                    LinearGradient(
+                        colors: [
+                            ambient.primary.color.opacity(palette.isDark ? 0.12 : 0.08),
+                            palette.card,
+                            ambient.accent.color.opacity(palette.isDark ? 0.10 : 0.06)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    ambient.primary.color.opacity(0.44),
+                                    palette.stroke,
+                                    ambient.secondary.color.opacity(0.32)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                }
+
+            if hasQueue {
                 VStack(spacing: 10) {
                     ForEach(store.feed.queue.prefix(4)) { video in
                         Button(action: { store.open(video) }) {
@@ -936,7 +984,7 @@ struct HeroSection: View {
                 .frame(width: 242)
             }
         }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(width: geometry.size.width, height: heroHeight, alignment: .leading)
         }
         .frame(height: 290)
     }
@@ -959,9 +1007,12 @@ struct VideoRow: View {
         )
 
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
+            HStack(spacing: 9) {
+                Capsule()
+                    .fill(palette.accent)
+                    .frame(width: 4, height: 18)
                 Text(title)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 19, weight: .bold))
                 Spacer()
                 Button(action: { store.showSection(title) }) {
                     HStack(spacing: 8) {
@@ -971,7 +1022,7 @@ struct VideoRow: View {
                     .font(.system(size: 12, weight: .semibold))
                     .padding(.horizontal, 15)
                     .frame(height: 36)
-                    .background(palette.pill)
+                    .background(palette.accent.opacity(palette.isDark ? 0.12 : 0.08))
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
                 }
@@ -980,7 +1031,7 @@ struct VideoRow: View {
 
             LazyVGrid(
                 columns: columns,
-                spacing: 18
+                spacing: 20
             ) {
                 ForEach(videos) { video in
                     VideoCard(video: video, palette: palette)
@@ -1005,6 +1056,12 @@ struct VideoCard: View {
                         .videoThumbnailParallax()
                         .clipped()
 
+                    LinearGradient(
+                        colors: [.clear, .black.opacity(0.28)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+
                     if !video.duration.isEmpty {
                         Text(video.duration)
                             .font(.system(size: 11, weight: .semibold))
@@ -1023,6 +1080,10 @@ struct VideoCard: View {
                 .aspectRatio(16 / 9, contentMode: .fit)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .stroke(store.ambientPalette.primary.color.opacity(0.26), lineWidth: 1)
+                }
 
                 Text(video.title)
                     .font(.system(size: 14, weight: .semibold))
@@ -1192,6 +1253,7 @@ struct Palette {
     var text: Color { isDark ? .white : .black }
     var secondaryText: Color { isDark ? Color.white.opacity(0.62) : Color.black.opacity(0.58) }
     var tertiaryText: Color { isDark ? Color.white.opacity(0.38) : Color.black.opacity(0.36) }
+    var accent: Color { isDark ? Color(red: 0.36, green: 0.72, blue: 1.0) : Color(red: 0.08, green: 0.38, blue: 0.82) }
     var playButton: Color { isDark ? .white : .white }
     var playText: Color { .black }
 }

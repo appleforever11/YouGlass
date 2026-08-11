@@ -368,9 +368,6 @@ final class YouTubeStore: ObservableObject {
             isSignedIn = true
             defaults.set(true, forKey: DefaultsKey.isSignedIn)
         }
-        if isSignedIn {
-            scheduleSubscriptionsLoad(force: false)
-        }
 
         if isSignedIn {
             // The hidden YouTube homepage can return a Shorts-only public

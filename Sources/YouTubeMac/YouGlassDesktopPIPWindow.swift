@@ -97,35 +97,15 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         dragOriginFrame = nil
         suppressWindowCloseCallback = true
         closeCallback = nil
-        // Do not detach the hosting hierarchy synchronously from a button or
-        // window event. AppKit may still be hit-testing that hierarchy on the
-        // same run-loop turn, which can crash SwiftUI's platform responder.
-        // Order out immediately, then detach the old host on the next turn.
         let oldContainer = contentContainer
-        let oldHostingView = hostingView
         let panel = panel
-        panel?.ignoresMouseEvents = true
-
-        // Replace the SwiftUI tree first. This gives NSViewRepresentable a
-        // normal removal transaction while the content container is still
-        // attached, instead of destroying a WebKit layer tree and its host
-        // view in the same AppKit operation.
-        oldHostingView?.rootView = AnyView(Color.clear)
         contentContainer = nil
         hostingView = nil
         panel?.orderOut(nil)
-
-        // Keep the old container alive for two main-queue turns. WebKit can
-        // deliver a final remote layer-tree commit after the SwiftUI removal
-        // callback; releasing the host only after that transaction prevents
-        // the macOS 26 WebKit/SwiftUI lifetime race.
         DispatchQueue.main.async { [weak panel] in
             guard let panel, let oldContainer,
                   panel.contentView === oldContainer else { return }
-            DispatchQueue.main.async {
-                guard panel.contentView === oldContainer else { return }
-                panel.contentView = nil
-            }
+            panel.contentView = nil
         }
         logger.notice("Closed desktop PIP")
     }
@@ -185,7 +165,10 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         panel.title = "YouGlass Picture in Picture"
         panel.level = .floating
         panel.isMovable = true
-        panel.isMovableByWindowBackground = true
+        // The SwiftUI player owns drag gestures. Letting AppKit move the
+        // window from its background can claim clicks before the compact
+        // transport and top window controls receive them.
+        panel.isMovableByWindowBackground = false
         panel.minSize = frameSize(forContentSize: minimumSize, window: panel)
         panel.contentAspectRatio = NSSize(width: 16, height: 9)
         panel.resizeIncrements = NSSize(width: 16, height: 9)
