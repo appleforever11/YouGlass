@@ -26,13 +26,9 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
-          base_version="$version"
-          if [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$ ]]; then
-            base_version="${BASH_REMATCH[1]}"
-          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/YouTubeMac/Info.plist)"
-          [[ "$base_version" == "$plist_version" ]]
+          [[ "$version" == "$plist_version" ]]
           test -s "RELEASE_NOTES/${version}.md"
 
       - name: Validate distribution secrets
@@ -118,9 +114,6 @@ jobs:
             --download-url-prefix "https://github.com/${REPOSITORY}/releases/download/v${version}/" \
             --link "https://github.com/${REPOSITORY}" \
             "$input"
-          if [[ "$version" == "1.0.5.1" ]]; then
-            /usr/bin/perl -0pi -e 's{(<item>.*?<title>)1\.0\.5(</title>)}{$1 . "1.0.5(a)" . $2}se; s{(<item>.*?<sparkle:shortVersionString>)1\.0\.5(</sparkle:shortVersionString>)}{$1 . "1.0.5(a)" . $2}se' "$input/appcast.xml"
-          fi
           cp "$input/appcast.xml" "$RUNNER_TEMP/appcast.xml"
 
       - name: Publish GitHub release
@@ -130,14 +123,10 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          title="YouGlass ${version}"
-          if [[ "$version" == "1.0.5.1" ]]; then
-            title="YouGlass 1.0.5(a)"
-          fi
           gh release create "$GITHUB_REF_NAME" \
             "$RUNNER_TEMP/YouGlass-${version}-arm64.zip" \
             "$RUNNER_TEMP/YouGlass-${version}-arm64.dmg" \
             "$RUNNER_TEMP/appcast.xml" \
             --repo "$REPOSITORY" \
-            --title "$title" \
+            --title "YouGlass ${version}" \
             --notes-file "RELEASE_NOTES/${version}.md"
