@@ -150,6 +150,9 @@ final class ModelsTests: XCTestCase {
         let transient = YouTubeAPIError.httpStatus(503, reason: "backendError", message: "Temporary backend error")
         XCTAssertTrue(transient.isRetryable)
         XCTAssertTrue(transient.localizedDescription.localizedCaseInsensitiveContains("temporary"))
+
+        let throttled = YouTubeAPIError.httpStatus(429, reason: "rateLimitExceeded", message: "Too many requests")
+        XCTAssertFalse(throttled.isRetryable)
     }
 
     func testYouTubeAPIErrorExplainsAuthorizationFailures() {

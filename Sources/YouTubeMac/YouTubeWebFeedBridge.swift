@@ -11,7 +11,7 @@ struct YouTubeWebFeedResult {
     static let empty = YouTubeWebFeedResult(
         videos: [],
         isSignedIn: false,
-        diagnostics: "No YouTube homepage cards were available"
+        diagnostics: "No YouTube video cards were available"
     )
 }
 
@@ -23,8 +23,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
     private var hostWindow: NSWindow?
     private var continuation: CheckedContinuation<YouTubeWebFeedResult, Never>?
+    private var requestActive = false
+    private var requestWaiters: [CheckedContinuation<Void, Never>] = []
     private var maxResults = 20
     private var sessionCookiePresent = false
+    private var requestLabel = "YouTube homepage"
 
     private static let sessionCookieNames: Set<String> = [
         "APISID",
@@ -42,23 +45,45 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     ]
 
     func loadHomeVideos(maxResults: Int = 20) async -> YouTubeWebFeedResult {
-        guard continuation == nil else {
-            return YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "A YouTube feed request is already running")
-        }
+        await loadVideos(
+            at: URL(string: "https://www.youtube.com/")!,
+            maxResults: maxResults,
+            label: "YouTube homepage"
+        )
+    }
+
+    func searchVideos(query: String, maxResults: Int = 12) async -> YouTubeWebFeedResult {
+        let searchTerm = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !searchTerm.isEmpty else { return .empty }
+
+        var components = URLComponents(string: "https://www.youtube.com/results")!
+        components.queryItems = [URLQueryItem(name: "search_query", value: searchTerm)]
+        guard let url = components.url else { return .empty }
+
+        return await loadVideos(
+            at: url,
+            maxResults: maxResults,
+            label: "YouTube search"
+        )
+    }
+
+    private func loadVideos(at url: URL, maxResults: Int, label: String) async -> YouTubeWebFeedResult {
+        await waitUntilAvailable()
+        requestActive = true
 
         self.maxResults = maxResults
+        requestLabel = label
         let cookieSession = await hasYouTubeSessionCookie()
         sessionCookiePresent = cookieSession
         let webView = existingOrCreateWebView()
         webView.stopLoading()
-        logger.info("Loading YouTube homepage; session cookie present: \(cookieSession, privacy: .public)")
+        logger.info("Loading \(label, privacy: .public); session cookie present: \(cookieSession, privacy: .public)")
 
         let request = URLRequest(
-            url: URL(string: "https://www.youtube.com/")!,
+            url: url,
             cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
             timeoutInterval: 25
         )
-        webView.load(request)
 
         let timeoutTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 18_000_000_000)
@@ -66,15 +91,24 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             self.finish(YouTubeWebFeedResult(
                 videos: [],
                 isSignedIn: cookieSession,
-                diagnostics: "YouTube homepage timed out before cards were rendered"
+                diagnostics: "\(label) timed out before cards were rendered"
             ))
         }
 
         let result = await withCheckedContinuation { continuation in
             self.continuation = continuation
+            webView.load(request)
         }
         timeoutTask.cancel()
         return result
+    }
+
+    private func waitUntilAvailable() async {
+        while requestActive {
+            await withCheckedContinuation { waiter in
+                requestWaiters.append(waiter)
+            }
+        }
     }
 
     private func existingOrCreateWebView() -> WKWebView {
@@ -145,13 +179,13 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        logger.error("YouTube homepage navigation failed: \(error.localizedDescription, privacy: .public)")
-        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "YouTube homepage navigation failed"))
+        logger.error("\(self.requestLabel, privacy: .public) navigation failed: \(error.localizedDescription, privacy: .public)")
+        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "\(requestLabel) navigation failed"))
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        logger.error("YouTube homepage provisional navigation failed: \(error.localizedDescription, privacy: .public)")
-        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "YouTube homepage could not be reached"))
+        logger.error("\(self.requestLabel, privacy: .public) provisional navigation failed: \(error.localizedDescription, privacy: .public)")
+        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "\(requestLabel) could not be reached"))
     }
 
     private func extractVideosWithRetries(from webView: WKWebView) async {
@@ -204,7 +238,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         finish(YouTubeWebFeedResult(
             videos: [],
             isSignedIn: currentSession,
-            diagnostics: "YouTube loaded, but no homepage video cards were exposed"
+            diagnostics: "\(requestLabel) loaded, but no video cards were exposed"
         ))
     }
 
@@ -407,18 +441,28 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
                 )
             }
             let diagnostics = "\(videos.count) cards; server data \(payload.initialCount), DOM cards \(payload.domCount)"
-            logger.info("YouTube homepage extraction: \(diagnostics, privacy: .public); signed in: \(payload.signedIn, privacy: .public)")
+            logger.info("\(self.requestLabel, privacy: .public) extraction: \(diagnostics, privacy: .public); signed in: \(payload.signedIn, privacy: .public)")
             return YouTubeWebFeedResult(videos: videos, isSignedIn: payload.signedIn, diagnostics: diagnostics)
         } catch {
-            logger.error("YouTube homepage extraction failed: \(error.localizedDescription, privacy: .public)")
+            logger.error("\(self.requestLabel, privacy: .public) extraction failed: \(error.localizedDescription, privacy: .public)")
             return .empty
         }
     }
 
     private func finish(_ result: YouTubeWebFeedResult) {
-        guard let continuation else { return }
+        guard let continuation else {
+            requestActive = false
+            let waiters = requestWaiters
+            requestWaiters.removeAll()
+            waiters.forEach { $0.resume() }
+            return
+        }
+        requestActive = false
         self.continuation = nil
         continuation.resume(returning: result)
+        let waiters = requestWaiters
+        requestWaiters.removeAll()
+        waiters.forEach { $0.resume() }
     }
 }
 

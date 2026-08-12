@@ -272,6 +272,8 @@ struct YouTubeHomeView: View {
                         PlaylistDetailView(playlist: playlist, palette: palette)
                     } else if store.selectedSection == "Playlists" {
                         PlaylistLibraryView(palette: palette)
+                    } else if store.selectedSection == "Search" {
+                        SearchContentView(store: store, palette: palette, compact: compact)
                     } else {
                         HeroSection(palette: palette, compact: compact)
 
@@ -357,10 +359,7 @@ struct YouTubeHomeView: View {
     private func topBarContent(compact: Bool, minimal: Bool) -> some View {
         HStack(spacing: minimal ? 6 : (compact ? 10 : 22)) {
             SearchField(text: $store.query, palette: palette) {
-                Task {
-                    await store.search()
-                    store.selectedSection = store.query.isEmpty ? "Home" : "Search"
-                }
+                Task { await store.search() }
             }
             .frame(
                 minWidth: minimal ? 80 : (compact ? 160 : 250),
@@ -437,6 +436,50 @@ struct YouTubeHomeView: View {
         }
         .padding(.horizontal, minimal ? 8 : (compact ? 12 : 28))
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct SearchContentView: View {
+    @ObservedObject var store: YouTubeStore
+    let palette: Palette
+    let compact: Bool
+
+    var body: some View {
+        searchContent
+        .frame(maxWidth: .infinity, minHeight: 220, alignment: .center)
+    }
+
+    private var searchContent: AnyView {
+        if store.isLoading {
+            return AnyView(ProgressView("Searching YouTube..."))
+        }
+
+        if !store.searchResults.isEmpty {
+            return AnyView(
+                VideoRow(
+                    title: "Search results",
+                    videos: store.searchResults,
+                    palette: palette,
+                    compact: compact,
+                    showsSeeAll: false
+                )
+                .environmentObject(store)
+            )
+        }
+
+        if let message = store.sectionEmptyMessage {
+            return AnyView(SearchEmptyStateView(message: message))
+        }
+
+        return AnyView(EmptyView())
+    }
+}
+
+private struct SearchEmptyStateView: View {
+    let message: String
+
+    var body: some View {
+        Text(message)
     }
 }
 

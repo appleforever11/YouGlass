@@ -708,7 +708,10 @@ enum YouTubeAPIError: LocalizedError, Equatable {
     var isRetryable: Bool {
         switch self {
         case .httpStatus(let status, _, let message):
-            return status == 408 || status == 429 || (500...599).contains(status)
+            // Retrying a throttled request multiplies the pressure on the
+            // project and makes a search failure slower. Let the caller use
+            // its web-session fallback instead.
+            return status == 408 || (500...599).contains(status)
                 || message?.localizedCaseInsensitiveContains("temporar") == true
         default:
             return false

@@ -22,6 +22,7 @@ final class YouTubeStore: ObservableObject {
     @Published private(set) var recentlyWatched: [VideoItem] = []
     @Published private(set) var savedVideos: [VideoItem] = []
     @Published private(set) var locallyLikedVideos: [VideoItem] = []
+    @Published private(set) var searchResults: [VideoItem] = []
     private var playbackPositions: [String: Double] = [:]
     private var playbackPositionUpdatedAt: [String: Date] = [:]
     @Published private(set) var playlists: [YouTubePlaylist] = []
@@ -469,41 +470,109 @@ final class YouTubeStore: ObservableObject {
         let searchTerm = (term ?? query).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !searchTerm.isEmpty else { return }
 
+        // Navigate immediately so a slow API or web-session fallback cannot
+        // leave the user looking at the previous Home surface.
+        query = searchTerm
+        selectedSection = "Search"
+        selectedPlaylist = nil
+        selectedChannelItem = nil
+        channelPage = nil
+        sectionEmptyMessage = nil
+        searchResults = []
+        isLoading = true
+        connectionMessage = "Searching YouTube..."
+        defer { isLoading = false }
+
         if let directVideo = VideoItem.fromYouTubeInput(searchTerm) {
             connectionMessage = "Opening YouTube video in the native player"
             open(directVideo)
             return
         }
 
-        guard await client.hasCredentials() else {
-            let matches = VideoItem.samples.filter { video in
-                [video.title, video.channel].contains { value in
-                    value.localizedCaseInsensitiveContains(searchTerm)
-                }
-            }
-            let result = matches.isEmpty ? VideoItem.samples : matches
-            feed.forYou = Array(result.prefix(8))
-            feed.trending = Array(result.dropFirst(8).prefix(8))
-            feed.more = []
-            feed.queue = Array(result.suffix(min(4, result.count)))
-            connectionMessage = "Local results"
+        let hasCredentials = await client.hasCredentials()
+        guard hasCredentials else {
+            await applySearchFallback(for: searchTerm, apiError: nil)
             return
         }
 
-        isLoading = true
-        defer { isLoading = false }
-
         do {
             let videos = try await client.searchVideos(query: searchTerm, maxResults: 12)
-            guard !videos.isEmpty else { return }
-            feed.forYou = Array(videos.prefix(8))
-            feed.trending = Array(videos.dropFirst(8).prefix(8))
-            feed.more = []
-            feed.queue = Array(videos.suffix(4))
-            connectionMessage = "Connected to YouTube"
+            if !videos.isEmpty {
+                applySearchResults(videos, message: "Connected to YouTube")
+            } else {
+                await applySearchFallback(for: searchTerm, apiError: nil)
+            }
         } catch {
-            connectionMessage = error.localizedDescription
+            // Data API search is quota-expensive and can be throttled even
+            // when the signed-in YouTube website still works. Reuse the
+            // authenticated hidden web session before showing an error.
+            await applySearchFallback(for: searchTerm, apiError: error)
         }
+    }
+
+    private func applySearchResults(_ videos: [VideoItem], message: String) {
+        let merged = mergeVideos(videos)
+        guard !merged.isEmpty else {
+            searchResults = []
+            sectionEmptyMessage = "No matching YouTube videos were found."
+            return
+        }
+        sectionEmptyMessage = nil
+        searchResults = merged
+        feed.hero = merged.first ?? feed.hero
+        feed.forYou = Array(merged.prefix(8))
+        feed.trending = Array(merged.dropFirst(8).prefix(8))
+        feed.more = Array(merged.dropFirst(16).prefix(8))
+        feed.queue = Array(merged.suffix(min(4, merged.count)))
+        connectionMessage = message
+    }
+
+    private func applySearchFallback(for searchTerm: String, apiError: Error?) async {
+        let webResult = await YouTubeWebFeedBridge.shared.searchVideos(query: searchTerm, maxResults: 20)
+        if !webResult.videos.isEmpty {
+            applySearchResults(
+                webResult.videos,
+                message: webResult.isSignedIn
+                    ? "Personalized YouTube search results"
+                    : "YouTube search results"
+            )
+            return
+        }
+
+        let localPool = mergeVideos(
+            feed.forYou + feed.trending + feed.more + feed.queue +
+            recentlyWatched + savedVideos + locallyLikedVideos + VideoItem.samples
+        )
+        let matches = localPool.filter { video in
+            [video.title, video.channel].contains { value in
+                value.localizedCaseInsensitiveContains(searchTerm)
+            }
+        }
+        if !matches.isEmpty {
+            applySearchResults(matches, message: "Showing saved results while YouTube search recovers")
+            return
+        }
+
+        feed.forYou = []
+        feed.trending = []
+        feed.more = []
+        feed.queue = []
+        searchResults = []
+        sectionEmptyMessage = "YouTube search is temporarily unavailable. Try again shortly."
+        connectionMessage = searchFailureMessage(apiError: apiError, webDiagnostics: webResult.diagnostics)
+    }
+
+    private func searchFailureMessage(apiError: Error?, webDiagnostics: String) -> String {
+        if let youtubeError = apiError as? YouTubeAPIError,
+           case .httpStatus(let status, let reason, _) = youtubeError,
+           status == 429 || reason == "rateLimitExceeded" || reason == "quotaExceeded" || reason == "dailyLimitExceeded" {
+            return "YouTube search is temporarily unavailable. Try again shortly."
+        }
+
+        if let apiError {
+            return "Search unavailable: \(apiError.localizedDescription)"
+        }
+        return webDiagnostics
     }
 
     func open(_ video: VideoItem) {
