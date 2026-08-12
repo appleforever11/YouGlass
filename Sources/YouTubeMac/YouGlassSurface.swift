@@ -8,62 +8,49 @@ struct YouGlassSurfaceModifier: ViewModifier {
     let cornerRadius: CGFloat
     let interactive: Bool
 
-    @ViewBuilder
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let tintOpacity = interactive
+            ? (palette.isDark ? 0.090 : 0.050)
+            : (palette.isDark ? 0.070 : 0.035)
+        let pinkOpacity = interactive
+            ? (palette.isDark ? 0.055 : 0.030)
+            : (palette.isDark ? 0.038 : 0.020)
 
-        if #available(macOS 26.0, *) {
-            if interactive {
-                content
-                    .clipShape(shape)
-                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
-                    .overlay {
-                        shape.stroke(
-                            LinearGradient(
-                                colors: [palette.pink.opacity(0.30), palette.stroke, palette.purple.opacity(0.24)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
+        // Keep the glass treatment available to every supported SDK. The
+        // material and layered tint provide the same translucent visual
+        // language without requiring a newer SwiftUI SDK at build time.
+        return content
+            .background(.ultraThinMaterial, in: shape)
+            .overlay {
+                shape
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                palette.purple.opacity(tintOpacity),
+                                palette.pink.opacity(pinkOpacity)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
                         )
-                    }
-            } else {
-                content
-                    .clipShape(shape)
-                    .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
-                    .overlay {
-                        shape.stroke(
-                            LinearGradient(
-                                colors: [palette.pink.opacity(0.22), palette.stroke, palette.purple.opacity(0.18)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1
-                        )
-                    }
+                    )
             }
-        } else {
-            content
-                .background(.ultraThinMaterial, in: shape)
-                .overlay {
-                    shape
-                          .fill(
-                              LinearGradient(
-                                  colors: [
-                                      palette.purple.opacity(palette.isDark ? 0.070 : 0.035),
-                                      palette.pink.opacity(palette.isDark ? 0.038 : 0.020)
-                                  ],
-                                  startPoint: .topLeading,
-                                  endPoint: .bottomTrailing
-                              )
-                          )
-                }
-                .overlay {
-                    shape
-                        .stroke(palette.stroke, lineWidth: 1)
-                }
-                .clipShape(shape)
-        }
+            .overlay {
+                shape
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                palette.pink.opacity(interactive ? 0.30 : 0.22),
+                                palette.stroke,
+                                palette.purple.opacity(interactive ? 0.24 : 0.18)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+            .clipShape(shape)
     }
 }
 

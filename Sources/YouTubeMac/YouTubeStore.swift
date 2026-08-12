@@ -564,14 +564,18 @@ final class YouTubeStore: ObservableObject {
             return
         }
 
-        let localPool = mergeVideos(
-            feed.forYou + feed.trending + feed.more + feed.queue +
-            recentlyWatched + savedVideos + locallyLikedVideos + VideoItem.samples
-        )
+        var localPoolSource = feed.forYou
+        localPoolSource += feed.trending
+        localPoolSource += feed.more
+        localPoolSource += feed.queue
+        localPoolSource += recentlyWatched
+        localPoolSource += savedVideos
+        localPoolSource += locallyLikedVideos
+        localPoolSource += VideoItem.samples
+        let localPool = mergeVideos(localPoolSource)
         let matches = localPool.filter { video in
-            [video.title, video.channel].contains { value in
-                value.localizedCaseInsensitiveContains(searchTerm)
-            }
+            video.title.localizedCaseInsensitiveContains(searchTerm) ||
+            video.channel.localizedCaseInsensitiveContains(searchTerm)
         }
         if !matches.isEmpty {
             applySearchResults(matches, message: "Showing saved results while YouTube search recovers")
