@@ -33,7 +33,7 @@ struct YouGlassSettingsView: View {
                         "Start videos muted",
                         isOn: Binding(
                             get: { store.autoMuteOnStart },
-                            set: store.setAutoMuteOnStart
+                            set: { value in store.setAutoMuteOnStart(value) }
                         )
                     )
                     Text("When disabled, YouGlass requests audio playback and the player opens with sound on. You can still mute any video from the transient player controls.")
@@ -45,7 +45,7 @@ struct YouGlassSettingsView: View {
                         "Compact player position",
                         selection: Binding(
                             get: { store.compactPlayerCorner },
-                            set: store.setCompactPlayerCorner
+                            set: { corner in store.setCompactPlayerCorner(corner) }
                         )
                     ) {
                         ForEach(CompactPlayerCorner.allCases) { corner in
@@ -62,12 +62,11 @@ struct YouGlassSettingsView: View {
                     "Theme",
                     selection: Binding(
                         get: { store.theme },
-                        set: store.setTheme
+                        set: { newTheme in store.setTheme(newTheme) }
                     )
                 ) {
-                    ForEach(AppTheme.allCases) { theme in
-                        Text(theme.rawValue).tag(theme)
-                    }
+                    Text(AppTheme.light.rawValue).tag(AppTheme.light)
+                    Text(AppTheme.dark.rawValue).tag(AppTheme.dark)
                 }
                 .pickerStyle(.segmented)
                 .padding(.top, 4)

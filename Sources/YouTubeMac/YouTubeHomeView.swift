@@ -402,11 +402,10 @@ struct YouTubeHomeView: View {
             if !minimal {
                 Picker("", selection: Binding(
                     get: { store.theme },
-                    set: store.setTheme
+                    set: { newTheme in store.setTheme(newTheme) }
                 )) {
-                    ForEach(AppTheme.allCases) { theme in
-                        Text(theme.rawValue).tag(theme)
-                    }
+                    Text(AppTheme.light.rawValue).tag(AppTheme.light)
+                    Text(AppTheme.dark.rawValue).tag(AppTheme.dark)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: compact ? 100 : 122)
