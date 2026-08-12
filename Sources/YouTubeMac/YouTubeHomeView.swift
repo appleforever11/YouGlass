@@ -1175,9 +1175,7 @@ struct CompactVideoCard: View {
         .padding(7)
         .frame(height: 76)
         .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(palette.stroke, lineWidth: 1))
+        .youGlassSurface(palette: palette, cornerRadius: 10)
     }
 }
 
@@ -1203,6 +1201,10 @@ struct SearchField: View {
         .frame(height: 42)
         .background(.thinMaterial)
         .clipShape(Capsule())
+        .overlay {
+            Capsule()
+                .fill(palette.accent.opacity(palette.isDark ? 0.025 : 0.014))
+        }
         .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
     }
 }
@@ -1292,16 +1294,16 @@ struct Palette {
         isDark = scheme == .dark
     }
 
-    var window: Color { isDark ? Color(red: 0.01, green: 0.012, blue: 0.014) : Color(red: 0.93, green: 0.93, blue: 0.92) }
-    var sidebar: Color { isDark ? Color(red: 0.035, green: 0.039, blue: 0.043) : Color(red: 0.965, green: 0.965, blue: 0.955) }
-    var content: Color { isDark ? Color(red: 0.025, green: 0.027, blue: 0.03) : Color(red: 0.985, green: 0.985, blue: 0.975) }
-    var card: Color { isDark ? Color(red: 0.045, green: 0.049, blue: 0.054) : Color(red: 0.95, green: 0.95, blue: 0.94) }
-    var queueCard: Color { isDark ? Color.white.opacity(0.018) : .white.opacity(0.55) }
-    var search: Color { isDark ? Color.white.opacity(0.035) : Color.black.opacity(0.025) }
-    var selected: Color { isDark ? Color.white.opacity(0.07) : Color.black.opacity(0.055) }
-    var pill: Color { isDark ? Color.white.opacity(0.025) : .white.opacity(0.6) }
-    var stroke: Color { isDark ? Color.white.opacity(0.08) : Color.black.opacity(0.055) }
-    var hairline: Color { isDark ? Color.white.opacity(0.075) : Color.black.opacity(0.06) }
+    var window: Color { isDark ? Color(red: 0.008, green: 0.010, blue: 0.018) : Color(red: 0.93, green: 0.93, blue: 0.92) }
+    var sidebar: Color { isDark ? Color(red: 0.018, green: 0.022, blue: 0.040) : Color(red: 0.965, green: 0.965, blue: 0.955) }
+    var content: Color { isDark ? Color(red: 0.014, green: 0.016, blue: 0.030) : Color(red: 0.985, green: 0.985, blue: 0.975) }
+    var card: Color { isDark ? Color(red: 0.030, green: 0.028, blue: 0.050) : Color(red: 0.95, green: 0.95, blue: 0.94) }
+    var queueCard: Color { isDark ? Color.white.opacity(0.028) : .white.opacity(0.55) }
+    var search: Color { isDark ? Color.white.opacity(0.045) : Color.black.opacity(0.025) }
+    var selected: Color { isDark ? Color.white.opacity(0.085) : Color.black.opacity(0.055) }
+    var pill: Color { isDark ? Color.white.opacity(0.035) : .white.opacity(0.6) }
+    var stroke: Color { isDark ? Color.white.opacity(0.105) : Color.black.opacity(0.055) }
+    var hairline: Color { isDark ? Color.white.opacity(0.095) : Color.black.opacity(0.06) }
     var text: Color { isDark ? .white : .black }
     var secondaryText: Color { isDark ? Color.white.opacity(0.62) : Color.black.opacity(0.58) }
     var tertiaryText: Color { isDark ? Color.white.opacity(0.38) : Color.black.opacity(0.36) }

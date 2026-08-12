@@ -522,116 +522,133 @@ private struct NativeWatchScreen: View {
             .accessibilityHint("Open this video in a floating desktop window")
             .help("Picture in Picture")
 
-            Button(action: { saved.toggle() }) {
+            Button {
+                saved.toggle()
+                store.toggleSaved(video)
+            } label: {
                 Image(systemName: saved ? "bookmark.fill" : "bookmark")
                     .font(.system(size: 16, weight: .semibold))
             }
             .buttonStyle(GlassIconButtonStyle(palette: palette))
+            .accessibilityLabel(saved ? "Remove from Watch Later" : "Save to Watch Later")
+            .help(saved ? "Remove from Watch Later" : "Save to Watch Later")
         }
         .padding(14)
         .zIndex(4)
     }
 
     private var channelAndActions: some View {
-        HStack(spacing: 12) {
-            AsyncAvatar(url: details?.channelAvatarURL)
-                .frame(width: 42, height: 42)
-                .overlay {
-                    Text(String(video.channel.prefix(2)))
-                        .font(.system(size: 12, weight: .heavy))
-                        .foregroundStyle(.white)
-                }
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 5) {
-                    Text(video.channel)
-                        .font(.system(size: 15, weight: .bold))
-                    if video.verified {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.blue)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                AsyncAvatar(url: details?.channelAvatarURL)
+                    .frame(width: 42, height: 42)
+                    .overlay {
+                        Text(String(video.channel.prefix(2)))
+                            .font(.system(size: 12, weight: .heavy))
+                            .foregroundStyle(.white)
                     }
-                }
-                Text(metadataLine)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(palette.secondaryText)
-            }
 
-            Button(action: {
-                guard !subscribed,
-                      let channelID = details?.channelID ?? commentChannelID ?? video.channelID,
-                      !actionBusy else { return }
-                actionBusy = true
-                Task {
-                    let succeeded = await store.subscribe(
-                        to: channelID,
-                        channelName: video.channel,
-                        avatarURL: details?.channelAvatarURL
-                    )
-                    await MainActor.run {
-                        if succeeded { subscribed = true }
-                        actionBusy = false
-                    }
-                }
-            }) {
-                Text(subscriptionStatusResolved ? (subscribed ? "Subscribed" : "Subscribe") : "Checking...")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 18)
-                    .frame(height: 36)
-                    .background(.white)
-                    .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(actionBusy || !subscriptionStatusResolved || subscribed)
-
-            Spacer()
-
-            WatchActionButton(symbol: liked ? "hand.thumbsup.fill" : "hand.thumbsup", title: likeTitle, palette: palette) {
-                guard !actionBusy else { return }
-                actionBusy = true
-                let nextRating = liked ? "none" : "like"
-                Task {
-                    let succeeded = await store.rate(video: video, as: nextRating)
-                    await MainActor.run {
-                        if succeeded {
-                            liked = nextRating == "like"
-                            if liked { disliked = false }
-                            store.recordLocalRating(for: video, liked: liked)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        Text(video.channel)
+                            .font(.system(size: 15, weight: .bold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        if video.verified {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.blue)
                         }
-                        actionBusy = false
                     }
+                    Text(metadataLine)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(palette.secondaryText)
                 }
-            }
-            WatchActionButton(symbol: disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown", title: "Dislike", palette: palette) {
-                guard !actionBusy else { return }
-                actionBusy = true
-                let nextRating = disliked ? "none" : "dislike"
-                Task {
-                    let succeeded = await store.rate(video: video, as: nextRating)
-                    await MainActor.run {
-                        if succeeded {
-                            disliked = nextRating == "dislike"
-                            if disliked { liked = false }
-                            if disliked { store.recordLocalRating(for: video, liked: false) }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    guard !subscribed,
+                          let channelID = details?.channelID ?? commentChannelID ?? video.channelID,
+                          !actionBusy else { return }
+                    actionBusy = true
+                    Task {
+                        let succeeded = await store.subscribe(
+                            to: channelID,
+                            channelName: video.channel,
+                            avatarURL: details?.channelAvatarURL
+                        )
+                        await MainActor.run {
+                            if succeeded { subscribed = true }
+                            actionBusy = false
                         }
-                        actionBusy = false
+                    }
+                } label: {
+                    Text(subscriptionStatusResolved ? (subscribed ? "Subscribed" : "Subscribe") : "Checking...")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 18)
+                        .frame(height: 36)
+                        .background(.white)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .fixedSize(horizontal: true, vertical: false)
+                .disabled(actionBusy || !subscriptionStatusResolved || subscribed)
+                .help(subscribed ? "Subscribed" : "Subscribe to \(video.channel)")
+            }
+
+            // Keep the channel identity stable while giving the actions their
+            // own horizontal lane. This prevents Save from being compressed
+            // or pushed outside the player at smaller window widths.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    WatchActionButton(symbol: liked ? "hand.thumbsup.fill" : "hand.thumbsup", title: likeTitle, palette: palette) {
+                        guard !actionBusy else { return }
+                        actionBusy = true
+                        let nextRating = liked ? "none" : "like"
+                        Task {
+                            let succeeded = await store.rate(video: video, as: nextRating)
+                            await MainActor.run {
+                                if succeeded {
+                                    liked = nextRating == "like"
+                                    if liked { disliked = false }
+                                    store.recordLocalRating(for: video, liked: liked)
+                                }
+                                actionBusy = false
+                            }
+                        }
+                    }
+                    WatchActionButton(symbol: disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown", title: "Dislike", palette: palette) {
+                        guard !actionBusy else { return }
+                        actionBusy = true
+                        let nextRating = disliked ? "none" : "dislike"
+                        Task {
+                            let succeeded = await store.rate(video: video, as: nextRating)
+                            await MainActor.run {
+                                if succeeded {
+                                    disliked = nextRating == "dislike"
+                                    if disliked { liked = false }
+                                    if disliked { store.recordLocalRating(for: video, liked: false) }
+                                }
+                                actionBusy = false
+                            }
+                        }
+                    }
+                    WatchActionButton(symbol: "square.and.arrow.up", title: "Share", palette: palette) {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(video.playbackURL.absoluteString, forType: .string)
+                    }
+                    WatchActionButton(symbol: saved ? "bookmark.fill" : "bookmark", title: saved ? "Saved" : "Save", palette: palette) {
+                        saved.toggle()
+                        store.toggleSaved(video)
                     }
                 }
+                .padding(.horizontal, 1)
             }
-            WatchActionButton(symbol: "square.and.arrow.up", title: "Share", palette: palette) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(video.playbackURL.absoluteString, forType: .string)
-            }
-            WatchActionButton(symbol: saved ? "bookmark.fill" : "bookmark", title: saved ? "Saved" : "Save", palette: palette) {
-                saved.toggle()
-                store.toggleSaved(video)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(palette.stroke, lineWidth: 1))
+        .youGlassSurface(palette: palette, cornerRadius: 16)
     }
 
     private var description: some View {
@@ -645,9 +662,7 @@ private struct NativeWatchScreen: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(palette.stroke, lineWidth: 1))
+        .youGlassSurface(palette: palette, cornerRadius: 14)
     }
 
     private var commentComposer: some View {
@@ -705,9 +720,7 @@ private struct NativeWatchScreen: View {
             }
         }
         .padding(12)
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(palette.stroke, lineWidth: 1))
+        .youGlassSurface(palette: palette, cornerRadius: 14, interactive: true)
     }
 
     private var commentsList: some View {
