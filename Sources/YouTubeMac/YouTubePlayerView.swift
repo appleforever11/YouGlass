@@ -1747,19 +1747,14 @@ private struct PIPWindowControlButtonStyle: ButtonStyle {
 }
 
 private extension View {
-    @ViewBuilder
     func youGlassControlSurface() -> some View {
-        if #available(macOS 26.0, *) {
-            glassEffect(.regular.interactive(), in: Circle())
-        } else {
-            background {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .overlay {
-                        Circle()
-                            .fill(.white.opacity(0.10))
-                    }
-            }
+        background {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    Circle()
+                        .fill(.white.opacity(0.10))
+                }
         }
     }
 }
