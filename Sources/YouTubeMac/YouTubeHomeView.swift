@@ -1204,8 +1204,13 @@ struct SearchField: View {
         .overlay {
             Capsule()
                 .fill(palette.accent.opacity(palette.isDark ? 0.025 : 0.014))
+                .allowsHitTesting(false)
         }
-        .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
+        .overlay {
+            Capsule()
+                .stroke(palette.stroke, lineWidth: 1)
+                .allowsHitTesting(false)
+        }
     }
 }
 
