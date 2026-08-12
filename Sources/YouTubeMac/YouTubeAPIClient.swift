@@ -5,11 +5,21 @@ struct YouTubeAPIClient: Sendable {
     private let apiKey: String?
     private let oauth: YouTubeOAuthClient
     private let session: URLSession
+    private let requestGate: YouGlassRequestGate
+    private let responseCache: YouGlassResponseCache
 
-    init(apiKey: String? = YouTubeAPIClient.resolveAPIKey(), oauth: YouTubeOAuthClient = .shared, session: URLSession = .shared) {
+    init(
+        apiKey: String? = YouTubeAPIClient.resolveAPIKey(),
+        oauth: YouTubeOAuthClient = .shared,
+        session: URLSession = .shared,
+        requestGate: YouGlassRequestGate = youGlassSharedRequestGate,
+        responseCache: YouGlassResponseCache = youGlassSharedResponseCache
+    ) {
         self.apiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? apiKey : nil
         self.oauth = oauth
         self.session = session
+        self.requestGate = requestGate
+        self.responseCache = responseCache
     }
 
     var canConnect: Bool {
@@ -620,6 +630,8 @@ struct YouTubeAPIClient: Sendable {
         if preferOAuth, let token = try await oauth.validAccessToken() {
             var request = URLRequest(url: url)
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            // OAuth responses can be account-specific, so do not share them
+            // through the public response cache.
             return try await requestData(request)
         }
 
@@ -630,7 +642,12 @@ struct YouTubeAPIClient: Sendable {
         var queryItems = authenticated.queryItems ?? []
         queryItems.append(URLQueryItem(name: "key", value: apiKey))
         authenticated.queryItems = queryItems
-        return try await requestData(URLRequest(url: authenticated.url!))
+        // Cache only API-key responses. The cache key intentionally excludes
+        // the key itself so it never becomes part of the in-memory cache map.
+        return try await requestData(
+            URLRequest(url: authenticated.url!),
+            cacheKey: url.absoluteString
+        )
     }
 
     private func authorizedData(from url: URL, token: String) async throws -> Data {
@@ -639,13 +656,26 @@ struct YouTubeAPIClient: Sendable {
         return try await requestData(request)
     }
 
-    private func requestData(_ request: URLRequest) async throws -> Data {
+    private func requestData(
+        _ request: URLRequest,
+        cacheKey: String? = nil,
+        cacheTTL: TimeInterval = 20
+    ) async throws -> Data {
+        if let cacheKey, let cached = await responseCache.data(forKey: cacheKey) {
+            YouGlassDiagnostics.api.debug("Using cached YouTube response for \(request.url?.path ?? "/", privacy: .public)")
+            return cached
+        }
+
         let method = (request.httpMethod ?? "GET").uppercased()
         let canRetry = method == "GET" || method == "HEAD"
         var attempt = 0
 
         while true {
             do {
+                // Keep bursts from the feed, search, comments, and channel
+                // paths below the quota/rate-limit threshold.
+                await requestGate.wait(minimumInterval: 0.18)
+                YouGlassDiagnostics.api.debug("YouTube request \(request.url?.path ?? "/", privacy: .public)")
                 let (data, response) = try await session.data(for: request)
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw YouTubeAPIError.invalidResponse("YouTube returned a non-HTTP response.")
@@ -658,6 +688,7 @@ struct YouTubeAPIClient: Sendable {
                         message: Self.apiErrorMessage(from: data)
                     )
                     guard canRetry, apiError.isRetryable, attempt < 2 else {
+                        YouGlassDiagnostics.api.error("YouTube request failed with HTTP \(httpResponse.statusCode, privacy: .public)")
                         throw apiError
                     }
                     try await Self.waitBeforeRetry(attempt: attempt)
@@ -665,6 +696,9 @@ struct YouTubeAPIClient: Sendable {
                     continue
                 }
 
+                if let cacheKey {
+                    await responseCache.insert(data, forKey: cacheKey, ttl: cacheTTL)
+                }
                 return data
             } catch let error as YouTubeAPIError {
                 throw error

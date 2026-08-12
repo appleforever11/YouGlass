@@ -53,6 +53,9 @@ final class YouTubeStore: ObservableObject {
     private var homeReloadPending = false
     private var homeReloadPendingForce = false
     private var lastHomeLoadDate: Date?
+    private var cachedFeedUpdatedAt: Date?
+    private var cachedPersonalizedFeedUpdatedAt: Date?
+    private var cachedSubscriptionsUpdatedAt: Date?
     private var cachedAccountSignalVideos: [VideoItem] = []
     private var lastAccountSignalLoadDate: Date?
     private var subscriptionLoadInProgress = false
@@ -75,6 +78,8 @@ final class YouTubeStore: ObservableObject {
         static let recommendationSeeds = "YouGlass.recommendationSeeds"
         static let cachedFeed = "YouGlass.cachedFeed"
         static let cachedPersonalizedFeed = "YouGlass.cachedPersonalizedFeed"
+        static let cachedFeedDate = "YouGlass.cachedFeedDate"
+        static let cachedPersonalizedFeedDate = "YouGlass.cachedPersonalizedFeedDate"
         static let autoMuteOnStart = "YouGlass.autoMuteOnStart"
         static let compactPlayerCorner = "YouGlass.compactPlayerCorner"
         static let recentlyWatched = "YouGlass.recentlyWatched"
@@ -83,6 +88,7 @@ final class YouTubeStore: ObservableObject {
         static let playbackPositions = "YouGlass.playbackPositions"
         static let playbackPositionUpdatedAt = "YouGlass.playbackPositionUpdatedAt"
         static let cachedSubscriptions = "YouGlass.cachedSubscriptions"
+        static let cachedSubscriptionsDate = "YouGlass.cachedSubscriptionsDate"
         static let theme = "YouGlass.theme"
         static let lastAccountSyncDate = "YouGlass.lastAccountSyncDate"
     }
@@ -94,6 +100,9 @@ final class YouTubeStore: ObservableObject {
             theme = savedTheme
         }
         lastAccountSyncDate = defaults.object(forKey: DefaultsKey.lastAccountSyncDate) as? Date
+        cachedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedFeedDate) as? Date
+        cachedPersonalizedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedPersonalizedFeedDate) as? Date
+        cachedSubscriptionsUpdatedAt = defaults.object(forKey: DefaultsKey.cachedSubscriptionsDate) as? Date
         if let rawCorner = defaults.string(forKey: DefaultsKey.compactPlayerCorner),
            let savedCorner = CompactPlayerCorner(rawValue: rawCorner) {
             compactPlayerCorner = savedCorner
@@ -159,10 +168,15 @@ final class YouTubeStore: ObservableObject {
                     self?.profileImageURL = nil
                     self?.lastAccountSyncDate = nil
                     self?.invalidateAccountSignalCache()
+                    self?.cachedSubscriptionsUpdatedAt = nil
                     self?.defaults.set(false, forKey: DefaultsKey.isSignedIn)
                     self?.defaults.removeObject(forKey: DefaultsKey.profileImageURL)
                     self?.defaults.removeObject(forKey: DefaultsKey.cachedSubscriptions)
+                    self?.defaults.removeObject(forKey: DefaultsKey.cachedSubscriptionsDate)
+                    self?.defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeed)
+                    self?.defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
                     self?.defaults.removeObject(forKey: DefaultsKey.lastAccountSyncDate)
+                    self?.cachedPersonalizedFeedUpdatedAt = nil
                 }
             }
         ]
@@ -246,13 +260,18 @@ final class YouTubeStore: ObservableObject {
         subscriptions = []
         subscriptionsLoaded = false
         defaults.removeObject(forKey: DefaultsKey.cachedSubscriptions)
+        defaults.removeObject(forKey: DefaultsKey.cachedSubscriptionsDate)
+        cachedSubscriptionsUpdatedAt = nil
         lastAccountSyncDate = nil
         recommendationSeeds = []
         invalidateAccountSignalCache()
         defaults.set(false, forKey: DefaultsKey.isSignedIn)
         defaults.removeObject(forKey: DefaultsKey.profileImageURL)
         defaults.removeObject(forKey: DefaultsKey.recommendationSeeds)
+        defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeed)
+        defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
         defaults.removeObject(forKey: DefaultsKey.lastAccountSyncDate)
+        cachedPersonalizedFeedUpdatedAt = nil
         YouTubeBrowserWindow.shared.clearAuthenticationSession()
         connectionMessage = "YouTube sign-in data reset"
     }
@@ -367,10 +386,14 @@ final class YouTubeStore: ObservableObject {
         homeLoadInProgress = true
         isLoading = true
         sectionEmptyMessage = nil
+        YouGlassDiagnostics.feed.info("Home load started; forced: \(force, privacy: .public)")
         if feed.forYou.isEmpty && feed.trending.isEmpty && feed.more.isEmpty && feed.queue.isEmpty,
            let data = defaults.data(forKey: DefaultsKey.cachedFeed),
            let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
            !cachedVideos.isEmpty {
+            if let age = YouGlassCachePolicy.age(of: cachedFeedUpdatedAt) {
+                YouGlassDiagnostics.feed.debug("Restoring cached feed age: \(age, privacy: .public) seconds")
+            }
             let cached = mergeVideos(cachedVideos)
             feed.hero = cached.first ?? feed.hero
             feed.forYou = Array(cached.prefix(8))
@@ -382,6 +405,7 @@ final class YouTubeStore: ObservableObject {
             isLoading = false
             homeLoadInProgress = false
             lastHomeLoadDate = Date()
+            YouGlassDiagnostics.feed.info("Home load finished")
             if homeReloadPending {
                 homeReloadPending = false
                 let pendingForce = homeReloadPendingForce
@@ -481,6 +505,7 @@ final class YouTubeStore: ObservableObject {
         searchResults = []
         isLoading = true
         connectionMessage = "Searching YouTube..."
+        YouGlassDiagnostics.feed.info("Search started")
         defer { isLoading = false }
 
         if let directVideo = VideoItem.fromYouTubeInput(searchTerm) {
@@ -1044,10 +1069,14 @@ final class YouTubeStore: ObservableObject {
     private func persistSubscriptions(_ items: [SubscriptionItem]) {
         guard !items.isEmpty else {
             defaults.removeObject(forKey: DefaultsKey.cachedSubscriptions)
+            defaults.removeObject(forKey: DefaultsKey.cachedSubscriptionsDate)
+            cachedSubscriptionsUpdatedAt = nil
             return
         }
         guard let data = try? JSONEncoder().encode(items) else { return }
         defaults.set(data, forKey: DefaultsKey.cachedSubscriptions)
+        cachedSubscriptionsUpdatedAt = Date()
+        defaults.set(cachedSubscriptionsUpdatedAt, forKey: DefaultsKey.cachedSubscriptionsDate)
     }
 
     private func persistVideos(_ videos: [VideoItem], key: String) {
@@ -1090,12 +1119,16 @@ final class YouTubeStore: ObservableObject {
         connectionMessage = message
         if cacheFeed, let data = try? JSONEncoder().encode(merged) {
             defaults.set(data, forKey: DefaultsKey.cachedFeed)
+            cachedFeedUpdatedAt = Date()
+            defaults.set(cachedFeedUpdatedAt, forKey: DefaultsKey.cachedFeedDate)
         }
     }
 
     private func cachePersonalizedFeed(_ videos: [VideoItem]) {
         guard let data = try? JSONEncoder().encode(Array(mergeVideos(videos).prefix(40))) else { return }
         defaults.set(data, forKey: DefaultsKey.cachedPersonalizedFeed)
+        cachedPersonalizedFeedUpdatedAt = Date()
+        defaults.set(cachedPersonalizedFeedUpdatedAt, forKey: DefaultsKey.cachedPersonalizedFeedDate)
     }
 
     private func showEmptySection(_ message: String) {
@@ -1505,8 +1538,10 @@ final class YouTubeStore: ObservableObject {
         }
 
         subscriptionLoadInProgress = true
+        YouGlassDiagnostics.auth.info("Subscription load started; forced: \(force, privacy: .public)")
         defer {
             subscriptionLoadInProgress = false
+            YouGlassDiagnostics.auth.info("Subscription load finished")
             let waiters = subscriptionLoadWaiters
             subscriptionLoadWaiters.removeAll()
             waiters.forEach { $0.resume() }
@@ -1523,7 +1558,9 @@ final class YouTubeStore: ObservableObject {
         do {
             apiSubscriptions = try await client.mySubscriptions(maxResults: 200)
             apiRequestSucceeded = true
+            YouGlassDiagnostics.auth.debug("Subscription API returned \(apiSubscriptions.count, privacy: .public) items")
         } catch {
+            YouGlassDiagnostics.auth.error("Subscription API request failed")
             connectionMessage = error.localizedDescription
         }
 

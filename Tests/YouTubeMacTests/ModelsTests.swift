@@ -161,4 +161,40 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(unauthorized.localizedDescription.localizedCaseInsensitiveContains("authorization"))
     }
 
+    func testCachePolicyReportsFreshAndStaleEntries() {
+        let now = Date(timeIntervalSince1970: 10_000)
+
+        XCTAssertTrue(
+            YouGlassCachePolicy.isFresh(
+                lastUpdated: now.addingTimeInterval(-15),
+                now: now,
+                maxAge: 30
+            )
+        )
+        XCTAssertFalse(
+            YouGlassCachePolicy.isFresh(
+                lastUpdated: now.addingTimeInterval(-31),
+                now: now,
+                maxAge: 30
+            )
+        )
+        XCTAssertFalse(YouGlassCachePolicy.isFresh(lastUpdated: nil, now: now, maxAge: 30))
+    }
+
+    func testResponseCacheStoresAndClearsEntries() async {
+        let cache = YouGlassResponseCache(maxEntries: 2)
+        let value = Data("value".utf8)
+
+        await cache.insert(value, forKey: "one", ttl: 30, now: Date(timeIntervalSince1970: 10_000))
+        let stored = await cache.data(forKey: "one", now: Date(timeIntervalSince1970: 10_010))
+        XCTAssertEqual(stored, value)
+
+        let expired = await cache.data(forKey: "one", now: Date(timeIntervalSince1970: 10_031))
+        XCTAssertNil(expired)
+
+        await cache.removeAll()
+        let cleared = await cache.data(forKey: "one", now: Date(timeIntervalSince1970: 10_010))
+        XCTAssertNil(cleared)
+    }
+
 }

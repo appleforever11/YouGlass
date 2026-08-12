@@ -319,6 +319,7 @@ struct YouTubeHomeView: View {
                 .padding(.bottom, compact ? 72 : 88)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scrollBounceBehavior(.basedOnSize)
         }
         .background(.ultraThinMaterial)
     }
@@ -374,6 +375,7 @@ struct YouTubeHomeView: View {
             } else if compact {
                 Image(systemName: store.isSignedIn ? "checkmark.circle.fill" : "icloud.slash")
                     .foregroundStyle(store.isSignedIn ? Color.green : palette.secondaryText)
+                    .accessibilityLabel(store.connectionMessage)
                     .help(store.connectionMessage)
             } else {
                 Text(store.connectionMessage)
@@ -389,6 +391,7 @@ struct YouTubeHomeView: View {
                     .font(.system(size: 14, weight: .semibold))
             }
             .buttonStyle(IconButtonStyle(palette: palette))
+            .accessibilityLabel("Refresh recommendations")
             .help("Refresh recommendations")
 
             Button(action: { store.settingsPresented = true }) {
@@ -396,6 +399,7 @@ struct YouTubeHomeView: View {
                     .font(.system(size: 15, weight: .semibold))
             }
             .buttonStyle(IconButtonStyle(palette: palette))
+            .accessibilityLabel("YouGlass settings")
             .help("YouGlass settings")
 
             if !minimal {
@@ -416,6 +420,7 @@ struct YouTubeHomeView: View {
                         .font(.system(size: 17, weight: .medium))
                 }
                 .buttonStyle(IconButtonStyle(palette: palette))
+                .accessibilityLabel("Notifications")
             }
 
             Button(action: { store.login() }) {
@@ -432,6 +437,7 @@ struct YouTubeHomeView: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(store.isSignedIn ? "YouTube account" : "Sign in to YouTube")
             .help(store.isSignedIn ? "Signed in" : "Sign in")
         }
         .padding(.horizontal, minimal ? 8 : (compact ? 12 : 28))
@@ -1233,12 +1239,14 @@ struct SearchField: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
                 .onSubmit(onSubmit)
+                .accessibilityLabel("Search YouTube")
 
             Button(action: onSubmit) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 17, weight: .medium))
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Search")
         }
         .padding(.horizontal, 20)
         .frame(height: 42)
