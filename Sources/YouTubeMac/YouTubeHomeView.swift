@@ -22,7 +22,7 @@ struct YouTubeHomeView: View {
             let compactContent = mainContentWidth < 1_000
 
             ZStack {
-                LiquidBackground(palette: palette, ambientPalette: store.ambientPalette)
+                YouGlassAmbientBackdrop(palette: palette, ambientPalette: store.ambientPalette, intensity: 1.15)
                     .ignoresSafeArea()
 
                 HStack(spacing: 0) {
@@ -321,13 +321,39 @@ struct YouTubeHomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollBounceBehavior(.basedOnSize)
         }
-        .background(.ultraThinMaterial)
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                LinearGradient(
+                    colors: [
+                        palette.purple.opacity(palette.isDark ? 0.13 : 0.07),
+                        .clear,
+                        palette.pink.opacity(palette.isDark ? 0.10 : 0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
     }
 
     private var channelContent: some View {
         YouTubeChannelView(palette: palette)
             .environmentObject(store)
-            .background(.ultraThinMaterial)
+            .background {
+                ZStack {
+                    Rectangle().fill(.ultraThinMaterial)
+                    LinearGradient(
+                        colors: [
+                            palette.purple.opacity(palette.isDark ? 0.10 : 0.05),
+                            .clear,
+                            palette.pink.opacity(palette.isDark ? 0.08 : 0.04)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            }
     }
 
     private var topBar: some View {
@@ -709,7 +735,20 @@ struct SidebarView: View {
 
             Spacer()
         }
-        .background(.ultraThinMaterial)
+        .background {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                LinearGradient(
+                    colors: [
+                        palette.purple.opacity(palette.isDark ? 0.14 : 0.08),
+                        .clear,
+                        palette.pink.opacity(palette.isDark ? 0.08 : 0.045)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        }
         .overlay(alignment: .trailing) {
             Rectangle()
                 .fill(palette.hairline)
@@ -1091,7 +1130,13 @@ struct VideoRow: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 9) {
                 Capsule()
-                    .fill(palette.accent)
+                    .fill(
+                        LinearGradient(
+                            colors: [palette.pink, palette.purple],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
                     .frame(width: 4, height: 18)
                 Text(title)
                     .font(.system(size: 19, weight: .bold))
@@ -1131,6 +1176,7 @@ struct VideoCard: View {
     @EnvironmentObject private var store: YouTubeStore
     let video: VideoItem
     let palette: Palette
+    @State private var isHovered = false
 
     var body: some View {
         Button(action: { store.open(video) }) {
@@ -1192,6 +1238,10 @@ struct VideoCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .scaleEffect(isHovered ? 1.012 : 1.0)
+        .shadow(color: palette.pink.opacity(isHovered ? 0.20 : 0), radius: 14, y: 6)
+        .animation(.easeOut(duration: 0.18), value: isHovered)
     }
 }
 
@@ -1350,20 +1400,23 @@ struct Palette {
         isDark = scheme == .dark
     }
 
-    var window: Color { isDark ? Color(red: 0.008, green: 0.010, blue: 0.018) : Color(red: 0.93, green: 0.93, blue: 0.92) }
-    var sidebar: Color { isDark ? Color(red: 0.018, green: 0.022, blue: 0.040) : Color(red: 0.965, green: 0.965, blue: 0.955) }
-    var content: Color { isDark ? Color(red: 0.014, green: 0.016, blue: 0.030) : Color(red: 0.985, green: 0.985, blue: 0.975) }
-    var card: Color { isDark ? Color(red: 0.030, green: 0.028, blue: 0.050) : Color(red: 0.95, green: 0.95, blue: 0.94) }
-    var queueCard: Color { isDark ? Color.white.opacity(0.028) : .white.opacity(0.55) }
-    var search: Color { isDark ? Color.white.opacity(0.045) : Color.black.opacity(0.025) }
-    var selected: Color { isDark ? Color.white.opacity(0.085) : Color.black.opacity(0.055) }
-    var pill: Color { isDark ? Color.white.opacity(0.035) : .white.opacity(0.6) }
-    var stroke: Color { isDark ? Color.white.opacity(0.105) : Color.black.opacity(0.055) }
-    var hairline: Color { isDark ? Color.white.opacity(0.095) : Color.black.opacity(0.06) }
+    var window: Color { isDark ? Color(red: 0.008, green: 0.006, blue: 0.016) : Color(red: 0.95, green: 0.93, blue: 0.96) }
+    var sidebar: Color { isDark ? Color(red: 0.018, green: 0.012, blue: 0.038) : Color(red: 0.975, green: 0.95, blue: 0.98) }
+    var content: Color { isDark ? Color(red: 0.014, green: 0.008, blue: 0.028) : Color(red: 0.99, green: 0.97, blue: 0.99) }
+    var card: Color { isDark ? Color(red: 0.035, green: 0.018, blue: 0.060) : Color(red: 0.96, green: 0.94, blue: 0.98) }
+    var queueCard: Color { isDark ? Color.white.opacity(0.034) : .white.opacity(0.60) }
+    var search: Color { isDark ? Color.white.opacity(0.055) : Color.black.opacity(0.028) }
+    var selected: Color { isDark ? Color(red: 0.28, green: 0.08, blue: 0.25).opacity(0.52) : Color(red: 0.90, green: 0.75, blue: 0.91).opacity(0.48) }
+    var pill: Color { isDark ? Color.white.opacity(0.042) : .white.opacity(0.64) }
+    var stroke: Color { isDark ? Color(red: 0.96, green: 0.26, blue: 0.72).opacity(0.20) : Color(red: 0.58, green: 0.20, blue: 0.58).opacity(0.16) }
+    var hairline: Color { isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.07) }
     var text: Color { isDark ? .white : .black }
     var secondaryText: Color { isDark ? Color.white.opacity(0.62) : Color.black.opacity(0.58) }
     var tertiaryText: Color { isDark ? Color.white.opacity(0.38) : Color.black.opacity(0.36) }
-    var accent: Color { isDark ? Color(red: 0.36, green: 0.72, blue: 1.0) : Color(red: 0.08, green: 0.38, blue: 0.82) }
+    var pink: Color { isDark ? Color(red: 0.98, green: 0.16, blue: 0.64) : Color(red: 0.80, green: 0.06, blue: 0.44) }
+    var purple: Color { isDark ? Color(red: 0.62, green: 0.24, blue: 1.0) : Color(red: 0.44, green: 0.12, blue: 0.78) }
+    var violet: Color { isDark ? Color(red: 0.30, green: 0.18, blue: 0.98) : Color(red: 0.24, green: 0.10, blue: 0.64) }
+    var accent: Color { isDark ? Color(red: 0.50, green: 0.56, blue: 1.0) : Color(red: 0.20, green: 0.30, blue: 0.82) }
     var playButton: Color { isDark ? .white : .white }
     var playText: Color { .black }
 }

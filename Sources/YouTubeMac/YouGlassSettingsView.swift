@@ -9,6 +9,7 @@ struct YouGlassSettingsView: View {
     @State private var status: String?
     @State private var authorizing = false
     @State private var showingResetConfirmation = false
+    @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) private var reduceAmbientMotion = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -58,17 +59,25 @@ struct YouGlassSettingsView: View {
             }
 
             GroupBox("Appearance") {
-                Picker(
-                    "Theme",
-                    selection: Binding(
-                        get: { store.theme },
-                        set: { newTheme in store.setTheme(newTheme) }
-                    )
-                ) {
-                    Text(AppTheme.light.rawValue).tag(AppTheme.light)
-                    Text(AppTheme.dark.rawValue).tag(AppTheme.dark)
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker(
+                        "Theme",
+                        selection: Binding(
+                            get: { store.theme },
+                            set: { newTheme in store.setTheme(newTheme) }
+                        )
+                    ) {
+                        Text(AppTheme.light.rawValue).tag(AppTheme.light)
+                        Text(AppTheme.dark.rawValue).tag(AppTheme.dark)
+                    }
+                    .pickerStyle(.segmented)
+
+                    Toggle("Reduce ambient motion", isOn: $reduceAmbientMotion)
+                    Text("Pause the breathing pink and purple ambience while keeping the glass styling active.")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .pickerStyle(.segmented)
                 .padding(.top, 4)
             }
 

@@ -1503,33 +1503,12 @@ private struct PlayerAmbientSurface: View {
     let palette: Palette
     let ambientPalette: VideoAmbientPalette
     let intensity: Double
-    @State private var isBreathing = false
-
     var body: some View {
-        ZStack {
-            palette.isDark ? Color.black : palette.window
-
-            PlayerAmbientTint(
-                palette: palette,
-                ambientPalette: ambientPalette,
-                intensity: intensity
-            )
-            .scaleEffect(isBreathing ? 1.045 : 0.965)
-            .offset(
-                x: isBreathing ? 18 : -18,
-                y: isBreathing ? -12 : 12
-            )
-            .opacity(isBreathing ? 1 : 0.78)
-        }
-        .animation(
-            .easeInOut(duration: 7.2).repeatForever(autoreverses: true),
-            value: isBreathing
+        YouGlassAmbientBackdrop(
+            palette: palette,
+            ambientPalette: ambientPalette,
+            intensity: intensity
         )
-        .animation(.easeInOut(duration: 2.4), value: ambientPalette)
-        .onAppear {
-            isBreathing = true
-        }
-        .allowsHitTesting(false)
     }
 }
 

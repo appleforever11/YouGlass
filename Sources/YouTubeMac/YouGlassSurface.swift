@@ -17,17 +17,46 @@ struct YouGlassSurfaceModifier: ViewModifier {
                 content
                     .clipShape(shape)
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+                    .overlay {
+                        shape.stroke(
+                            LinearGradient(
+                                colors: [palette.pink.opacity(0.30), palette.stroke, palette.purple.opacity(0.24)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                    }
             } else {
                 content
                     .clipShape(shape)
                     .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
+                    .overlay {
+                        shape.stroke(
+                            LinearGradient(
+                                colors: [palette.pink.opacity(0.22), palette.stroke, palette.purple.opacity(0.18)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                    }
             }
         } else {
             content
                 .background(.ultraThinMaterial, in: shape)
                 .overlay {
                     shape
-                        .fill(palette.accent.opacity(palette.isDark ? 0.035 : 0.018))
+                          .fill(
+                              LinearGradient(
+                                  colors: [
+                                      palette.purple.opacity(palette.isDark ? 0.070 : 0.035),
+                                      palette.pink.opacity(palette.isDark ? 0.038 : 0.020)
+                                  ],
+                                  startPoint: .topLeading,
+                                  endPoint: .bottomTrailing
+                              )
+                          )
                 }
                 .overlay {
                     shape
