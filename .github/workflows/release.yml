@@ -21,6 +21,28 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
+      - name: Select Swift 6 toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          for candidate in \
+            /Applications/Xcode_16.4.app \
+            /Applications/Xcode_16.3.app \
+            /Applications/Xcode_16.2.app \
+            /Applications/Xcode_16.1.app \
+            /Applications/Xcode_16.0.app; do
+            if [[ -d "$candidate/Contents/Developer" ]]; then
+              sudo xcode-select --switch "$candidate/Contents/Developer"
+              echo "DEVELOPER_DIR=$candidate/Contents/Developer" >> "$GITHUB_ENV"
+              echo "Selected $candidate"
+              xcodebuild -version
+              exit 0
+            fi
+          done
+          echo "No Xcode 16 installation was found on the runner." >&2
+          ls -d /Applications/Xcode*.app 2>/dev/null || true
+          exit 1
+
       - name: Validate tag and release notes
         shell: bash
         run: |
@@ -66,7 +88,10 @@ jobs:
           security list-keychains -d user -s "$keychain"
 
       - name: Resolve dependencies
-        run: swift package resolve
+        run: |
+          set -euo pipefail
+          xcrun swift --version
+          xcrun swift package resolve
 
       - name: Run tests
         run: ./script/test.sh
