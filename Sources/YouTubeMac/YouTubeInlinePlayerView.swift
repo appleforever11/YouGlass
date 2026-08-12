@@ -26,6 +26,7 @@ final class YouTubePlaybackController: ObservableObject {
     private var pictureInPictureFallback: (() -> Void)?
     private var pictureInPictureFallbackTask: Task<Void, Never>?
     private var loadWatchdogTask: Task<Void, Never>?
+    private var playbackBootstrapTask: Task<Void, Never>?
     private var loadGeneration = 0
     private let logger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")
 
@@ -36,6 +37,7 @@ final class YouTubePlaybackController: ObservableObject {
         prepareAmbientPalette(for: video)
         status = "Player connected"
         startLoadWatchdog(for: video.id)
+        schedulePlaybackBootstrap()
     }
 
     func detach(from webView: WKWebView) {
@@ -45,6 +47,7 @@ final class YouTubePlaybackController: ObservableObject {
         visualPaletteTask?.cancel()
         visualPaletteTask = nil
         cancelLoadWatchdog()
+        cancelPlaybackBootstrap()
         clearPictureInPictureFallback()
     }
 
@@ -55,6 +58,7 @@ final class YouTubePlaybackController: ObservableObject {
     func stopPlayback() {
         clearPictureInPictureFallback()
         cancelLoadWatchdog()
+        cancelPlaybackBootstrap()
         loadGeneration &+= 1
         webView?.evaluateJavaScript("window.__youglassControls?.stopPlayback()", completionHandler: nil)
         isMuted = true
@@ -80,6 +84,7 @@ final class YouTubePlaybackController: ObservableObject {
         if self.webView === webView {
             clearPictureInPictureFallback()
             cancelLoadWatchdog()
+            cancelPlaybackBootstrap()
             loadGeneration &+= 1
             self.webView = nil
             // Do not publish SwiftUI state from NSViewRepresentable teardown.
@@ -127,6 +132,7 @@ final class YouTubePlaybackController: ObservableObject {
         loadGeneration &+= 1
         canRetry = false
         cancelLoadWatchdog()
+        cancelPlaybackBootstrap()
         visualPaletteTask?.cancel()
         ambientPalette = .neutral
         isSurfaceReady = false
@@ -156,6 +162,7 @@ final class YouTubePlaybackController: ObservableObject {
         canRetry = false
         status = "Preparing player..."
         startLoadWatchdog(for: activeVideoID)
+        schedulePlaybackBootstrap()
     }
 
     func handleNavigationFailure(_ error: Error, for webView: WKWebView? = nil) {
@@ -167,6 +174,7 @@ final class YouTubePlaybackController: ObservableObject {
             return
         }
         cancelLoadWatchdog()
+        cancelPlaybackBootstrap()
         isSurfaceReady = false
         canRetry = true
         status = "Playback unavailable"
@@ -181,6 +189,7 @@ final class YouTubePlaybackController: ObservableObject {
 
         loadGeneration &+= 1
         canRetry = false
+        cancelPlaybackBootstrap()
         isPlaying = false
         isSurfaceReady = false
         currentTime = 0
@@ -188,10 +197,12 @@ final class YouTubePlaybackController: ObservableObject {
         status = "Retrying playback..."
         webView.reload()
         startLoadWatchdog(for: activeVideoID)
+        schedulePlaybackBootstrap()
     }
 
     func togglePlayback() {
         logger.notice("toggle playback requested")
+        cancelPlaybackBootstrap()
         run("window.__youglassControls?.togglePlayback()")
     }
 
@@ -280,9 +291,16 @@ final class YouTubePlaybackController: ObservableObject {
             isPictureInPictureActive = value
             if value { clearPictureInPictureFallback() }
         }
+        if isPlaying {
+            cancelPlaybackBootstrap()
+        }
+
+        var statusIndicatesFailure = false
         if let value = payload["status"] as? String, !value.isEmpty {
             status = value
             let lowercased = value.lowercased()
+            statusIndicatesFailure = lowercased.contains("blocked") ||
+                lowercased.contains("not allowed")
             if lowercased.contains("picture in picture is unavailable") ||
                 lowercased.contains("picture in picture could not start") {
                 let fallback = pictureInPictureFallback
@@ -292,14 +310,16 @@ final class YouTubePlaybackController: ObservableObject {
             if lowercased.contains("error") ||
                 lowercased.contains("unavailable") ||
                 lowercased.contains("failed") ||
-                lowercased.contains("did not load") {
+                lowercased.contains("did not load") ||
+                statusIndicatesFailure {
                 canRetry = true
                 cancelLoadWatchdog()
+                cancelPlaybackBootstrap()
             }
         }
         if let value = payload["currentTime"] as? NSNumber { currentTime = max(0, value.doubleValue) }
         if let value = payload["duration"] as? NSNumber { duration = max(0, value.doubleValue) }
-        if isPlaying || duration > 0 {
+        if isPlaying || (duration > 0 && !statusIndicatesFailure) {
             isSurfaceReady = true
             canRetry = false
             cancelLoadWatchdog()
@@ -366,9 +386,14 @@ final class YouTubePlaybackController: ObservableObject {
 
             guard error != nil || (result as? Bool) == false else { return }
             Task { @MainActor in
-                self?.status = "Playback error"
-                self?.canRetry = true
-                self?.cancelLoadWatchdog()
+                // A bridge timeout is a startup timing signal, not a media
+                // failure. PIP creates its WKWebView while the watch page is
+                // still booting, and marking this as terminal here prevents
+                // the scheduled per-video bootstrap attempts from running.
+                // Real playback errors are reported by the injected media
+                // event handlers and handled in update(from:).
+                guard let self, self.webView != nil else { return }
+                self.status = "Preparing player..."
             }
         }
     }
@@ -389,6 +414,45 @@ final class YouTubePlaybackController: ObservableObject {
             self.status = "Playback did not load"
             self.canRetry = true
         }
+    }
+
+    private func schedulePlaybackBootstrap() {
+        cancelPlaybackBootstrap()
+
+        guard let videoID = activeVideoID, webView != nil else { return }
+        let generation = loadGeneration
+        playbackBootstrapTask = Task { @MainActor [weak self] in
+            let delays: [UInt64] = [
+                250_000_000,
+                700_000_000,
+                1_500_000_000,
+                3_000_000_000,
+                5_500_000_000,
+                9_000_000_000,
+                12_000_000_000
+            ]
+
+            for delay in delays {
+                try? await Task.sleep(nanoseconds: delay)
+                guard !Task.isCancelled, let self else { return }
+                guard self.loadGeneration == generation,
+                      self.activeVideoID == videoID,
+                      self.webView != nil,
+                      !self.isPlaying,
+                      !self.canRetry else { return }
+
+                self.run("window.__youglassControls?.startPlayback()")
+            }
+
+            if !Task.isCancelled {
+                self?.playbackBootstrapTask = nil
+            }
+        }
+    }
+
+    private func cancelPlaybackBootstrap() {
+        playbackBootstrapTask?.cancel()
+        playbackBootstrapTask = nil
     }
 
     private func cancelLoadWatchdog() {
@@ -803,6 +867,24 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         if (style.textContent !== styleText) style.textContent = styleText;
       };
 
+      // A watch page can reinject this script during client-side navigation.
+      // Invalidate and tear down the previous bootstrap loop first so two
+      // page generations cannot race to start or pause the same media element.
+      window.__youglassPlaybackScriptGeneration =
+        (window.__youglassPlaybackScriptGeneration || 0) + 1;
+      const playbackScriptGeneration = window.__youglassPlaybackScriptGeneration;
+      if (window.__youglassPlaybackTimer) {
+        window.clearInterval(window.__youglassPlaybackTimer);
+        window.__youglassPlaybackTimer = null;
+      }
+      if (window.__youglassPlaybackObserver) {
+        window.__youglassPlaybackObserver.disconnect();
+        window.__youglassPlaybackObserver = null;
+      }
+      window.__youglassAutoplayBootstrap = false;
+      window.__youglassPlayRequestInFlight = false;
+      window.__youglassUserAudioChoice = null;
+
       window.__youglassAutoMute = __YOUGLASS_AUTO_MUTE__;
       window.__youglassExpectedVideoID = '__YOUGLASS_VIDEO_ID__';
       window.__youglassPlaybackStopped = false;
@@ -827,6 +909,31 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         return true;
       };
 
+      const hasPlayableMetadata = media =>
+        media.readyState >= HTMLMediaElement.HAVE_METADATA &&
+        Number.isFinite(media.duration) && media.duration > 0;
+
+      const playbackFailureStatus = media => {
+        if (media.error) {
+          // YouTube can briefly publish an error while replacing the stream
+          // or before the media element has metadata. Keep that startup churn
+          // recoverable so PIP can try the same video again once its source is
+          // ready. An error after a real duration exists is terminal and is
+          // surfaced to the native retry state.
+          if (!hasPlayableMetadata(media)) return 'Buffering video...';
+          const code = media.error.code ? ` (${media.error.code})` : '';
+          return `${media.error.message || 'YouTube playback error'}${code}`;
+        }
+
+        // A rejected play() promise is not always a permanent failure. Some
+        // watch pages create the media element before metadata and a playable
+        // source are ready. Keep those cases in the bootstrap retry path.
+        if (!hasPlayableMetadata(media) || media.networkState === HTMLMediaElement.NETWORK_LOADING) {
+          return 'Buffering video...';
+        }
+        return 'Playback blocked; use Play to start';
+      };
+
       const primePlayback = () => {
         if (window.__youglassPlaybackStopped) return false;
         const media = document.querySelector('video');
@@ -847,30 +954,49 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           media.volume = 0;
           media.dataset.youglassAutoplayAttempted = '1';
         }
-        if (media.paused) {
-          const playButton = document.querySelector('.ytp-play-button');
-          if (playButton && typeof playButton.click === 'function') playButton.click();
-        }
-        const playResult = media.play();
-        if (playResult && playResult.then) {
-          playResult.then(() => {
-            if (needsAudioBootstrap && window.__youglassAutoMute !== true && window.__youglassUserAudioChoice !== 'muted') {
-              media.muted = false;
-              if (media.volume === 0) media.volume = 1;
-              window.__youglassUserAudioChoice = 'unmuted';
-              window.__youglassAutoplayBootstrap = false;
-              emitState('Audio on');
-            } else {
-              window.__youglassAutoplayBootstrap = false;
-              emitState();
-            }
-          }).catch(() => {
+        // Do not click YouTube's hidden play button before calling media.play().
+        // That click can toggle the element twice on some watch pages. Also
+        // keep only one promise in flight while the browser resolves autoplay.
+        if (media.paused && !window.__youglassPlayRequestInFlight) {
+          window.__youglassPlayRequestInFlight = true;
+          let playResult;
+          try {
+            playResult = media.play();
+          } catch (_) {
+            window.__youglassPlayRequestInFlight = false;
             window.__youglassAutoplayBootstrap = false;
             delete media.dataset.youglassAutoplayAttempted;
-            emitState('Playback blocked; use Play to start');
-          });
+            emitState(playbackFailureStatus(media));
+            return false;
+          }
+
+          if (playResult && playResult.then) {
+            playResult.then(() => {
+              window.__youglassPlayRequestInFlight = false;
+              if (needsAudioBootstrap && window.__youglassAutoMute !== true && window.__youglassUserAudioChoice !== 'muted') {
+                media.muted = false;
+                if (media.volume === 0) media.volume = 1;
+                window.__youglassUserAudioChoice = 'unmuted';
+                window.__youglassAutoplayBootstrap = false;
+                emitState('Audio on');
+              } else {
+                window.__youglassAutoplayBootstrap = false;
+                emitState();
+              }
+            }).catch(() => {
+              window.__youglassPlayRequestInFlight = false;
+              window.__youglassAutoplayBootstrap = false;
+              delete media.dataset.youglassAutoplayAttempted;
+              emitState(playbackFailureStatus(media));
+            });
+          } else {
+            window.__youglassPlayRequestInFlight = false;
+          }
         }
-        if (!media.paused) {
+        // WebKit can flip paused to false before the play() promise settles.
+        // Keep the bootstrap timer alive until that promise has actually
+        // resolved, otherwise a transient per-video failure becomes final.
+        if (!media.paused && !window.__youglassPlayRequestInFlight) {
           media.dataset.youglassPrimed = '1';
           return true;
         }
@@ -935,7 +1061,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         if (!media || media.dataset.youglassEvents === '1') return;
         media.dataset.youglassEvents = '1';
         const statusForEvent = name => {
-          if (name === 'error') return media.error?.message || 'YouTube playback error';
+          if (name === 'error') return playbackFailureStatus(media);
           if (name === 'waiting' || name === 'stalled') return 'Buffering video...';
           if (name === 'canplay' || name === 'playing') return 'Player ready';
           return undefined;
@@ -953,6 +1079,9 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       window.__youglassControls = {
         stopPlayback() {
           window.__youglassPlaybackStopped = true;
+          window.__youglassPlaybackScriptGeneration =
+            (window.__youglassPlaybackScriptGeneration || 0) + 1;
+          window.__youglassPlayRequestInFlight = false;
           if (window.__youglassPlaybackTimer) {
             window.clearInterval(window.__youglassPlaybackTimer);
             window.__youglassPlaybackTimer = null;
@@ -984,11 +1113,13 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           if (!media) return emitState('Video is not ready');
           if (media.paused) {
             window.__youglassUserPlaybackChoice = 'playing';
+            window.__youglassPlayRequestInFlight = false;
             const playResult = media.play();
             if (playResult && playResult.catch) {
               playResult.catch(error => {
                 window.__youglassUserPlaybackChoice = null;
-                emitState(error.message);
+                window.__youglassPlayRequestInFlight = false;
+                emitState(error?.message || playbackFailureStatus(media));
               });
             }
           } else {
@@ -996,6 +1127,12 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             media.pause();
           }
           emitState();
+        },
+        startPlayback() {
+          if (window.__youglassPlaybackStopped) return;
+          if (!document.querySelector('video')) return emitState('Video is not ready');
+          installMediaEvents();
+          primePlayback();
         },
         toggleMute() {
           const media = document.querySelector('video');
@@ -1118,6 +1255,10 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       installMediaEvents();
       let attempts = 0;
       const playbackTimer = window.setInterval(() => {
+        if (window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) {
+          window.clearInterval(playbackTimer);
+          return;
+        }
         attempts += 1;
         if (primePlayback()) {
           window.clearInterval(playbackTimer);
@@ -1129,7 +1270,8 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       }, 700);
       window.__youglassPlaybackTimer = playbackTimer;
       window.__youglassPlaybackObserver = new MutationObserver(() => {
-        if (window.__youglassPlaybackStopped) return;
+        if (window.__youglassPlaybackStopped ||
+            window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) return;
         installStyle();
         primePlayback();
         installMediaEvents();
