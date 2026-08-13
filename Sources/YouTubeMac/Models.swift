@@ -156,6 +156,23 @@ struct VideoItem: Identifiable, Hashable, Codable {
         return URL(string: "https://i.ytimg.com/vi/\(id)/hqdefault.jpg")
     }
 
+    /// Shorts should remain available in the dedicated Shorts surface, but
+    /// must not silently take over the primary Home recommendations.
+    var isShortForm: Bool {
+        let normalizedTitle = title
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+        let tokens = normalizedTitle
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+        return normalizedTitle.contains("#shorts")
+            || normalizedTitle.contains("#short")
+            || normalizedTitle.contains("youtube shorts")
+            || normalizedTitle.contains("short form")
+            || normalizedTitle.contains("vertical short")
+            || tokens.first == "shorts"
+    }
+
     var embedURL: URL? {
         guard isPlayableOnYouTube else {
             return nil
@@ -279,37 +296,55 @@ struct RecommendationRanker {
         history: [VideoItem],
         liked: [VideoItem],
         seeds: [String],
-        limit: Int = 40
+        saved: [VideoItem] = [],
+        limit: Int = 40,
+        excludeShortForm: Bool = false
     ) -> [VideoItem] {
         guard limit > 0 else { return [] }
 
         let subscriptionIDs = Set(subscriptions.compactMap(\.canonicalChannelID))
-        let subscriptionNames = subscriptions.map { normalized($0.name) }
         let historyChannels = Set(history.map { normalized($0.channel) })
+        let historyIDs = Set(history.map(\.id))
         let likedIDs = Set(liked.map(\.id))
-        let seedText = seeds.map(normalized)
+        let savedIDs = Set(saved.map(\.id))
+        let seedText = seeds.map(normalized).filter { !$0.isEmpty }
+        let signalTokens = Set(
+            (history + liked + saved)
+                .prefix(24)
+                .flatMap { tokens($0.title + " " + $0.channel) }
+        )
 
         var best: [String: (video: VideoItem, score: Double, index: Int)] = [:]
         for (index, video) in videos.enumerated() {
+            if excludeShortForm && video.isShortForm {
+                continue
+            }
+
             let normalizedChannelID = video.channelID.flatMap(Self.canonicalChannelID)
             let channelName = normalized(video.channel)
             let title = normalized(video.title)
-            var score = max(0, 14 - Double(index) * 0.16)
+            var score = max(0, 24 - Double(index) * 0.20)
 
-            if likedIDs.contains(video.id) { score += 42 }
+            if likedIDs.contains(video.id) { score += 48 }
+            if savedIDs.contains(video.id) { score += 36 }
+            if historyIDs.contains(video.id) { score -= 24 }
             if historyChannels.contains(channelName) { score += 22 }
-            if (normalizedChannelID.map(subscriptionIDs.contains) == true)
-                || subscriptionNames.contains(where: { name in
-                    !name.isEmpty && (channelName == name || channelName.contains(name) || name.contains(channelName))
+            if normalizedChannelID.map(subscriptionIDs.contains) == true
+                || subscriptions.contains(where: {
+                    $0.matches(channelID: video.channelID, channelName: video.channel)
                 }) {
-                score += 90
+                score += 110
             }
 
             let seedMatches = seedText.reduce(0) { total, seed in
-                guard !seed.isEmpty else { return total }
                 return total + ((title.contains(seed) || channelName.contains(seed)) ? 1 : 0)
             }
-            score += Double(seedMatches) * 12
+            score += Double(seedMatches) * 14
+
+            let overlap = Set(tokens(video.title + " " + video.channel))
+                .intersection(signalTokens)
+                .count
+            score += min(28, Double(overlap) * 4)
             score += recencyScore(video.age)
             score += viewScore(video.views)
 
@@ -317,13 +352,26 @@ struct RecommendationRanker {
             best[video.id] = (video, score, index)
         }
 
-        return best.values
+        let sorted = best.values
             .sorted {
                 if $0.score == $1.score { return $0.index < $1.index }
                 return $0.score > $1.score
             }
-            .prefix(limit)
-            .map(\.video)
+
+        var selected: [VideoItem] = []
+        var deferred: [VideoItem] = []
+        var channelCounts: [String: Int] = [:]
+        for candidate in sorted {
+            let key = channelKey(for: candidate.video)
+            if channelCounts[key, default: 0] < 3 {
+                selected.append(candidate.video)
+                channelCounts[key, default: 0] += 1
+            } else {
+                deferred.append(candidate.video)
+            }
+        }
+        selected.append(contentsOf: deferred)
+        return Array(selected.prefix(limit))
     }
 
     private static func normalized(_ value: String) -> String {
@@ -334,6 +382,19 @@ struct RecommendationRanker {
             .filter { CharacterSet.alphanumerics.contains($0) }
             .map(String.init)
             .joined()
+    }
+
+    private static func tokens(_ value: String) -> [String] {
+        value
+            .folding(options: [.diacriticInsensitive], locale: .current)
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { $0.count >= 3 }
+    }
+
+    private static func channelKey(for video: VideoItem) -> String {
+        let channel = normalized(video.channel)
+        return channel.isEmpty ? (video.channelID ?? video.id) : channel
     }
 
     private static func canonicalChannelID(_ value: String) -> String? {

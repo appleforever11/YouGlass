@@ -197,4 +197,85 @@ final class ModelsTests: XCTestCase {
         XCTAssertNil(cleared)
     }
 
+    func testPrimaryRecommendationsExcludeShortFormTitles() {
+        let short = VideoItem(
+            id: "short-video",
+            title: "My daily #shorts",
+            channel: "Channel",
+            views: "",
+            age: "",
+            duration: "0:30",
+            imageURL: nil,
+            verified: false
+        )
+        let long = VideoItem(
+            id: "long-video",
+            title: "A long-form story",
+            channel: "Channel",
+            views: "",
+            age: "",
+            duration: "12:00",
+            imageURL: nil,
+            verified: false
+        )
+
+        XCTAssertTrue(short.isShortForm)
+        XCTAssertFalse(long.isShortForm)
+
+        let ranked = RecommendationRanker.rank(
+            [short, long],
+            subscriptions: [],
+            history: [],
+            liked: [],
+            seeds: [],
+            limit: 10,
+            excludeShortForm: true
+        )
+
+        XCTAssertEqual(ranked.map(\.id), ["long-video"])
+    }
+
+    func testRecommendationRankerPromotesSubscribedSavedSignals() {
+        let subscribed = VideoItem(
+            id: "subscribed-video",
+            title: "Fresh upload",
+            channel: "Signal Channel",
+            views: "",
+            age: "1 hour ago",
+            duration: "",
+            imageURL: nil,
+            verified: false,
+            channelID: "UC1234567890123456789012"
+        )
+        let unrelated = VideoItem(
+            id: "unrelated-video",
+            title: "Other upload",
+            channel: "Other Channel",
+            views: "",
+            age: "1 hour ago",
+            duration: "",
+            imageURL: nil,
+            verified: false,
+            channelID: "UC9999999999999999999999"
+        )
+        let subscription = SubscriptionItem(
+            id: "UC1234567890123456789012",
+            name: "Signal Channel",
+            avatarURL: nil,
+            isLive: false
+        )
+
+        let ranked = RecommendationRanker.rank(
+            [unrelated, subscribed],
+            subscriptions: [subscription],
+            history: [],
+            liked: [],
+            seeds: [],
+            saved: [subscribed],
+            limit: 2
+        )
+
+        XCTAssertEqual(ranked.first?.id, "subscribed-video")
+    }
+
 }

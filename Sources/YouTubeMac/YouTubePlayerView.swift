@@ -434,6 +434,20 @@ private struct NativeWatchScreen: View {
                 height: playerWidth.map { $0 / CompactPlayerMetrics.aspectRatio }
             )
             .frame(maxWidth: playerWidth == nil ? .infinity : nil)
+            // Keep the player interaction surface inside the media frame.
+            // This is important because the action bar is a sibling below it;
+            // an unconstrained transparent gesture surface can otherwise
+            // intercept clicks intended for Like, Dislike, Share, or Save.
+            .clipped()
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .modifier(
+                BlendedPlayerSurfaceModifier(
+                    palette: palette,
+                    ambientPalette: store.ambientPalette
+                )
+            )
+            // Re-assert the hit-test boundary after the visual surface modifier.
+            .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
             Text(video.title)
                 .font(.system(size: 24, weight: .bold))
@@ -501,10 +515,16 @@ private struct NativeWatchScreen: View {
                 Text("Now Playing")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(palette.secondaryText)
-                Text(video.channel)
+                Text(video.title)
                     .font(.system(size: 13, weight: .semibold))
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                Text(video.channel)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(palette.secondaryText.opacity(0.78))
                     .lineLimit(1)
             }
+            .frame(maxWidth: 520, alignment: .leading)
 
             Spacer()
 
@@ -597,58 +617,60 @@ private struct NativeWatchScreen: View {
                 .help(subscribed ? "Subscribed" : "Subscribe to \(video.channel)")
             }
 
-            // Keep the channel identity stable while giving the actions their
-            // own horizontal lane. This prevents Save from being compressed
-            // or pushed outside the player at smaller window widths.
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    WatchActionButton(symbol: liked ? "hand.thumbsup.fill" : "hand.thumbsup", title: likeTitle, palette: palette) {
-                        guard !actionBusy else { return }
-                        actionBusy = true
-                        let nextRating = liked ? "none" : "like"
-                        Task {
-                            let succeeded = await store.rate(video: video, as: nextRating)
-                            await MainActor.run {
-                                if succeeded {
-                                    liked = nextRating == "like"
-                                    if liked { disliked = false }
-                                    store.recordLocalRating(for: video, liked: liked)
-                                }
-                                actionBusy = false
+            // Use a direct button lane here. A nested horizontal ScrollView
+            // inside the vertically scrolling watch page can win the AppKit
+            // mouse hit test even when the pointer is over a button, making
+            // the actions look enabled but feel dead.
+            HStack(spacing: 8) {
+                WatchActionButton(symbol: liked ? "hand.thumbsup.fill" : "hand.thumbsup", title: likeTitle, palette: palette) {
+                    guard !actionBusy else { return }
+                    actionBusy = true
+                    let nextRating = liked ? "none" : "like"
+                    Task {
+                        let succeeded = await store.rate(video: video, as: nextRating)
+                        await MainActor.run {
+                            if succeeded {
+                                liked = nextRating == "like"
+                                if liked { disliked = false }
+                                store.recordLocalRating(for: video, liked: liked)
                             }
+                            actionBusy = false
                         }
-                    }
-                    WatchActionButton(symbol: disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown", title: "Dislike", palette: palette) {
-                        guard !actionBusy else { return }
-                        actionBusy = true
-                        let nextRating = disliked ? "none" : "dislike"
-                        Task {
-                            let succeeded = await store.rate(video: video, as: nextRating)
-                            await MainActor.run {
-                                if succeeded {
-                                    disliked = nextRating == "dislike"
-                                    if disliked { liked = false }
-                                    if disliked { store.recordLocalRating(for: video, liked: false) }
-                                }
-                                actionBusy = false
-                            }
-                        }
-                    }
-                    WatchActionButton(symbol: "square.and.arrow.up", title: "Share", palette: palette) {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(video.playbackURL.absoluteString, forType: .string)
-                    }
-                    WatchActionButton(symbol: saved ? "bookmark.fill" : "bookmark", title: saved ? "Saved" : "Save", palette: palette) {
-                        saved.toggle()
-                        store.toggleSaved(video)
                     }
                 }
-                .padding(.horizontal, 1)
+                WatchActionButton(symbol: disliked ? "hand.thumbsdown.fill" : "hand.thumbsdown", title: "Dislike", palette: palette) {
+                    guard !actionBusy else { return }
+                    actionBusy = true
+                    let nextRating = disliked ? "none" : "dislike"
+                    Task {
+                        let succeeded = await store.rate(video: video, as: nextRating)
+                        await MainActor.run {
+                            if succeeded {
+                                disliked = nextRating == "dislike"
+                                if disliked { liked = false }
+                                if disliked { store.recordLocalRating(for: video, liked: false) }
+                            }
+                            actionBusy = false
+                        }
+                    }
+                }
+                WatchActionButton(symbol: "square.and.arrow.up", title: "Share", palette: palette) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(video.playbackURL.absoluteString, forType: .string)
+                }
+                WatchActionButton(symbol: saved ? "bookmark.fill" : "bookmark", title: saved ? "Saved" : "Save", palette: palette) {
+                    saved.toggle()
+                    store.toggleSaved(video)
+                }
             }
+            .padding(.horizontal, 1)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .allowsHitTesting(true)
+            .layoutPriority(1)
         }
         .padding(12)
         .youGlassSurface(palette: palette, cornerRadius: 16)
+        .zIndex(30)
     }
 
     private var description: some View {
@@ -1312,6 +1334,9 @@ private struct NativeYouTubePlayer: View {
                     }
                     .frame(width: PlayerTransportLayout.normalGroupWidth)
                     .frame(height: 46)
+                    // Lift only the full-player control row so its circular
+                    // hit targets stay above the title boundary.
+                    .offset(y: PlayerTransportLayout.normalControlLift)
                 }
             }
             // The overlay gets the player's proposal, so this cap is
@@ -1486,6 +1511,7 @@ private enum PlayerTransportLayout {
     static let normalButtonSize: CGFloat = 38
     static let normalSpacing: CGFloat = 10
     static let normalStatusWidth: CGFloat = 120
+    static let normalControlLift: CGFloat = -12
 
     // Five buttons, a fixed status label, and the PiP button. Keeping this
     // width fixed makes the SwiftUI visuals and AppKit hit regions use the
@@ -1569,6 +1595,55 @@ private struct PlayerAmbientTint: View {
                 )
             }
         }
+    }
+}
+
+private struct BlendedPlayerSurfaceModifier: ViewModifier {
+    let palette: Palette
+    let ambientPalette: VideoAmbientPalette
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        let primaryGlow = ambientPalette.primary.color.opacity(palette.isDark ? 0.18 : 0.10)
+        let secondaryGlow = ambientPalette.secondary.color.opacity(palette.isDark ? 0.12 : 0.07)
+
+        return content
+            .compositingGroup()
+            .clipShape(shape)
+            .background {
+                ZStack {
+                    shape
+                        .fill(primaryGlow)
+                        .blur(radius: 28)
+                        .padding(-18)
+                    shape
+                        .fill(secondaryGlow)
+                        .blur(radius: 22)
+                        .padding(-12)
+                }
+                .clipShape(shape)
+            }
+            .overlay {
+                shape
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                ambientPalette.primary.color.opacity(0.34),
+                                .white.opacity(0.16),
+                                ambientPalette.secondary.color.opacity(0.26)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+                    .allowsHitTesting(false)
+            }
+            .shadow(
+                color: ambientPalette.primary.color.opacity(palette.isDark ? 0.16 : 0.08),
+                radius: 24,
+                y: 8
+            )
     }
 }
 
@@ -1769,6 +1844,7 @@ private struct WatchActionButton: View {
             .background(.regularMaterial)
             .clipShape(Capsule())
             .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
     }

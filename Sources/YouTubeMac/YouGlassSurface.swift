@@ -34,6 +34,10 @@ struct YouGlassSurfaceModifier: ViewModifier {
                             endPoint: .bottomTrailing
                         )
                     )
+                    // The glass tint is decoration only. Keeping it out of
+                    // hit testing prevents it from sitting above buttons
+                    // hosted inside the surface.
+                    .allowsHitTesting(false)
             }
             .overlay {
                 shape
@@ -49,6 +53,7 @@ struct YouGlassSurfaceModifier: ViewModifier {
                         ),
                         lineWidth: 1
                     )
+                    .allowsHitTesting(false)
             }
             .clipShape(shape)
     }

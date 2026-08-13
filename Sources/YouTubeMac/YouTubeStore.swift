@@ -115,10 +115,13 @@ final class YouTubeStore: ObservableObject {
             subscriptions = decodeSubscriptions()
         }
         recommendationSeeds = defaults.stringArray(forKey: DefaultsKey.recommendationSeeds) ?? []
+        recentlyWatched = decodeVideos(forKey: DefaultsKey.recentlyWatched)
+        savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
+        locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
         if let data = defaults.data(forKey: DefaultsKey.cachedPersonalizedFeed),
            let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
            !cachedVideos.isEmpty {
-            applyHomeVideos(
+            _ = applyPrimaryHomeVideos(
                 cachedVideos,
                 message: "Saved personalized YouTube recommendations",
                 cacheFeed: false
@@ -126,11 +129,8 @@ final class YouTubeStore: ObservableObject {
         } else if let data = defaults.data(forKey: DefaultsKey.cachedFeed),
                   let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
                   !cachedVideos.isEmpty {
-            applyHomeVideos(cachedVideos, message: "Saved YouTube recommendations", cacheFeed: false)
+            _ = applyPrimaryHomeVideos(cachedVideos, message: "Saved YouTube recommendations", cacheFeed: false)
         }
-        recentlyWatched = decodeVideos(forKey: DefaultsKey.recentlyWatched)
-        savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
-        locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
         playbackPositions = decodePlaybackPositions()
         playbackPositionUpdatedAt = decodePlaybackPositionDates()
 
@@ -394,12 +394,11 @@ final class YouTubeStore: ObservableObject {
             if let age = YouGlassCachePolicy.age(of: cachedFeedUpdatedAt) {
                 YouGlassDiagnostics.feed.debug("Restoring cached feed age: \(age, privacy: .public) seconds")
             }
-            let cached = mergeVideos(cachedVideos)
-            feed.hero = cached.first ?? feed.hero
-            feed.forYou = Array(cached.prefix(8))
-            feed.trending = Array(cached.dropFirst(8).prefix(8))
-            feed.more = Array(cached.dropFirst(16).prefix(8))
-            feed.queue = Array(cached.dropFirst(24).prefix(4))
+            _ = applyPrimaryHomeVideos(
+                cachedVideos,
+                message: "Saved YouTube recommendations",
+                cacheFeed: false
+            )
         }
         defer {
             isLoading = false
@@ -431,11 +430,11 @@ final class YouTubeStore: ObservableObject {
             let personalized = await personalizedAccountFeed(
                 webHomepageVideos: webResult.isSignedIn ? webResult.videos : []
             )
-            if !personalized.isEmpty {
-                applyHomeVideos(
+            if !personalized.isEmpty,
+               applyPrimaryHomeVideos(
                     personalized,
                     message: "Personalized feed from your YouTube account"
-                )
+               ) {
                 cachePersonalizedFeed(personalized)
                 return
             }
@@ -445,17 +444,18 @@ final class YouTubeStore: ObservableObject {
             let message = webResult.isSignedIn
                 ? "Using signed-in YouTube homepage recommendations"
                 : "Using YouTube homepage recommendations"
-            applyHomeVideos(webResult.videos, message: message, cacheFeed: false)
-            return
+            if applyPrimaryHomeVideos(webResult.videos, message: message, cacheFeed: false) {
+                return
+            }
         }
 
         guard await client.hasCredentials() else {
             let safariSignals = await safariHomeFeed.loadFeed(maxResultsPerChannel: 5)
-            if !safariSignals.isEmpty {
-                applyHomeVideos(
+            if !safariSignals.isEmpty,
+               applyPrimaryHomeVideos(
                     safariSignals,
                     message: "Safari Home-style channel recommendations (\(safariSignals.count) fresh uploads)"
-                )
+               ) {
                 return
             }
 
@@ -470,15 +470,13 @@ final class YouTubeStore: ObservableObject {
             let accountSignals = await accountSignalVideos(maxResults: 12)
             let popular = try await client.mostPopularVideos(maxResults: 8)
             let appleTech = try await client.searchVideos(query: "Apple Vision Pro technology creators", maxResults: 6, order: "relevance", videoCategoryId: "28")
-            let videos = RecommendationRanker.rank(
-                accountSignals + personalized + popular + appleTech,
-                subscriptions: subscriptions,
-                history: recentlyWatched,
-                liked: locallyLikedVideos,
-                seeds: recommendationSeeds,
-                limit: 40
-            )
-            applyHomeVideos(videos, message: "Recommended by YouTube API account signals")
+            let candidates = accountSignals + personalized + popular + appleTech
+            if !applyPrimaryHomeVideos(
+                candidates,
+                message: "Recommended by YouTube API account signals"
+            ) {
+                _ = applyPrimaryHomeVideos(popular + appleTech, message: "Popular on YouTube")
+            }
         } catch {
             // Keep a cached or signed-in web feed visible when the Data API
             // project is temporarily rate-limited. Calling search again here
@@ -1128,8 +1126,30 @@ final class YouTubeStore: ObservableObject {
         }
     }
 
+    @discardableResult
+    private func applyPrimaryHomeVideos(
+        _ videos: [VideoItem],
+        message: String,
+        cacheFeed: Bool = true
+    ) -> Bool {
+        let ranked = RecommendationRanker.rank(
+            videos,
+            subscriptions: subscriptions,
+            history: recentlyWatched,
+            liked: locallyLikedVideos,
+            seeds: recommendationSeeds,
+            saved: savedVideos,
+            limit: 40,
+            excludeShortForm: true
+        )
+        guard !ranked.isEmpty else { return false }
+        applyHomeVideos(ranked, message: message, cacheFeed: cacheFeed)
+        return true
+    }
+
     private func cachePersonalizedFeed(_ videos: [VideoItem]) {
-        guard let data = try? JSONEncoder().encode(Array(mergeVideos(videos).prefix(40))) else { return }
+        let longForm = mergeVideos(videos).filter { !$0.isShortForm }
+        guard let data = try? JSONEncoder().encode(Array(longForm.prefix(40))) else { return }
         defaults.set(data, forKey: DefaultsKey.cachedPersonalizedFeed)
         cachedPersonalizedFeedUpdatedAt = Date()
         defaults.set(cachedPersonalizedFeedUpdatedAt, forKey: DefaultsKey.cachedPersonalizedFeedDate)
@@ -1210,7 +1230,9 @@ final class YouTubeStore: ObservableObject {
             history: recentlyWatched,
             liked: locallyLikedVideos,
             seeds: recommendationSeeds,
-            limit: 40
+            saved: savedVideos,
+            limit: 40,
+            excludeShortForm: true
         )
         if !ranked.isEmpty {
             return ranked
@@ -1224,7 +1246,9 @@ final class YouTubeStore: ObservableObject {
                 history: recentlyWatched,
                 liked: locallyLikedVideos,
                 seeds: recommendationSeeds,
-                limit: 40
+                saved: savedVideos,
+                limit: 40,
+                excludeShortForm: true
             )
         }
 
@@ -1233,10 +1257,11 @@ final class YouTubeStore: ObservableObject {
 
     private func accountSignalVideos(maxResults: Int) async -> [VideoItem] {
         let requestedCount = max(1, maxResults)
-        if cachedAccountSignalVideos.count >= requestedCount,
+        let cachedCandidates = cachedAccountSignalVideos.filter { !$0.isShortForm }
+        if cachedCandidates.count >= requestedCount,
            let lastAccountSignalLoadDate,
            Date().timeIntervalSince(lastAccountSignalLoadDate) < 60 {
-            return Array(cachedAccountSignalVideos.prefix(requestedCount))
+            return Array(cachedCandidates.prefix(requestedCount))
         }
 
         var videos: [VideoItem] = []
@@ -1271,7 +1296,10 @@ final class YouTubeStore: ObservableObject {
             }
         }
 
-        let merged = Array(mergeVideos(videos).prefix(requestedCount))
+        videos.append(contentsOf: recentlyWatched.prefix(8))
+        videos.append(contentsOf: locallyLikedVideos.prefix(8))
+        videos.append(contentsOf: savedVideos.prefix(8))
+        let merged = Array(mergeVideos(videos).filter { !$0.isShortForm }.prefix(requestedCount))
         cachedAccountSignalVideos = merged
         lastAccountSignalLoadDate = Date()
         return merged

@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.7] - 2026-08-12
+
+Improved signed-in Home recommendations and kept Shorts out of the primary feed. See [the complete end-user release notes](RELEASE_NOTES/1.0.7.md).
+
 ## [1.0.6] - 2026-08-12
 
 Introduced a brighter pink-and-purple Liquid Glass visual refresh with living ambience, refined surfaces, hover feedback, and reduced-motion support while preserving existing playback, PIP, account, and feed behavior. See [the complete end-user release notes](RELEASE_NOTES/1.0.6.md).

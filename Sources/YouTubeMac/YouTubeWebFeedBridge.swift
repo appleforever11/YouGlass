@@ -305,9 +305,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             } catch (_) { return ''; }
           };
           const add = (entry) => {
-            if (!entry || !entry.id || seen.has(entry.id)) return;
+            if (!entry || entry.isShort || !entry.id || seen.has(entry.id)) return;
             const title = String(entry.title || '').replace(/\\s+/g, ' ').trim();
             if (!title || title.length < 2) return;
+            const titleLower = title.toLowerCase();
+            if (titleLower.includes('#short') || titleLower.includes('youtube shorts') || titleLower.includes('short form')) return;
             seen.add(entry.id);
             items.push({
               id: entry.id,
@@ -316,10 +318,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
               views: String(entry.views || 'Recommended').replace(/\\s+/g, ' ').trim(),
               age: String(entry.age || '').replace(/\\s+/g, ' ').trim(),
               duration: String(entry.duration || '').replace(/\\s+/g, ' ').trim(),
-              imageURL: entry.imageURL || ''
+              imageURL: entry.imageURL || '',
+              isShort: Boolean(entry.isShort)
             });
           };
-          const addRenderer = (renderer) => {
+          const addRenderer = (renderer, isShort = false) => {
             if (!renderer || typeof renderer !== 'object') return;
             const id = normalizeId(renderer.videoId || (renderer.navigationEndpoint && renderer.navigationEndpoint.watchEndpoint && 'https://www.youtube.com/watch?v=' + renderer.navigationEndpoint.watchEndpoint.videoId));
             if (!id) return;
@@ -328,7 +331,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             const views = firstText(renderer, ['viewCountText', 'shortViewCountText']);
             const age = firstText(renderer, ['publishedTimeText']);
             const duration = firstText(renderer, ['lengthText']);
-            add({ id, title, channel, views, age, duration, imageURL: thumbnail(renderer.thumbnail) });
+            add({ id, title, channel, views, age, duration, imageURL: thumbnail(renderer.thumbnail), isShort });
           };
           const walk = (node, depth) => {
             if (!node || typeof node !== 'object' || depth > 32 || items.length >= limit * 3) return;
@@ -338,7 +341,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             if (node.richItemRenderer && node.richItemRenderer.content) walk(node.richItemRenderer.content, depth + 1);
             if (node.reelItemRenderer) {
               initialCount += 1;
-              addRenderer(node.reelItemRenderer);
+              addRenderer(node.reelItemRenderer, true);
             }
             for (const key of Object.keys(node)) {
               if (key === 'playerResponse' || key === 'responseContext') continue;
@@ -365,6 +368,8 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             const anchor = anchors.find(candidate => normalizeId(candidate.href));
             const id = anchor ? normalizeId(anchor.href) : '';
             if (!id) continue;
+            const isShortCard = card.matches('ytd-reel-item-renderer')
+              || anchors.some(candidate => /\\/shorts\\//i.test(candidate.href));
             const titleNode = card.querySelector([
               '#video-title',
               'a#video-title-link',
@@ -398,7 +403,8 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
                 image.currentSrc || image.src || image.getAttribute('data-src') ||
                 image.getAttribute('data-thumb') || image.getAttribute('data-original') ||
                 srcsetURL
-              ) : ''
+              ) : '',
+              isShort: isShortCard
             });
           }
 
