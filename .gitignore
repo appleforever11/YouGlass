@@ -5,6 +5,7 @@ backups/
 safety-points/
 tmp/
 .codex/
+.youglass-remote
 .sparkle-private-key
 *.sparkle_private_key
 *.key

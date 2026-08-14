@@ -850,9 +850,7 @@ private struct NativeWatchScreen: View {
                         .buttonStyle(.bordered)
 
                         if !store.hasDataAPIKey && !store.hasOAuthClientID {
-                            Button {
-                                store.settingsPresented = true
-                            } label: {
+                            SettingsLink {
                                 Label("Connect YouTube API", systemImage: "key")
                             }
                             .buttonStyle(.borderedProminent)

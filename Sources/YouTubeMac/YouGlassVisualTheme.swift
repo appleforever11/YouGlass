@@ -5,8 +5,8 @@ enum YouGlassVisualDefaults {
 }
 
 /// Shared animated ambience for the home shell and player. The motion is
-/// timeline-driven so it stays smooth during view updates and can be paused
-/// for accessibility or lower-power use.
+/// state-driven so it remains stable during view updates and PIP transitions,
+/// including during macOS beta window and PIP transitions.
 struct YouGlassAmbientBackdrop: View {
     let palette: Palette
     let ambientPalette: VideoAmbientPalette
@@ -14,15 +14,15 @@ struct YouGlassAmbientBackdrop: View {
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) private var reduceAmbientMotion = false
+    @State private var animationPhase = 0.0
 
     private var motionPaused: Bool {
         accessibilityReduceMotion || reduceAmbientMotion
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: motionPaused)) { context in
-            GeometryReader { geometry in
-                let time = motionPaused ? 0 : context.date.timeIntervalSinceReferenceDate
+        GeometryReader { geometry in
+                let time = motionPaused ? 0 : animationPhase * 18
                 let energy = min(max(ambientPalette.energy, 0.18), 1.0)
                 let breathing = 0.86 + 0.14 * ((sin(time * 0.48) + 1) * 0.5)
                 let counterBreathing = 0.82 + 0.18 * ((cos(time * 0.36 + 1.4) + 1) * 0.5)
@@ -94,6 +94,17 @@ struct YouGlassAmbientBackdrop: View {
                         angle: .degrees(time * 2.5)
                     )
                 }
+        }
+        .onAppear {
+            guard !motionPaused, animationPhase == 0 else { return }
+            withAnimation(.easeInOut(duration: 18).repeatForever(autoreverses: true)) {
+                animationPhase = 1
+            }
+        }
+        .onChange(of: motionPaused) { _, paused in
+            guard !paused, animationPhase == 0 else { return }
+            withAnimation(.easeInOut(duration: 18).repeatForever(autoreverses: true)) {
+                animationPhase = 1
             }
         }
         .allowsHitTesting(false)

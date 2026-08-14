@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.8] - 2026-08-13
+
+Added a native, color-coded settings window and improved player startup stability. See [the complete end-user release notes](RELEASE_NOTES/1.0.8.md).
+
 ## [1.0.7] - 2026-08-12
 
 Improved signed-in Home recommendations and kept Shorts out of the primary feed. See [the complete end-user release notes](RELEASE_NOTES/1.0.7.md).

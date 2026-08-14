@@ -283,6 +283,8 @@ final class YouTubePlaybackController: ObservableObject {
             return
         }
 
+        let frameReady = payload["frameReady"] as? Bool
+
         if let value = payload["muted"] as? Bool { isMuted = value }
         if let value = payload["captionsEnabled"] as? Bool { isCaptionsEnabled = value }
         if let value = payload["playing"] as? Bool { isPlaying = value }
@@ -291,7 +293,7 @@ final class YouTubePlaybackController: ObservableObject {
             isPictureInPictureActive = value
             if value { clearPictureInPictureFallback() }
         }
-        if isPlaying {
+        if frameReady == true {
             cancelPlaybackBootstrap()
         }
 
@@ -319,10 +321,17 @@ final class YouTubePlaybackController: ObservableObject {
         }
         if let value = payload["currentTime"] as? NSNumber { currentTime = max(0, value.doubleValue) }
         if let value = payload["duration"] as? NSNumber { duration = max(0, value.doubleValue) }
-        if isPlaying || (duration > 0 && !statusIndicatesFailure) {
-            isSurfaceReady = true
-            canRetry = false
-            cancelLoadWatchdog()
+        if let frameReady {
+            isSurfaceReady = frameReady
+            if frameReady {
+                canRetry = false
+                cancelLoadWatchdog()
+            }
+        } else {
+            // A duration or an audio-only "playing" event is not enough to
+            // render a usable player surface. The page bridge must explicitly
+            // confirm that a decoded video frame exists.
+            isSurfaceReady = false
         }
         applyPendingResumeIfReady()
     }
@@ -352,8 +361,9 @@ final class YouTubePlaybackController: ObservableObject {
         // SwiftUI can reveal the native toolbar one frame before the
         // document-end script has installed __youglassControls. Optional
         // chaining alone makes that click disappear without an error. Wait
-        // briefly for the bridge and return a concrete success value so the
-        // control layer never silently loses the first click.
+        // briefly for the bridge. The native event bridge remains the
+        // authoritative state path; avoiding a Swift completion block here
+        // also prevents a macOS 27 WebKit callback trap during teardown.
         let command = """
         (() => {
           const execute = () => {
@@ -375,27 +385,7 @@ final class YouTubePlaybackController: ObservableObject {
         })()
         """
 
-        webView.evaluateJavaScript(command) { [weak self] result, error in
-            if let error {
-                self?.logger.error("control command failed: \(error.localizedDescription, privacy: .public)")
-            } else if let success = result as? Bool, !success {
-                self?.logger.error("control command timed out waiting for the player bridge")
-            } else {
-                self?.logger.notice("control command completed")
-            }
-
-            guard error != nil || (result as? Bool) == false else { return }
-            Task { @MainActor in
-                // A bridge timeout is a startup timing signal, not a media
-                // failure. PIP creates its WKWebView while the watch page is
-                // still booting, and marking this as terminal here prevents
-                // the scheduled per-video bootstrap attempts from running.
-                // Real playback errors are reported by the injected media
-                // event handlers and handled in update(from:).
-                guard let self, self.webView != nil else { return }
-                self.status = "Preparing player..."
-            }
-        }
+        webView.evaluateJavaScript(command, completionHandler: nil)
     }
 
     private func startLoadWatchdog(for videoID: String?) {
@@ -403,15 +393,14 @@ final class YouTubePlaybackController: ObservableObject {
         guard let videoID else { return }
         let generation = loadGeneration
         loadWatchdogTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            try? await Task.sleep(nanoseconds: 45_000_000_000)
             guard let self,
                   !Task.isCancelled,
                   self.loadGeneration == generation,
                   self.activeVideoID == videoID,
                   self.webView != nil,
-                  !self.isPlaying,
-                  self.duration <= 0 else { return }
-            self.status = "Playback did not load"
+                  !self.isSurfaceReady else { return }
+            self.status = "Video frame did not load"
             self.canRetry = true
         }
     }
@@ -427,9 +416,11 @@ final class YouTubePlaybackController: ObservableObject {
                 700_000_000,
                 1_500_000_000,
                 3_000_000_000,
-                5_500_000_000,
-                9_000_000_000,
-                12_000_000_000
+                5_000_000_000,
+                7_000_000_000,
+                8_000_000_000,
+                8_000_000_000,
+                8_000_000_000
             ]
 
             for delay in delays {
@@ -438,7 +429,7 @@ final class YouTubePlaybackController: ObservableObject {
                 guard self.loadGeneration == generation,
                       self.activeVideoID == videoID,
                       self.webView != nil,
-                      !self.isPlaying,
+                      !self.isSurfaceReady,
                       !self.canRetry else { return }
 
                 self.run("window.__youglassControls?.startPlayback()")
@@ -884,6 +875,10 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       window.__youglassAutoplayBootstrap = false;
       window.__youglassPlayRequestInFlight = false;
       window.__youglassUserAudioChoice = null;
+      window.__youglassFrameReady = false;
+      window.__youglassBoundMedia = null;
+      window.__youglassBoundMediaSource = null;
+      window.__youglassWaitingForVideoFrame = false;
 
       window.__youglassAutoMute = __YOUGLASS_AUTO_MUTE__;
       window.__youglassExpectedVideoID = '__YOUGLASS_VIDEO_ID__';
@@ -911,7 +906,72 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
 
       const hasPlayableMetadata = media =>
         media.readyState >= HTMLMediaElement.HAVE_METADATA &&
-        Number.isFinite(media.duration) && media.duration > 0;
+        (media.duration === Infinity ||
+         (Number.isFinite(media.duration) && media.duration > 0));
+
+      const resetFrameStateIfNeeded = media => {
+        if (!media) return;
+        const source = media.currentSrc || media.src || '';
+        if (window.__youglassBoundMedia !== media ||
+            window.__youglassBoundMediaSource !== source) {
+          window.__youglassBoundMedia = media;
+          window.__youglassBoundMediaSource = source;
+          window.__youglassFrameReady = false;
+          window.__youglassWaitingForVideoFrame = false;
+          delete media.dataset.youglassFrameWatch;
+        }
+      };
+
+      const releaseAudioAfterFirstFrame = () => {
+        if (!window.__youglassWaitingForVideoFrame ||
+            window.__youglassAutoMute === true ||
+            window.__youglassUserAudioChoice === 'muted') return;
+        const media = window.__youglassBoundMedia || document.querySelector('video');
+        if (!media) return;
+        media.muted = false;
+        if (media.volume === 0) media.volume = 1;
+        window.__youglassUserAudioChoice = 'unmuted';
+        window.__youglassWaitingForVideoFrame = false;
+      };
+
+      const markFrameReady = media => {
+        if (!media || window.__youglassPlaybackStopped) return false;
+        resetFrameStateIfNeeded(media);
+        if (window.__youglassBoundMedia !== media) return false;
+        if (media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return false;
+        window.__youglassFrameReady = true;
+        releaseAudioAfterFirstFrame();
+        return true;
+      };
+
+      const watchForFirstFrame = media => {
+        if (!media || window.__youglassPlaybackStopped) return false;
+        resetFrameStateIfNeeded(media);
+        if (window.__youglassFrameReady) return true;
+        if (media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return false;
+        const source = window.__youglassBoundMediaSource;
+        if (typeof media.requestVideoFrameCallback === 'function') {
+          if (media.dataset.youglassFrameWatch !== '1') {
+            media.dataset.youglassFrameWatch = '1';
+            try {
+              media.requestVideoFrameCallback(() => {
+                delete media.dataset.youglassFrameWatch;
+                if (window.__youglassBoundMedia === media &&
+                    window.__youglassBoundMediaSource === source &&
+                    media.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+                  markFrameReady(media);
+                  emitState('Player ready');
+                }
+              });
+            } catch (_) {
+              delete media.dataset.youglassFrameWatch;
+              return markFrameReady(media);
+            }
+          }
+          return false;
+        }
+        return markFrameReady(media);
+      };
 
       const playbackFailureStatus = media => {
         if (media.error) {
@@ -920,7 +980,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           // recoverable so PIP can try the same video again once its source is
           // ready. An error after a real duration exists is terminal and is
           // surfaced to the native retry state.
-          if (!hasPlayableMetadata(media)) return 'Buffering video...';
+          if (!hasPlayableMetadata(media) || !window.__youglassFrameReady) return 'Buffering video...';
           const code = media.error.code ? ` (${media.error.code})` : '';
           return `${media.error.message || 'YouTube playback error'}${code}`;
         }
@@ -928,6 +988,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         // A rejected play() promise is not always a permanent failure. Some
         // watch pages create the media element before metadata and a playable
         // source are ready. Keep those cases in the bootstrap retry path.
+        if (!window.__youglassFrameReady) return 'Buffering video...';
         if (!hasPlayableMetadata(media) || media.networkState === HTMLMediaElement.NETWORK_LOADING) {
           return 'Buffering video...';
         }
@@ -938,12 +999,24 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         if (window.__youglassPlaybackStopped) return false;
         const media = document.querySelector('video');
         if (!media) return false;
+        resetFrameStateIfNeeded(media);
+        watchForFirstFrame(media);
         if (window.__youglassUserPlaybackChoice === 'paused') {
           if (!media.paused) media.pause();
           emitState('Paused');
           return true;
         }
-        if (!window.__youglassAutoplayBootstrap) applyAudioPolicy();
+        const holdAudioUntilFrame = !window.__youglassFrameReady &&
+            window.__youglassAutoMute !== true;
+        if (holdAudioUntilFrame) {
+            media.muted = true;
+            media.volume = 0;
+            window.__youglassWaitingForVideoFrame =
+                window.__youglassUserAudioChoice !== 'muted';
+        } else if (!window.__youglassAutoplayBootstrap &&
+                   window.__youglassFrameReady) {
+            applyAudioPolicy();
+        }
         const needsAudioBootstrap = window.__youglassAutoMute !== true &&
           window.__youglassUserAudioChoice !== 'muted' &&
           media.paused &&
@@ -973,30 +1046,33 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           if (playResult && playResult.then) {
             playResult.then(() => {
               window.__youglassPlayRequestInFlight = false;
-              if (needsAudioBootstrap && window.__youglassAutoMute !== true && window.__youglassUserAudioChoice !== 'muted') {
-                media.muted = false;
-                if (media.volume === 0) media.volume = 1;
-                window.__youglassUserAudioChoice = 'unmuted';
-                window.__youglassAutoplayBootstrap = false;
-                emitState('Audio on');
+              window.__youglassAutoplayBootstrap = false;
+              if (needsAudioBootstrap &&
+                  window.__youglassAutoMute !== true &&
+                  window.__youglassUserAudioChoice !== 'muted') {
+                window.__youglassWaitingForVideoFrame = true;
+                emitState('Buffering video...');
               } else {
-                window.__youglassAutoplayBootstrap = false;
                 emitState();
               }
             }).catch(() => {
               window.__youglassPlayRequestInFlight = false;
               window.__youglassAutoplayBootstrap = false;
+              window.__youglassWaitingForVideoFrame = false;
               delete media.dataset.youglassAutoplayAttempted;
               emitState(playbackFailureStatus(media));
             });
           } else {
             window.__youglassPlayRequestInFlight = false;
+            if (needsAudioBootstrap) {
+              window.__youglassWaitingForVideoFrame = true;
+            }
           }
         }
         // WebKit can flip paused to false before the play() promise settles.
         // Keep the bootstrap timer alive until that promise has actually
         // resolved, otherwise a transient per-video failure becomes final.
-        if (!media.paused && !window.__youglassPlayRequestInFlight) {
+        if (window.__youglassFrameReady && !media.paused && !window.__youglassPlayRequestInFlight) {
           media.dataset.youglassPrimed = '1';
           return true;
         }
@@ -1035,6 +1111,13 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       const emitState = status => {
         const media = document.querySelector('video');
         if (!media || !window.webkit?.messageHandlers?.youglassPlayback) return;
+        resetFrameStateIfNeeded(media);
+        const frameReady = watchForFirstFrame(media);
+        const requestedStatus = status || 'Player ready';
+        const resolvedStatus = !frameReady &&
+          (requestedStatus === 'Player ready' || requestedStatus === 'Audio on')
+          ? 'Buffering video...'
+          : requestedStatus;
         const supportsWebKitPiP = Boolean(
           media.webkitSupportsPresentationMode &&
           media.webkitSetPresentationMode &&
@@ -1047,9 +1130,10 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           playing: !media.paused && !media.ended,
           currentTime: Number.isFinite(media.currentTime) ? media.currentTime : 0,
           duration: Number.isFinite(media.duration) ? media.duration : 0,
+          frameReady,
           pipAvailable: supportsWebKitPiP || Boolean(document.pictureInPictureEnabled && media.requestPictureInPicture),
           pipActive: media.webkitPresentationMode === 'picture-in-picture' || document.pictureInPictureElement === media,
-          status: status || 'Player ready'
+          status: resolvedStatus
         });
       };
 
@@ -1058,21 +1142,25 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       const installMediaEvents = () => {
         if (window.__youglassPlaybackStopped) return;
         const media = document.querySelector('video');
-        if (!media || media.dataset.youglassEvents === '1') return;
-        media.dataset.youglassEvents = '1';
-        const statusForEvent = name => {
-          if (name === 'error') return playbackFailureStatus(media);
-          if (name === 'waiting' || name === 'stalled') return 'Buffering video...';
-          if (name === 'canplay' || name === 'playing') return 'Player ready';
-          return undefined;
-        };
-        [
-          'play', 'playing', 'pause', 'volumechange', 'loadedmetadata',
-          'durationchange', 'timeupdate', 'progress', 'seeking', 'seeked',
-          'canplay', 'waiting', 'stalled', 'error', 'abort',
-          'enterpictureinpicture', 'leavepictureinpicture',
-          'webkitpresentationmodechanged'
-        ].forEach(name => media.addEventListener(name, () => emitState(statusForEvent(name))));
+        if (!media) return;
+        resetFrameStateIfNeeded(media);
+        if (media.dataset.youglassEvents !== '1') {
+          media.dataset.youglassEvents = '1';
+          const statusForEvent = name => {
+            if (name === 'error') return playbackFailureStatus(media);
+            if (name === 'waiting' || name === 'stalled') return 'Buffering video...';
+            if (name === 'canplay' || name === 'playing') return 'Player ready';
+            return undefined;
+          };
+          [
+            'play', 'playing', 'pause', 'volumechange', 'loadedmetadata',
+            'durationchange', 'timeupdate', 'progress', 'seeking', 'seeked',
+            'canplay', 'waiting', 'stalled', 'error', 'abort',
+            'enterpictureinpicture', 'leavepictureinpicture',
+            'webkitpresentationmodechanged'
+          ].forEach(name => media.addEventListener(name, () => emitState(statusForEvent(name))));
+        }
+        watchForFirstFrame(media);
         emitState();
       };
 
@@ -1082,6 +1170,10 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           window.__youglassPlaybackScriptGeneration =
             (window.__youglassPlaybackScriptGeneration || 0) + 1;
           window.__youglassPlayRequestInFlight = false;
+          window.__youglassWaitingForVideoFrame = false;
+          window.__youglassFrameReady = false;
+          window.__youglassBoundMedia = null;
+          window.__youglassBoundMediaSource = null;
           if (window.__youglassPlaybackTimer) {
             window.clearInterval(window.__youglassPlaybackTimer);
             window.__youglassPlaybackTimer = null;
@@ -1101,6 +1193,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             media.pause();
             media.muted = true;
             media.volume = 0;
+            delete media.dataset.youglassFrameWatch;
           }
 
           if (document.pictureInPictureElement && document.exitPictureInPicture) {
@@ -1139,9 +1232,18 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           if (!media) return emitState('Video is not ready');
           window.__youglassAutoplayBootstrap = false;
           const shouldUnmute = media.muted || media.volume === 0;
+          if (shouldUnmute && !window.__youglassFrameReady) {
+            window.__youglassWaitingForVideoFrame = true;
+            window.__youglassUserAudioChoice = 'unmuted';
+            media.muted = true;
+            media.volume = 0;
+            emitState('Buffering video...');
+            return;
+          }
           media.muted = !shouldUnmute;
           media.volume = shouldUnmute ? 1 : media.volume;
           window.__youglassUserAudioChoice = shouldUnmute ? 'unmuted' : 'muted';
+          window.__youglassWaitingForVideoFrame = false;
           emitState(shouldUnmute ? 'Audio on' : 'Muted');
         },
         toggleCaptions() {
@@ -1251,8 +1353,8 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       }
 
       installStyle();
-      primePlayback();
       installMediaEvents();
+      primePlayback();
       let attempts = 0;
       const playbackTimer = window.setInterval(() => {
         if (window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) {
@@ -1260,21 +1362,21 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           return;
         }
         attempts += 1;
-        if (primePlayback()) {
-          window.clearInterval(playbackTimer);
-        } else if (attempts > 20) {
-          window.clearInterval(playbackTimer);
-          emitState('Playback did not start');
-        }
         installMediaEvents();
+        if (primePlayback() && window.__youglassFrameReady) {
+          window.clearInterval(playbackTimer);
+        } else if (attempts > 64) {
+          window.clearInterval(playbackTimer);
+          emitState('Video frame did not load');
+        }
       }, 700);
       window.__youglassPlaybackTimer = playbackTimer;
       window.__youglassPlaybackObserver = new MutationObserver(() => {
         if (window.__youglassPlaybackStopped ||
             window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) return;
         installStyle();
-        primePlayback();
         installMediaEvents();
+        primePlayback();
       });
       window.__youglassPlaybackObserver.observe(document.documentElement, { childList: true, subtree: true });
     })();
@@ -1354,6 +1456,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         let playing: Bool?
         let currentTime: Double?
         let duration: Double?
+        let frameReady: Bool?
         let pipAvailable: Bool?
         let pipActive: Bool?
         let status: String?
@@ -1367,11 +1470,12 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             playing = payload["playing"] as? Bool
             currentTime = (payload["currentTime"] as? NSNumber)?.doubleValue
             duration = (payload["duration"] as? NSNumber)?.doubleValue
+            frameReady = payload["frameReady"] as? Bool
             pipAvailable = payload["pipAvailable"] as? Bool
             pipActive = payload["pipActive"] as? Bool
             status = payload["status"] as? String
 
-            guard videoID != nil || muted != nil || captionsEnabled != nil || playing != nil || currentTime != nil || duration != nil || pipAvailable != nil || pipActive != nil || status != nil else {
+            guard videoID != nil || muted != nil || captionsEnabled != nil || playing != nil || currentTime != nil || duration != nil || frameReady != nil || pipAvailable != nil || pipActive != nil || status != nil else {
                 return nil
             }
         }
@@ -1384,6 +1488,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             if let playing { result["playing"] = playing }
             if let currentTime { result["currentTime"] = currentTime }
             if let duration { result["duration"] = duration }
+            if let frameReady { result["frameReady"] = frameReady }
             if let pipAvailable { result["pipAvailable"] = pipAvailable }
             if let pipActive { result["pipActive"] = pipActive }
             if let status { result["status"] = status }

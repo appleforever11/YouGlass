@@ -30,6 +30,38 @@ swift package resolve
 
 The test script stages Sparkle for SwiftPM's test runner before running the test suite. The build script stages a complete `.app` bundle, including `Sparkle.framework` and its updater helpers. `./script/build_and_run.sh --verify` builds, launches, and verifies the signed bundle. `./script/package_dmg.sh` creates the installable DMG. `./script/package_release.sh 1.0.0` creates the Sparkle-compatible arm64 ZIP.
 
+## Fast development deployment to another Mac
+
+GitHub/Sparkle is intentionally reserved for stable releases. For rapid crash
+fixes on a second Mac, use the local SSH deployment channel instead of making a
+DMG or AirDropping an app. It builds the current app, copies it atomically over
+the local network, quits the previous development copy, and launches the new
+one. The stable `/Applications/YouGlass.app` installation is left untouched.
+
+On the target Mac, enable **System Settings > General > Sharing > Remote
+Login**. Then run this once from the project Mac, replacing the host name with
+the target Mac's actual account and Bonjour name or IP address:
+
+```sh
+./script/configure_remote_deploy.sh kevin@MacBook-Neo.local
+```
+
+That creates a dedicated passwordless development key and stores the target in
+the ignored `.youglass-remote` file. After that, each Neo test build is one
+command:
+
+```sh
+./script/deploy_dev.sh
+```
+
+The remote development app is always installed at
+`~/Applications/YouGlass-Dev.app`, making it visually distinct from the
+Sparkle-managed release. Use `./script/deploy_dev.sh --skip-build` to resend an
+already-built bundle, `--no-launch` to copy without opening it, or
+`./script/remote_logs.sh` to stream the Neo's YouGlass logs while reproducing a
+crash. This channel does not create GitHub commits, tags, releases, or Sparkle
+updates.
+
 ## Version policy
 
 YouGlass follows Semantic Versioning:

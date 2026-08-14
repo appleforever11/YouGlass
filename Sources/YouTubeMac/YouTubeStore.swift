@@ -31,7 +31,6 @@ final class YouTubeStore: ObservableObject {
     @Published var playlistLoading = false
     @Published var playlistError: String?
     @Published var commentAuthorizationRequired = false
-    @Published var settingsPresented = false
     @Published var autoMuteOnStart = false
     @Published var isPlayerCompact = false
     @Published private(set) var isDesktopPIPActive = false
@@ -274,6 +273,19 @@ final class YouTubeStore: ObservableObject {
         cachedPersonalizedFeedUpdatedAt = nil
         YouTubeBrowserWindow.shared.clearAuthenticationSession()
         connectionMessage = "YouTube sign-in data reset"
+    }
+
+    func clearCachedRecommendationData() {
+        defaults.removeObject(forKey: DefaultsKey.cachedFeed)
+        defaults.removeObject(forKey: DefaultsKey.cachedFeedDate)
+        defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeed)
+        defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
+        cachedFeedUpdatedAt = nil
+        cachedPersonalizedFeedUpdatedAt = nil
+        cachedAccountSignalVideos = []
+        feed = VideoItem.sampleFeed
+        sectionEmptyMessage = nil
+        connectionMessage = "Cached recommendation data cleared"
     }
 
     func setAutoMuteOnStart(_ value: Bool) {

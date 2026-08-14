@@ -64,6 +64,8 @@ struct YouTubeMacApp: App {
             YouGlassSettingsView()
                 .environmentObject(store)
         }
+        .defaultSize(width: 1040, height: 700)
+        .windowResizability(.contentMinSize)
     }
 }
 

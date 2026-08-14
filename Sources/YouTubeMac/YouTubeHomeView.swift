@@ -377,10 +377,6 @@ struct YouTubeHomeView: View {
                 .frame(height: 1)
                 .padding(.horizontal, 22)
         }
-        .sheet(isPresented: $store.settingsPresented) {
-            YouGlassSettingsView()
-                .environmentObject(store)
-        }
     }
 
     private func topBarContent(compact: Bool, minimal: Bool) -> some View {
@@ -420,7 +416,7 @@ struct YouTubeHomeView: View {
             .accessibilityLabel("Refresh recommendations")
             .help("Refresh recommendations")
 
-            Button(action: { store.settingsPresented = true }) {
+            SettingsLink {
                 Image(systemName: "gearshape")
                     .font(.system(size: 15, weight: .semibold))
             }

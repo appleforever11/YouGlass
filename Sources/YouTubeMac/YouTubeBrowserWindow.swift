@@ -150,15 +150,14 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
     private func captureProfileImage(from webView: WKWebView) {
         guard webView.url?.host?.contains("youtube.com") == true else { return }
 
-        webView.evaluateJavaScript(YouTubeAuthBridge.profileCaptureScript) { result, _ in
+        Task { @MainActor in
+            let result = try? await webView.evaluateJavaScript(YouTubeAuthBridge.profileCaptureScript)
             guard let urlString = result as? String, !urlString.isEmpty else { return }
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(
-                    name: .youTubeBrowserDidAuthenticate,
-                    object: nil,
-                    userInfo: [YouTubeAuthBridge.profileImageURLKey: urlString]
-                )
-            }
+            NotificationCenter.default.post(
+                name: .youTubeBrowserDidAuthenticate,
+                object: nil,
+                userInfo: [YouTubeAuthBridge.profileImageURLKey: urlString]
+            )
         }
     }
 }
