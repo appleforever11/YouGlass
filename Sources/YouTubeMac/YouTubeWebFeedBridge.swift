@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 import OSLog
-import WebKit
+@preconcurrency import WebKit
 
 struct YouTubeWebFeedResult {
     let videos: [VideoItem]
@@ -23,6 +23,9 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
     private var hostWindow: NSWindow?
     private var continuation: CheckedContinuation<YouTubeWebFeedResult, Never>?
+    private var extractionTask: Task<Void, Never>?
+    private var activeNavigation: WKNavigation?
+    private var requestGeneration = 0
     private var requestActive = false
     private var requestWaiters: [CheckedContinuation<Void, Never>] = []
     private var maxResults = 20
@@ -46,8 +49,13 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     ]
 
     func loadHomeVideos(maxResults: Int = 20) async -> YouTubeWebFeedResult {
-        await loadVideos(
-            at: URL(string: "https://www.youtube.com/")!,
+        var components = URLComponents(string: "https://www.youtube.com/")!
+        components.queryItems = [
+            URLQueryItem(name: "youglass_refresh", value: UUID().uuidString)
+        ]
+
+        return await loadVideos(
+            at: components.url!,
             maxResults: maxResults,
             label: "YouTube homepage",
             includeShorts: false
@@ -55,8 +63,13 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     }
 
     func loadHistoryVideos(maxResults: Int = 100) async -> YouTubeWebFeedResult {
-        await loadVideos(
-            at: URL(string: "https://www.youtube.com/feed/history")!,
+        var components = URLComponents(string: "https://www.youtube.com/feed/history")!
+        components.queryItems = [
+            URLQueryItem(name: "youglass_refresh", value: UUID().uuidString)
+        ]
+
+        return await loadVideos(
+            at: components.url!,
             maxResults: maxResults,
             label: "YouTube watch history",
             includeShorts: true
@@ -86,6 +99,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         includeShorts: Bool
     ) async -> YouTubeWebFeedResult {
         await waitUntilAvailable()
+        await YouGlassHiddenWebKitCoordinator.shared.acquire("home-feed")
+        defer { YouGlassHiddenWebKitCoordinator.shared.release("home-feed") }
+
+        requestGeneration &+= 1
+        let generation = requestGeneration
         requestActive = true
 
         self.maxResults = maxResults
@@ -94,7 +112,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         let cookieSession = await hasYouTubeSessionCookie()
         sessionCookiePresent = cookieSession
         let webView = existingOrCreateWebView()
-        webView.stopLoading()
+        extractionTask?.cancel()
         logger.info("Loading \(label, privacy: .public); session cookie present: \(cookieSession, privacy: .public)")
 
         let request = URLRequest(
@@ -105,17 +123,19 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
 
         let timeoutTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 18_000_000_000)
-            guard let self, self.continuation != nil else { return }
+            guard let self,
+                  self.continuation != nil,
+                  self.requestGeneration == generation else { return }
             self.finish(YouTubeWebFeedResult(
                 videos: [],
                 isSignedIn: cookieSession,
                 diagnostics: "\(label) timed out before cards were rendered"
-            ))
+            ), generation: generation)
         }
 
         let result = await withCheckedContinuation { continuation in
             self.continuation = continuation
-            webView.load(request)
+            self.activeNavigation = webView.load(request)
         }
         timeoutTask.cancel()
         return result
@@ -191,27 +211,34 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        Task { @MainActor [weak self, weak webView] in
+        guard isCurrentNavigation(navigation) else { return }
+        extractionTask?.cancel()
+        let generation = requestGeneration
+        extractionTask = Task { @MainActor [weak self, weak webView] in
             guard let self, let webView else { return }
-            await self.extractVideosWithRetries(from: webView)
+            await self.extractVideosWithRetries(from: webView, generation: generation)
         }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard isCurrentNavigation(navigation) else { return }
         logger.error("\(self.requestLabel, privacy: .public) navigation failed: \(error.localizedDescription, privacy: .public)")
-        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "\(requestLabel) navigation failed"))
+        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "\(requestLabel) navigation failed"), generation: requestGeneration)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        guard isCurrentNavigation(navigation) else { return }
         logger.error("\(self.requestLabel, privacy: .public) provisional navigation failed: \(error.localizedDescription, privacy: .public)")
-        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "\(requestLabel) could not be reached"))
+        finish(YouTubeWebFeedResult(videos: [], isSignedIn: false, diagnostics: "\(requestLabel) could not be reached"), generation: requestGeneration)
     }
 
-    private func extractVideosWithRetries(from webView: WKWebView) async {
+    private func extractVideosWithRetries(from webView: WKWebView, generation: Int) async {
         var bestResult = YouTubeWebFeedResult.empty
 
         for attempt in 0..<12 {
+            guard generation == requestGeneration, continuation != nil else { return }
             try? await Task.sleep(nanoseconds: attempt == 0 ? 1_200_000_000 : 850_000_000)
+            guard generation == requestGeneration, continuation != nil else { return }
 
             if attempt == 2 || attempt == 5 || attempt == 8 {
                 _ = try? await webView.youGlassEvaluateJavaScript(
@@ -242,13 +269,13 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             }
 
             if bestResult.videos.count >= maxResults {
-                finish(bestResult)
+                finish(bestResult, generation: generation)
                 return
             }
         }
 
         if !bestResult.videos.isEmpty {
-            finish(bestResult)
+            finish(bestResult, generation: generation)
             return
         }
 
@@ -258,7 +285,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             videos: [],
             isSignedIn: currentSession,
             diagnostics: "\(requestLabel) loaded, but no video cards were exposed"
-        ))
+        ), generation: generation)
     }
 
     private func mergeSnapshotVideos(_ existing: [VideoItem], with incoming: [VideoItem]) -> [VideoItem] {
@@ -475,7 +502,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func finish(_ result: YouTubeWebFeedResult) {
+    private func finish(_ result: YouTubeWebFeedResult, generation: Int? = nil) {
+        if let generation, generation != requestGeneration { return }
+        extractionTask?.cancel()
+        extractionTask = nil
+        activeNavigation = nil
         guard let continuation else {
             requestActive = false
             let waiters = requestWaiters
@@ -489,6 +520,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         let waiters = requestWaiters
         requestWaiters.removeAll()
         waiters.forEach { $0.resume() }
+    }
+
+    private func isCurrentNavigation(_ navigation: WKNavigation?) -> Bool {
+        guard let activeNavigation else { return true }
+        return navigation == nil || navigation === activeNavigation
     }
 }
 

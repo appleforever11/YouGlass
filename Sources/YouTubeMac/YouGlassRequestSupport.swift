@@ -134,5 +134,21 @@ enum YouGlassCachePolicy {
     }
 }
 
+enum YouGlassFeedRefreshPolicy {
+    /// Homepage refreshes are intentionally bounded so a foreground app keeps
+    /// up with YouTube without repeatedly spending Data API quota.
+    static let activeRefreshInterval: TimeInterval = 5 * 60
+    static let accountSignalRefreshInterval: TimeInterval = 5 * 60
+    static let subscriptionRefreshInterval: TimeInterval = 15 * 60
+
+    static func needsRefresh(
+        lastUpdated: Date?,
+        now: Date = Date(),
+        maxAge: TimeInterval = activeRefreshInterval
+    ) -> Bool {
+        !YouGlassCachePolicy.isFresh(lastUpdated: lastUpdated, now: now, maxAge: maxAge)
+    }
+}
+
 let youGlassSharedRequestGate = YouGlassRequestGate()
 let youGlassSharedResponseCache = YouGlassResponseCache()

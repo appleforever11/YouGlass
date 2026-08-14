@@ -17,6 +17,8 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
     private var loadedVideoID: String?
     private var navigationContinuation: CheckedContinuation<Bool, Never>?
     private var navigationTimeout: Task<Void, Never>?
+    private var activeNavigation: WKNavigation?
+    private var requestGeneration = 0
     private var maxResults = 24
     private var commentOffset = 0
     private var continuationTokens: [String: [Int: String]] = [:]
@@ -33,11 +35,17 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
             )
         }
 
+        await YouGlassHiddenWebKitCoordinator.shared.acquire("comments")
+        defer { YouGlassHiddenWebKitCoordinator.shared.release("comments") }
+
+        requestGeneration &+= 1
+        let generation = requestGeneration
+
         self.maxResults = max(8, min(maxResults, 50))
         self.commentOffset = max(0, offset)
         if loadedVideoID != videoID {
             continuationTokens[videoID] = [:]
-            let loaded = await navigate(to: videoID)
+            let loaded = await navigate(to: videoID, generation: generation)
             guard loaded else {
                 return CommentPage(
                     comments: [],
@@ -104,7 +112,15 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
                !page.comments.isEmpty {
                 continuationTokens[videoID, default: [:]][self.commentOffset + page.comments.count] = nextToken
             }
-            if page.isAvailable || page.message == "Comments are disabled for this video." || attempt >= 8 {
+            // The comments host appears before its first lazy batch. Do not
+            // return the two placeholder threads that YouTube often exposes
+            // during that window; wait for a useful batch or let the retry
+            // ceiling handle videos with only a few public comments.
+            let hasUsefulInitialBatch = page.comments.count >= min(self.maxResults, 8)
+            let hasSettledContinuation = page.nextPageToken != nil && attempt >= 5
+            if page.message == "Comments are disabled for this video."
+                || (page.isAvailable && (hasUsefulInitialBatch || hasSettledContinuation))
+                || attempt >= 8 {
                 return page
             }
             try? await Task.sleep(nanoseconds: 700_000_000)
@@ -113,7 +129,7 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         return lastPage
     }
 
-    private func navigate(to videoID: String) async -> Bool {
+    private func navigate(to videoID: String, generation: Int) async -> Bool {
         guard navigationContinuation == nil else { return false }
         requestedVideoID = videoID
         loadedVideoID = nil
@@ -123,7 +139,6 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
             navigationTimeout?.cancel()
 
             let webView = existingOrCreateWebView()
-            webView.stopLoading()
             var components = URLComponents(string: "https://www.youtube.com/watch")!
             components.queryItems = [URLQueryItem(name: "v", value: videoID)]
 
@@ -133,38 +148,48 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
                 timeoutInterval: 25
             )
             request.setValue("https://www.youtube.com/", forHTTPHeaderField: "Referer")
-            webView.load(request)
+            self.activeNavigation = webView.load(request)
 
             navigationTimeout = Task { @MainActor [weak self] in
                 try? await Task.sleep(nanoseconds: 20_000_000_000)
-                guard !Task.isCancelled else { return }
-                self?.finishNavigation(false)
+                guard let self,
+                      !Task.isCancelled,
+                      self.requestGeneration == generation else { return }
+                self.finishNavigation(false, generation: generation)
             }
         }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard isCurrentNavigation(navigation) else { return }
         navigationTimeout?.cancel()
+        let generation = requestGeneration
         Task { @MainActor [weak self, weak webView] in
             try? await Task.sleep(nanoseconds: 1_500_000_000)
-            guard let self, webView != nil, !Task.isCancelled else { return }
-            self.finishNavigation(true)
+            guard let self,
+                  webView != nil,
+                  !Task.isCancelled,
+                  self.requestGeneration == generation,
+                  self.navigationContinuation != nil else { return }
+            self.finishNavigation(true, generation: generation)
         }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard isCurrentNavigation(navigation) else { return }
         logger.error("Comments navigation failed: \(error.localizedDescription, privacy: .public)")
-        finishNavigation(false)
+        finishNavigation(false, generation: requestGeneration)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        guard isCurrentNavigation(navigation) else { return }
         logger.error("Comments provisional navigation failed: \(error.localizedDescription, privacy: .public)")
-        finishNavigation(false)
+        finishNavigation(false, generation: requestGeneration)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         loadedVideoID = nil
-        finishNavigation(false)
+        finishNavigation(false, generation: requestGeneration)
     }
 
     nonisolated func webView(
@@ -243,15 +268,22 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         return webView
     }
 
-    private func finishNavigation(_ succeeded: Bool) {
+    private func finishNavigation(_ succeeded: Bool, generation: Int? = nil) {
+        if let generation, generation != requestGeneration { return }
         navigationTimeout?.cancel()
         navigationTimeout = nil
+        activeNavigation = nil
         guard let continuation = navigationContinuation else { return }
         navigationContinuation = nil
         if succeeded {
             loadedVideoID = requestedVideoID
         }
         continuation.resume(returning: succeeded)
+    }
+
+    private func isCurrentNavigation(_ navigation: WKNavigation?) -> Bool {
+        guard let activeNavigation else { return true }
+        return navigation == nil || navigation === activeNavigation
     }
 
     private func extractCurrentPage() async -> CommentPage {

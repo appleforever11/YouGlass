@@ -1,5 +1,5 @@
 import AppKit
-import WebKit
+@preconcurrency import WebKit
 
 extension Notification.Name {
     static let youTubeBrowserDidAuthenticate = Notification.Name("youTubeBrowserDidAuthenticate")
@@ -45,14 +45,19 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
     }
 
     func checkAuthenticationState() {
-        WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
-            let signedIn = Self.cookiesContainYouTubeSession(cookies)
-            guard signedIn else { return }
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(
-                    name: .youTubeBrowserDidAuthenticate,
-                    object: nil
-                )
+        Task { @MainActor [weak self] in
+            guard let self, await self.hasAuthenticatedYouTubeSession() else { return }
+            NotificationCenter.default.post(
+                name: .youTubeBrowserDidAuthenticate,
+                object: nil
+            )
+        }
+    }
+
+    func hasAuthenticatedYouTubeSession() async -> Bool {
+        await withCheckedContinuation { continuation in
+            WKWebsiteDataStore.default().httpCookieStore.getAllCookies { cookies in
+                continuation.resume(returning: Self.cookiesContainYouTubeSession(cookies))
             }
         }
     }

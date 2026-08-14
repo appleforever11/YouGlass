@@ -50,6 +50,9 @@ final class YouTubeStore: ObservableObject {
     @Published var compactPlayerCorner: CompactPlayerCorner = .topTrailing
     @Published private(set) var ambientPalette = VideoAmbientPalette.neutral
     @Published private(set) var lastAccountSyncDate: Date?
+    @Published private(set) var feedLastRefreshedDate: Date?
+    @Published private(set) var accountSyncInProgress = false
+    @Published private(set) var accountSyncStatus: String?
 
     private var client = YouTubeAPIClient()
     private let oauth = YouTubeOAuthClient.shared
@@ -64,6 +67,9 @@ final class YouTubeStore: ObservableObject {
     private var homeReloadPending = false
     private var homeReloadPendingForce = false
     private var lastHomeLoadDate: Date?
+    private var scheduledHomeReloadTask: Task<Void, Never>?
+    private var homeRefreshTask: Task<Void, Never>?
+    private var accountSyncTask: Task<Void, Never>?
     private var cachedFeedUpdatedAt: Date?
     private var cachedPersonalizedFeedUpdatedAt: Date?
     private var cachedSubscriptionsUpdatedAt: Date?
@@ -114,6 +120,7 @@ final class YouTubeStore: ObservableObject {
         cachedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedFeedDate) as? Date
         cachedPersonalizedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedPersonalizedFeedDate) as? Date
         cachedSubscriptionsUpdatedAt = defaults.object(forKey: DefaultsKey.cachedSubscriptionsDate) as? Date
+        feedLastRefreshedDate = cachedPersonalizedFeedUpdatedAt ?? cachedFeedUpdatedAt
         if let rawCorner = defaults.string(forKey: DefaultsKey.compactPlayerCorner),
            let savedCorner = CompactPlayerCorner(rawValue: rawCorner) {
             compactPlayerCorner = savedCorner
@@ -188,6 +195,8 @@ final class YouTubeStore: ObservableObject {
                     self?.defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
                     self?.defaults.removeObject(forKey: DefaultsKey.lastAccountSyncDate)
                     self?.cachedPersonalizedFeedUpdatedAt = nil
+                    self?.feedLastRefreshedDate = self?.cachedFeedUpdatedAt
+                    self?.scheduleHomeReload(force: true)
                 }
             }
         ]
@@ -283,6 +292,7 @@ final class YouTubeStore: ObservableObject {
         defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
         defaults.removeObject(forKey: DefaultsKey.lastAccountSyncDate)
         cachedPersonalizedFeedUpdatedAt = nil
+        feedLastRefreshedDate = cachedFeedUpdatedAt
         YouTubeBrowserWindow.shared.clearAuthenticationSession()
         connectionMessage = "YouTube sign-in data reset"
     }
@@ -294,7 +304,9 @@ final class YouTubeStore: ObservableObject {
         defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
         cachedFeedUpdatedAt = nil
         cachedPersonalizedFeedUpdatedAt = nil
+        feedLastRefreshedDate = nil
         cachedAccountSignalVideos = []
+        lastHomeLoadDate = nil
         feed = VideoItem.sampleFeed
         sectionEmptyMessage = nil
         connectionMessage = "Cached recommendation data cleared"
@@ -400,11 +412,19 @@ final class YouTubeStore: ObservableObject {
             return
         }
 
-        if !force,
-           let lastHomeLoadDate,
-           Date().timeIntervalSince(lastHomeLoadDate) < 15,
-           !feed.forYou.isEmpty || !feed.trending.isEmpty || !feed.more.isEmpty || !feed.queue.isEmpty {
-            return
+        if !force {
+            let now = Date()
+            if let lastHomeLoadDate,
+               now.timeIntervalSince(lastHomeLoadDate) < 15,
+               !feed.forYou.isEmpty || !feed.trending.isEmpty || !feed.more.isEmpty || !feed.queue.isEmpty {
+                return
+            }
+            guard YouGlassFeedRefreshPolicy.needsRefresh(
+                lastUpdated: feedLastRefreshedDate,
+                now: now
+            ) else {
+                return
+            }
         }
 
         homeLoadInProgress = true
@@ -440,14 +460,41 @@ final class YouTubeStore: ObservableObject {
                 homeReloadPending = false
                 let pendingForce = homeReloadPendingForce
                 homeReloadPendingForce = false
-                Task { @MainActor [weak self] in
-                    await self?.loadHome(force: pendingForce)
+                let recentlyFinished = lastHomeLoadDate.map {
+                    Date().timeIntervalSince($0) < 15
+                } ?? false
+                let hasVisibleFeed = !feed.forYou.isEmpty
+                    || !feed.trending.isEmpty
+                    || !feed.more.isEmpty
+                    || !feed.queue.isEmpty
+                if !recentlyFinished || !hasVisibleFeed {
+                    scheduleHomeReload(force: pendingForce)
                 }
             }
         }
 
         connectionMessage = "Loading YouTube homepage recommendations..."
-        let webResult = await YouTubeWebFeedBridge.shared.loadHomeVideos(maxResults: 32)
+        let hasOAuthSession = (try? await oauth.validAccessToken()) != nil
+        if hasOAuthSession && !isSignedIn {
+            isSignedIn = true
+            defaults.set(true, forKey: DefaultsKey.isSignedIn)
+        }
+
+        // OAuth-backed Data API calls are account-scoped and do not need the
+        // hidden homepage bridge. Skipping it removes the largest source of
+        // remote layer-tree activity for signed-in users while preserving the
+        // web-session fallback for API-key-only installs.
+        let webResult: YouTubeWebFeedResult
+        if hasOAuthSession {
+            YouGlassDiagnostics.record(
+                .debug,
+                category: "webkit",
+                message: "Skipped hidden homepage bridge for OAuth account"
+            )
+            webResult = .empty
+        } else {
+            webResult = await YouTubeWebFeedBridge.shared.loadHomeVideos(maxResults: 32)
+        }
         if webResult.isSignedIn && !isSignedIn {
             isSignedIn = true
             defaults.set(true, forKey: DefaultsKey.isSignedIn)
@@ -475,7 +522,7 @@ final class YouTubeStore: ObservableObject {
             let message = webResult.isSignedIn
                 ? "Using signed-in YouTube homepage recommendations"
                 : "Using YouTube homepage recommendations"
-            if applyPrimaryHomeVideos(webResult.videos, message: message, cacheFeed: false) {
+            if applyPrimaryHomeVideos(webResult.videos, message: message) {
                 return
             }
         }
@@ -930,43 +977,63 @@ final class YouTubeStore: ObservableObject {
     }
 
     func loadLiveChat(for video: VideoItem, liveChatID: String? = nil, pageToken: String? = nil) async -> LiveChatPage {
-        guard let liveChatID, !liveChatID.isEmpty else {
-            let bridgePage = await liveChatBridge.load(videoID: video.id)
-            if bridgePage.isAvailable || bridgePage.isLive {
-                return bridgePage
+        var resolvedLiveChatID = liveChatID
+        if resolvedLiveChatID?.isEmpty != false,
+           let details = try? await client.videoDetails(videoID: video.id) {
+            resolvedLiveChatID = details.liveChatID
+        }
+
+        if let resolvedLiveChatID, !resolvedLiveChatID.isEmpty {
+            do {
+                return try await client.liveChatPage(liveChatID: resolvedLiveChatID, pageToken: pageToken)
+            } catch {
+                YouGlassDiagnostics.record(
+                    .warning,
+                    category: "live-chat",
+                    message: "OAuth/API live chat request failed",
+                    metadata: ["videoID": video.id, "error": error.localizedDescription]
+                )
             }
-            return LiveChatPage(
-                messages: [],
-                nextPageToken: nil,
-                pollingInterval: 5_000_000_000,
-                isLive: false,
-                isAvailable: false,
-                message: bridgePage.message ?? "YouTube did not expose a live-chat ID for this stream."
-            )
+        }
+
+        let bridgePage = await liveChatBridge.load(videoID: video.id)
+        if bridgePage.isAvailable || bridgePage.isLive {
+            return bridgePage
+        }
+        return LiveChatPage(
+            messages: [],
+            nextPageToken: pageToken,
+            pollingInterval: 6_000_000_000,
+            isLive: true,
+            isAvailable: false,
+            message: bridgePage.message ?? "YouTube did not expose a live-chat ID for this stream."
+        )
+    }
+
+    func sendLiveChatMessage(for video: VideoItem, liveChatID: String?, text: String) async -> LiveChatMessage? {
+        guard let liveChatID, !liveChatID.isEmpty else {
+            connectionMessage = "YouTube did not expose a writable live-chat ID for this stream."
+            return nil
         }
 
         do {
-            return try await client.liveChatPage(liveChatID: liveChatID, pageToken: pageToken)
+            let message = try await client.sendLiveChatMessage(liveChatID: liveChatID, text: text)
+            YouGlassDiagnostics.record(
+                .info,
+                category: "live-chat",
+                message: "Live chat message sent",
+                metadata: ["videoID": video.id]
+            )
+            return message
         } catch {
-            let bridgePage = await liveChatBridge.load(videoID: video.id)
-            if bridgePage.isAvailable || bridgePage.isLive {
-                return bridgePage
-            }
             connectionMessage = error.localizedDescription
             YouGlassDiagnostics.record(
                 .warning,
                 category: "live-chat",
-                message: "Live chat request failed and web fallback was unavailable",
+                message: "Live chat message failed",
                 metadata: ["videoID": video.id, "error": error.localizedDescription]
             )
-            return LiveChatPage(
-                messages: [],
-                nextPageToken: pageToken,
-                pollingInterval: 6_000_000_000,
-                isLive: true,
-                isAvailable: false,
-                message: error.localizedDescription
-            )
+            return nil
         }
     }
 
@@ -1170,8 +1237,10 @@ final class YouTubeStore: ObservableObject {
         connectionMessage = message
         if cacheFeed, let data = try? JSONEncoder().encode(merged) {
             defaults.set(data, forKey: DefaultsKey.cachedFeed)
-            cachedFeedUpdatedAt = Date()
+            let refreshedAt = Date()
+            cachedFeedUpdatedAt = refreshedAt
             defaults.set(cachedFeedUpdatedAt, forKey: DefaultsKey.cachedFeedDate)
+            feedLastRefreshedDate = refreshedAt
         }
     }
 
@@ -1214,10 +1283,13 @@ final class YouTubeStore: ObservableObject {
     }
 
     private func scheduleHomeReload(force: Bool = false) {
-        Task { @MainActor [weak self] in
+        scheduledHomeReloadTask?.cancel()
+        scheduledHomeReloadTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             guard !Task.isCancelled else { return }
-            await self?.loadHome(force: force)
+            guard let self else { return }
+            self.scheduledHomeReloadTask = nil
+            await self.loadHome(force: force)
         }
     }
 
@@ -1309,11 +1381,23 @@ final class YouTubeStore: ObservableObject {
         let cachedCandidates = cachedAccountSignalVideos.filter { !$0.isShortForm }
         if cachedCandidates.count >= requestedCount,
            let lastAccountSignalLoadDate,
-           Date().timeIntervalSince(lastAccountSignalLoadDate) < 60 {
+           !YouGlassFeedRefreshPolicy.needsRefresh(
+                lastUpdated: lastAccountSignalLoadDate,
+                maxAge: YouGlassFeedRefreshPolicy.accountSignalRefreshInterval
+           ) {
             return Array(cachedCandidates.prefix(requestedCount))
         }
 
         var videos: [VideoItem] = []
+
+        // Liked videos and private subscription activity are OAuth-only. Do
+        // not spend API quota on public channel searches when the account has
+        // no OAuth token; the signed-in homepage/Safari feed is the better
+        // fallback for that mode.
+        guard (try? await oauth.validAccessToken()) != nil else {
+            let local = recentlyWatched + locallyLikedVideos + savedVideos
+            return Array(mergeVideos(local).filter { !$0.isShortForm }.prefix(requestedCount))
+        }
 
         if let liked = try? await client.likedVideos(maxResults: 8) {
             videos.append(contentsOf: liked)
@@ -1357,6 +1441,58 @@ final class YouTubeStore: ObservableObject {
     private func invalidateAccountSignalCache() {
         cachedAccountSignalVideos = []
         lastAccountSignalLoadDate = nil
+    }
+
+    func refreshHomeIfNeeded(now: Date = Date()) async {
+        guard !homeLoadInProgress else { return }
+        if let lastHomeLoadDate,
+           now.timeIntervalSince(lastHomeLoadDate) < 15 {
+            return
+        }
+        guard YouGlassFeedRefreshPolicy.needsRefresh(
+            lastUpdated: feedLastRefreshedDate,
+            now: now
+        ) else {
+            return
+        }
+        await loadHome(force: false)
+    }
+
+    func startAutomaticFeedRefresh() {
+        guard homeRefreshTask == nil else { return }
+
+        let nanoseconds = UInt64(YouGlassFeedRefreshPolicy.activeRefreshInterval * 1_000_000_000)
+        homeRefreshTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(nanoseconds: nanoseconds)
+                } catch {
+                    return
+                }
+
+                guard let self, !Task.isCancelled else { return }
+                await self.refreshHomeIfNeeded()
+            }
+        }
+    }
+
+    func stopAutomaticFeedRefresh() {
+        homeRefreshTask?.cancel()
+        homeRefreshTask = nil
+    }
+
+    func handleScenePhaseChange(_ phase: ScenePhase) {
+        switch phase {
+        case .active:
+            startAutomaticFeedRefresh()
+            Task { @MainActor [weak self] in
+                await self?.refreshHomeIfNeeded()
+            }
+        case .inactive, .background:
+            stopAutomaticFeedRefresh()
+        @unknown default:
+            break
+        }
     }
 
     func showSection(_ title: String, query: String? = nil) {
@@ -1412,6 +1548,11 @@ final class YouTubeStore: ObservableObject {
         // Data API v3 intentionally does not return the private system
         // watch-history playlist. The signed-in YouTube session is the
         // authoritative source for this page.
+        YouGlassDiagnostics.record(
+            .debug,
+            category: "account",
+            message: "Loading account watch history from the signed-in YouTube session"
+        )
         let webResult = await YouTubeWebFeedBridge.shared.loadHistoryVideos(maxResults: 100)
         if webResult.isSignedIn && !isSignedIn {
             isSignedIn = true
@@ -1623,12 +1764,49 @@ final class YouTubeStore: ObservableObject {
     }
 
     func refreshAccount() {
+        accountSyncTask?.cancel()
         subscriptionsLoaded = false
         invalidateAccountSignalCache()
         connectionMessage = "Refreshing your YouTube account..."
-        YouTubeBrowserWindow.shared.checkAuthenticationState()
-        scheduleSubscriptionsLoad(force: true)
-        scheduleHomeReload(force: true)
+        accountSyncStatus = nil
+        accountSyncInProgress = true
+
+        accountSyncTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.accountSyncInProgress = false
+                self.accountSyncTask = nil
+            }
+
+            // OAuth is authoritative for API-backed account data. Checking it
+            // first prevents a stale cookie-based sign-in flag from racing the
+            // subscription and recommendation requests.
+            let hasOAuthSession: Bool
+            do {
+                hasOAuthSession = try await self.oauth.validAccessToken() != nil
+            } catch {
+                hasOAuthSession = false
+            }
+
+            let browserSession = await YouTubeBrowserWindow.shared.hasAuthenticatedYouTubeSession()
+            let hasBrowserSession = hasOAuthSession || browserSession
+            self.isSignedIn = hasBrowserSession
+            self.defaults.set(hasBrowserSession, forKey: DefaultsKey.isSignedIn)
+            if !hasBrowserSession {
+                self.profileImageURL = nil
+                self.defaults.removeObject(forKey: DefaultsKey.profileImageURL)
+            }
+
+            guard !Task.isCancelled else { return }
+            await self.loadSubscriptions(force: true)
+            guard !Task.isCancelled else { return }
+            await self.loadHome(force: true)
+            guard !Task.isCancelled else { return }
+
+            self.accountSyncStatus = self.isSignedIn
+                ? "Account, subscriptions, and recommendations refreshed"
+                : "Sign in to refresh account data"
+        }
     }
 
     private func scheduleSubscriptionsLoad(force: Bool) {
@@ -1645,7 +1823,11 @@ final class YouTubeStore: ObservableObject {
             }
             return
         }
-        guard force || !subscriptionsLoaded else { return }
+        let lastSubscriptionRefresh = cachedSubscriptionsUpdatedAt ?? lastAccountSyncDate
+        guard force || !subscriptionsLoaded || YouGlassFeedRefreshPolicy.needsRefresh(
+            lastUpdated: lastSubscriptionRefresh,
+            maxAge: YouGlassFeedRefreshPolicy.subscriptionRefreshInterval
+        ) else { return }
         guard isSignedIn else {
             subscriptions = []
             subscriptionsLoaded = false

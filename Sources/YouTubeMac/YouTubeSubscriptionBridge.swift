@@ -1,6 +1,6 @@
 import AppKit
 import Foundation
-import WebKit
+@preconcurrency import WebKit
 
 @MainActor
 final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
@@ -25,6 +25,8 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
     private var hostWindow: NSWindow?
     private var continuation: CheckedContinuation<[SubscriptionItem], Never>?
     private var extractionTask: Task<Void, Never>?
+    private var activeNavigation: WKNavigation?
+    private var requestGeneration = 0
     private var requestedMaxResults = 40
     private var triedDedicatedSubscriptionsRoute = false
 
@@ -32,32 +34,43 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
         guard continuation == nil else { return [] }
         guard await hasYouTubeSessionCookie() else { return [] }
 
+        await YouGlassHiddenWebKitCoordinator.shared.acquire("subscriptions")
+        defer { YouGlassHiddenWebKitCoordinator.shared.release("subscriptions") }
+
+        requestGeneration &+= 1
+        let generation = requestGeneration
+
         requestedMaxResults = max(1, min(maxResults, 200))
         triedDedicatedSubscriptionsRoute = false
 
         let webView = existingOrCreateWebView()
-        webView.stopLoading()
         extractionTask?.cancel()
 
         let timeoutTask = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 18_000_000_000)
-            guard let self, self.continuation != nil else { return }
-            self.finish([])
+            guard let self,
+                  self.continuation != nil,
+                  self.requestGeneration == generation else { return }
+            self.finish([], generation: generation)
         }
 
         // The signed-in homepage contains the same account-owned subscription
         // rail that YouGlass already uses for personalized recommendations.
         // The dedicated /feed/channels route changed its renderer structure
         // and no longer exposes reliable channel cards to this metadata pass.
+        var components = URLComponents(string: "https://www.youtube.com/")!
+        components.queryItems = [
+            URLQueryItem(name: "youglass_refresh", value: UUID().uuidString)
+        ]
         let request = URLRequest(
-            url: URL(string: "https://www.youtube.com/")!,
+            url: components.url!,
             cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
             timeoutInterval: 20
         )
 
         let result = await withCheckedContinuation { (continuation: CheckedContinuation<[SubscriptionItem], Never>) in
             self.continuation = continuation
-            webView.load(request)
+            self.activeNavigation = webView.load(request)
         }
 
         timeoutTask.cancel()
@@ -124,12 +137,16 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard isCurrentNavigation(navigation) else { return }
         extractionTask?.cancel()
+        let generation = requestGeneration
         extractionTask = Task { @MainActor [weak self, weak webView] in
             guard let self, let webView else { return }
 
             for attempt in 0..<10 {
+                guard self.requestGeneration == generation, self.continuation != nil else { return }
                 try? await Task.sleep(nanoseconds: attempt == 0 ? 1_000_000_000 : 750_000_000)
+                guard self.requestGeneration == generation, self.continuation != nil else { return }
 
                 if attempt == 2 || attempt == 5 || attempt == 8 {
                     _ = try? await webView.youGlassEvaluateJavaScript(
@@ -139,7 +156,7 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
 
                 let subscriptions = await self.extractSubscriptions(from: webView, maxResults: self.requestedMaxResults)
                 if !subscriptions.isEmpty {
-                    self.finish(subscriptions)
+                    self.finish(subscriptions, generation: generation)
                     return
                 }
 
@@ -147,7 +164,7 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
                    !self.triedDedicatedSubscriptionsRoute,
                    webView.url?.path != "/feed/channels" {
                     self.triedDedicatedSubscriptionsRoute = true
-                    webView.load(URLRequest(
+                    self.activeNavigation = webView.load(URLRequest(
                         url: URL(string: "https://www.youtube.com/feed/channels")!,
                         cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
                         timeoutInterval: 20
@@ -156,20 +173,22 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
                 }
             }
 
-            self.finish([])
+            self.finish([], generation: generation)
         }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-        finish([])
+        guard isCurrentNavigation(navigation) else { return }
+        finish([], generation: requestGeneration)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-        finish([])
+        guard isCurrentNavigation(navigation) else { return }
+        finish([], generation: requestGeneration)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        finish([])
+        finish([], generation: requestGeneration)
     }
 
     private func extractSubscriptions(from webView: WKWebView, maxResults: Int) async -> [SubscriptionItem] {
@@ -263,10 +282,19 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
         }
     }
 
-    private func finish(_ subscriptions: [SubscriptionItem]) {
+    private func finish(_ subscriptions: [SubscriptionItem], generation: Int? = nil) {
+        if let generation, generation != requestGeneration { return }
+        extractionTask?.cancel()
+        extractionTask = nil
+        activeNavigation = nil
         guard let continuation else { return }
         self.continuation = nil
         continuation.resume(returning: subscriptions)
+    }
+
+    private func isCurrentNavigation(_ navigation: WKNavigation?) -> Bool {
+        guard let activeNavigation else { return true }
+        return navigation == nil || navigation === activeNavigation
     }
 }
 

@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 import OSLog
-import WebKit
+@preconcurrency import WebKit
 
 @MainActor
 final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
@@ -11,11 +11,20 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
     private var webView: WKWebView?
     private var hostWindow: NSWindow?
     private var continuation: CheckedContinuation<YouTubeChannelPage?, Never>?
+    private var extractionTask: Task<Void, Never>?
+    private var activeNavigation: WKNavigation?
+    private var requestGeneration = 0
     private var subscription: SubscriptionItem?
     private var maxResults = 30
 
     func loadChannel(_ subscription: SubscriptionItem, maxResults: Int = 30) async -> YouTubeChannelPage? {
         guard continuation == nil else { return nil }
+
+        await YouGlassHiddenWebKitCoordinator.shared.acquire("channel")
+        defer { YouGlassHiddenWebKitCoordinator.shared.release("channel") }
+
+        requestGeneration &+= 1
+        let generation = requestGeneration
         self.subscription = subscription
         self.maxResults = max(8, min(maxResults, 40))
         let requestedURL = subscription.channelURL?.absoluteString ?? "missing URL"
@@ -23,21 +32,22 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
 
         let timeout = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: 18_000_000_000)
-            guard let self, self.continuation != nil else { return }
-            self.finish(nil)
+            guard let self,
+                  self.continuation != nil,
+                  self.requestGeneration == generation else { return }
+            self.finish(nil, generation: generation)
         }
 
         let result = await withCheckedContinuation { (continuation: CheckedContinuation<YouTubeChannelPage?, Never>) in
             self.continuation = continuation
             let webView = self.existingOrCreateWebView()
-            webView.stopLoading()
             let baseURL = subscription.channelURL ?? URL(string: "https://www.youtube.com/@\(subscription.name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? subscription.name)")
             guard let baseURL else {
-                self.finish(nil)
+                self.finish(nil, generation: generation)
                 return
             }
             let channelURL = self.videoListingURL(for: baseURL)
-            webView.load(URLRequest(url: channelURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 25))
+            self.activeNavigation = webView.load(URLRequest(url: channelURL, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 25))
         }
         timeout.cancel()
         self.subscription = nil
@@ -45,26 +55,31 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard isCurrentNavigation(navigation) else { return }
         let finishedURL = webView.url?.absoluteString ?? "missing URL"
         logger.info("Native channel navigation finished: \(finishedURL, privacy: .public)")
-        Task { @MainActor [weak self, weak webView] in
+        extractionTask?.cancel()
+        let generation = requestGeneration
+        extractionTask = Task { @MainActor [weak self, weak webView] in
             guard let self, let webView else { return }
-            await self.extractWithRetries(from: webView)
+            await self.extractWithRetries(from: webView, generation: generation)
         }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        guard isCurrentNavigation(navigation) else { return }
         logger.error("Native channel navigation failed: \(error.localizedDescription, privacy: .public)")
-        finish(nil)
+        finish(nil, generation: requestGeneration)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        guard isCurrentNavigation(navigation) else { return }
         logger.error("Native channel provisional navigation failed: \(error.localizedDescription, privacy: .public)")
-        finish(nil)
+        finish(nil, generation: requestGeneration)
     }
 
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        finish(nil)
+        finish(nil, generation: requestGeneration)
     }
 
     private func existingOrCreateWebView() -> WKWebView {
@@ -118,10 +133,12 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
         return components.url ?? url
     }
 
-    private func extractWithRetries(from webView: WKWebView) async {
+    private func extractWithRetries(from webView: WKWebView, generation: Int) async {
         var lastResult: ChannelBridgePayload?
         for attempt in 0..<12 {
+            guard generation == requestGeneration, continuation != nil else { return }
             try? await Task.sleep(nanoseconds: attempt == 0 ? 1_000_000_000 : 700_000_000)
+            guard generation == requestGeneration, continuation != nil else { return }
             if attempt == 2 || attempt == 5 || attempt == 8 {
                 _ = try? await webView.youGlassEvaluateJavaScript("window.scrollTo(0, Math.max(document.documentElement.scrollHeight * 0.55, 900)); void 0;")
             }
@@ -131,15 +148,15 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
             lastResult = result
             let targetCount = min(maxResults, 12)
             if result.videos.count >= targetCount || attempt >= 4 {
-                finish(makePage(from: result))
+                finish(makePage(from: result), generation: generation)
                 return
             }
         }
         if let lastResult {
-            finish(makePage(from: lastResult))
+            finish(makePage(from: lastResult), generation: generation)
             return
         }
-        finish(nil)
+        finish(nil, generation: generation)
     }
 
     private func extract(from webView: WKWebView) async -> ChannelBridgePayload? {
@@ -340,10 +357,19 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
         )
     }
 
-    private func finish(_ page: YouTubeChannelPage?) {
+    private func finish(_ page: YouTubeChannelPage?, generation: Int? = nil) {
+        if let generation, generation != requestGeneration { return }
+        extractionTask?.cancel()
+        extractionTask = nil
+        activeNavigation = nil
         guard let continuation else { return }
         self.continuation = nil
         continuation.resume(returning: page)
+    }
+
+    private func isCurrentNavigation(_ navigation: WKNavigation?) -> Bool {
+        guard let activeNavigation else { return true }
+        return navigation == nil || navigation === activeNavigation
     }
 }
 

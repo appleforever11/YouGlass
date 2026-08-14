@@ -984,14 +984,17 @@ struct HeroSection: View {
     let compact: Bool
 
     var body: some View {
+        let hasQueue = !compact && !store.feed.queue.isEmpty
+        let queueCount = min(4, store.feed.queue.count)
+        let queueHeight = CGFloat(queueCount * 76) + CGFloat(max(queueCount - 1, 0) * 10)
+        let heroHeight = compact ? 240 : max(290, queueHeight + 8)
+
         GeometryReader { geometry in
             // The queue needs roughly 240 points beside the hero card. Start
             // the compact presentation before that combination can overflow
             // a mid-size MacBook window.
             let narrow = compact
             let ambient = store.ambientPalette
-            let heroHeight: CGFloat = narrow ? 240 : 290
-            let hasQueue = !narrow && !store.feed.queue.isEmpty
             let queueWidth: CGFloat = hasQueue ? 242 : 0
             let queueGap: CGFloat = hasQueue ? 16 : 0
             // Reserve the queue column before laying out the hero. A flexible
@@ -1110,7 +1113,7 @@ struct HeroSection: View {
         }
             .frame(width: geometry.size.width, height: heroHeight, alignment: .leading)
         }
-        .frame(height: compact ? 240 : 290)
+        .frame(height: heroHeight)
     }
 }
 
@@ -1132,19 +1135,26 @@ struct VideoRow: View {
         )
 
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 9) {
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [palette.pink, palette.purple],
-                            startPoint: .top,
-                            endPoint: .bottom
+            HStack(alignment: .center, spacing: 12) {
+                HStack(spacing: 9) {
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                colors: [palette.pink, palette.purple],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
                         )
-                    )
-                    .frame(width: 4, height: 18)
-                Text(title)
-                    .font(.system(size: 19, weight: .bold))
-                Spacer()
+                        .frame(width: 4, height: 18)
+                    Text(title)
+                        .font(.system(size: 19, weight: .bold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .layoutPriority(1)
+
+                Spacer(minLength: 12)
+
                 if showsSeeAll {
                     Button(action: { store.showSection(title) }) {
                         HStack(spacing: 8) {
@@ -1152,15 +1162,17 @@ struct VideoRow: View {
                             Image(systemName: "chevron.right")
                         }
                         .font(.system(size: 12, weight: .semibold))
-                        .padding(.horizontal, 15)
+                        .frame(minWidth: 104)
                         .frame(height: 36)
                         .background(palette.accent.opacity(palette.isDark ? 0.12 : 0.08))
                         .clipShape(Capsule())
                         .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .layoutPriority(2)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(
                 columns: columns,
@@ -1173,6 +1185,7 @@ struct VideoRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -1188,7 +1201,6 @@ struct VideoCard: View {
                 YouGlassVideoPreview {
                     ZStack(alignment: .bottomTrailing) {
                         RemoteImage(url: video.thumbnailURL)
-                            .videoThumbnailParallax()
                             .clipped()
 
                         LinearGradient(
@@ -1210,6 +1222,7 @@ struct VideoCard: View {
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .videoThumbnailParallax()
                 .overlay {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .stroke(store.ambientPalette.primary.color.opacity(0.26), lineWidth: 1)

@@ -298,7 +298,7 @@ private struct NativeWatchScreen: View {
                 liked = rating == "like"
                 disliked = rating == "dislike"
             }
-            if details?.isLive == true {
+            if details?.isLive == true || details?.liveChatID != nil {
                 await pollLiveChat(liveChatID: details?.liveChatID)
             }
         }
@@ -447,7 +447,17 @@ private struct NativeWatchScreen: View {
     private var watchSideColumn: some View {
         VStack(alignment: .leading, spacing: 14) {
             if details?.liveChatID != nil || liveChatPage.isLive || liveChatPage.isAvailable {
-                LiveChatPanel(page: liveChatPage, messages: chatMessages, palette: palette)
+                LiveChatPanel(
+                    video: video,
+                    liveChatID: details?.liveChatID,
+                    page: liveChatPage,
+                    messages: chatMessages,
+                    palette: palette,
+                    onMessageSent: { message in
+                        guard !chatMessages.contains(where: { $0.id == message.id }) else { return }
+                        chatMessages = Array((chatMessages + [message]).suffix(80))
+                    }
+                )
                     .frame(height: 310)
             }
 
@@ -809,7 +819,7 @@ private struct NativeWatchScreen: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
                     }
-                    .frame(minHeight: 280, idealHeight: 360, maxHeight: 420)
+                    .frame(minHeight: 320, idealHeight: 480, maxHeight: 600)
                     .accessibilityIdentifier("comments-scroll-view")
                     .onChange(of: commentPage.comments.count) { _, _ in
                         if commentPage.comments.count == 1 {
@@ -1887,9 +1897,16 @@ private struct RelatedVideoCard: View {
 }
 
 private struct LiveChatPanel: View {
+    @EnvironmentObject private var store: YouTubeStore
+    let video: VideoItem
+    let liveChatID: String?
     let page: LiveChatPage
     let messages: [LiveChatMessage]
     let palette: Palette
+    let onMessageSent: (LiveChatMessage) -> Void
+    @State private var draft = ""
+    @State private var isSending = false
+    @State private var sendStatus: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -1936,12 +1953,65 @@ private struct LiveChatPanel: View {
                 }
                 .frame(maxHeight: .infinity, alignment: .top)
             }
+
+            if let liveChatID, !liveChatID.isEmpty {
+                HStack(spacing: 7) {
+                    TextField("Send a message", text: $draft)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 11, weight: .medium))
+                        .onSubmit(sendMessage)
+                        .disabled(isSending)
+
+                    if isSending {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button(action: sendMessage) {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .help("Send live chat message")
+                    }
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 7)
+                .background(.black.opacity(palette.isDark ? 0.14 : 0.05), in: Capsule())
+            } else {
+                Text("Live chat is view-only until YouTube exposes a writable chat session.")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(palette.tertiaryText)
+            }
+
+            if let sendStatus {
+                Text(sendStatus)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(palette.secondaryText)
+                    .lineLimit(2)
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(palette.stroke, lineWidth: 1))
+    }
+
+    private func sendMessage() {
+        let cleanText = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanText.isEmpty, !isSending else { return }
+        isSending = true
+        sendStatus = nil
+        Task { @MainActor in
+            if let message = await store.sendLiveChatMessage(for: video, liveChatID: liveChatID, text: cleanText) {
+                draft = ""
+                onMessageSent(message)
+            } else {
+                sendStatus = store.connectionMessage
+            }
+            isSending = false
+        }
     }
 }
 

@@ -221,7 +221,7 @@ final class YouTubePlaybackController: ObservableObject {
             "User requested playback retry",
             metadata: ["videoID": activeVideoID]
         )
-        webView.reload()
+        webView.reloadFromOrigin()
         startLoadWatchdog(for: activeVideoID)
         schedulePlaybackBootstrap()
     }
@@ -927,8 +927,28 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       // override that explicit choice while YouTube mutates its page DOM.
       window.__youglassUserPlaybackChoice = null;
 
+      // YouTube can move the media element while the watch page hydrates. In
+      // addition to the top-level document, look through same-origin frames so
+      // native controls keep working across those page transitions.
+      const findMediaElement = (root = document, seen = new Set()) => {
+        if (!root || seen.has(root)) return null;
+        seen.add(root);
+        const direct = root.querySelector?.('video');
+        if (direct) return direct;
+        const frames = root.querySelectorAll?.('iframe') || [];
+        for (const frame of Array.from(frames)) {
+          try {
+            const nested = frame.contentDocument && findMediaElement(frame.contentDocument, seen);
+            if (nested) return nested;
+          } catch (_) {
+            // Cross-origin frames are expected; direct lookup still works.
+          }
+        }
+        return null;
+      };
+
       const applyAudioPolicy = (force = false) => {
-        const media = document.querySelector('video');
+        const media = findMediaElement();
         if (!media) return false;
         if (window.__youglassAutoMute === true && (force || window.__youglassUserAudioChoice !== 'unmuted')) {
           media.muted = true;
@@ -964,7 +984,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         if (!window.__youglassWaitingForVideoFrame ||
             window.__youglassAutoMute === true ||
             window.__youglassUserAudioChoice === 'muted') return;
-        const media = window.__youglassBoundMedia || document.querySelector('video');
+        const media = window.__youglassBoundMedia || findMediaElement();
         if (!media) return;
         media.muted = false;
         if (media.volume === 0) media.volume = 1;
@@ -987,6 +1007,11 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         resetFrameStateIfNeeded(media);
         if (window.__youglassFrameReady) return true;
         if (media.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return false;
+        // Some WebKit versions expose requestVideoFrameCallback but never
+        // deliver its callback for a YouTube-managed media element.
+        if (media.videoWidth > 0 && media.videoHeight > 0) {
+          return markFrameReady(media);
+        }
         const source = window.__youglassBoundMediaSource;
         if (typeof media.requestVideoFrameCallback === 'function') {
           if (media.dataset.youglassFrameWatch !== '1') {
@@ -1035,7 +1060,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
 
       const primePlayback = () => {
         if (window.__youglassPlaybackStopped) return false;
-        const media = document.querySelector('video');
+        const media = findMediaElement();
         if (!media) return false;
         resetFrameStateIfNeeded(media);
         watchForFirstFrame(media);
@@ -1147,7 +1172,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       };
 
       const emitState = status => {
-        const media = document.querySelector('video');
+        const media = findMediaElement();
         if (!media || !window.webkit?.messageHandlers?.youglassPlayback) return;
         resetFrameStateIfNeeded(media);
         const frameReady = watchForFirstFrame(media);
@@ -1179,7 +1204,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
 
       const installMediaEvents = () => {
         if (window.__youglassPlaybackStopped) return;
-        const media = document.querySelector('video');
+        const media = findMediaElement();
         if (!media) return;
         resetFrameStateIfNeeded(media);
         if (media.dataset.youglassEvents !== '1') {
@@ -1221,7 +1246,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             window.__youglassPlaybackObserver = null;
           }
 
-          const media = document.querySelector('video');
+          const media = findMediaElement();
           if (media) {
             try {
               if (media.webkitPresentationMode === 'picture-in-picture' && media.webkitSetPresentationMode) {
@@ -1240,7 +1265,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           window.__youglassControls = null;
         },
         togglePlayback() {
-          const media = document.querySelector('video');
+          const media = findMediaElement();
           if (!media) return emitState('Video is not ready');
           if (media.paused) {
             window.__youglassUserPlaybackChoice = 'playing';
@@ -1261,12 +1286,12 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         },
         startPlayback() {
           if (window.__youglassPlaybackStopped) return;
-          if (!document.querySelector('video')) return emitState('Video is not ready');
+          if (!findMediaElement()) return emitState('Video is not ready');
           installMediaEvents();
           primePlayback();
         },
         toggleMute() {
-          const media = document.querySelector('video');
+          const media = findMediaElement();
           if (!media) return emitState('Video is not ready');
           window.__youglassAutoplayBootstrap = false;
           const shouldUnmute = media.muted || media.volume === 0;
@@ -1285,7 +1310,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           emitState(shouldUnmute ? 'Audio on' : 'Muted');
         },
         toggleCaptions() {
-          const media = document.querySelector('video');
+          const media = findMediaElement();
           if (!media) return emitState('Video is not ready');
 
           // The native button drives YouTube's own caption track selection,
@@ -1311,13 +1336,13 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           emitState(window.__youglassAutoMute ? 'Muted by setting' : 'Audio on by setting');
         },
         seekBy(seconds) {
-          const media = document.querySelector('video');
+          const media = findMediaElement();
           if (!media || !Number.isFinite(media.duration)) return;
           media.currentTime = Math.max(0, Math.min(media.duration, media.currentTime + Number(seconds || 0)));
           emitState();
         },
         seekTo(seconds) {
-          const media = document.querySelector('video');
+          const media = findMediaElement();
           if (!media || !Number.isFinite(media.duration)) return;
           const target = Number(seconds);
           if (!Number.isFinite(target)) return;
@@ -1325,7 +1350,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           emitState('Seeking');
         },
         async togglePictureInPicture() {
-          const media = document.querySelector('video');
+          const media = findMediaElement();
           if (!media) {
             return emitState('Picture in Picture is unavailable for this video');
           }
@@ -1549,10 +1574,10 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
         }
 
         nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.name == "youglassPlayback",
-                  let payload = PlaybackMessage(body: message.body) else { return }
             let coordinator = self.coordinator
             Task { @MainActor in
+                guard message.name == "youglassPlayback",
+                      let payload = PlaybackMessage(body: message.body) else { return }
                 coordinator?.handlePlaybackMessage(payload)
             }
         }
@@ -1591,13 +1616,19 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             if !queryItems.contains(where: { $0.name == "playsinline" }) {
                 queryItems.append(URLQueryItem(name: "playsinline", value: "1"))
             }
+            if !queryItems.contains(where: { $0.name == "app" }) {
+                queryItems.append(URLQueryItem(name: "app", value: "desktop"))
+            }
+            if !queryItems.contains(where: { $0.name == "hl" }) {
+                queryItems.append(URLQueryItem(name: "hl", value: "en"))
+            }
             components?.queryItems = queryItems
             guard let url = components?.url else { return }
             loadedVideoID = video.id
 
             webView.load(URLRequest(
                 url: url,
-                cachePolicy: .useProtocolCachePolicy,
+                cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
                 timeoutInterval: 30
             ))
         }
@@ -1616,7 +1647,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             Task { @MainActor [weak controller, weak webView] in
                 guard let controller, let webView,
                       controller.isAttached(to: webView) else { return }
-                webView.evaluateJavaScript(playerScript, completionHandler: nil)
+                _ = try? await webView.evaluateJavaScript(playerScript)
                 controller.didFinishNavigation(for: webView)
             }
         }

@@ -9,7 +9,7 @@ struct YouTubeMacApp: App {
 
     var body: some Scene {
         WindowGroup("YouGlass", id: "main") {
-            YouTubeHomeView()
+            YouGlassAppRoot()
                 .environmentObject(store)
                 // The shell switches to its compact navigation mode below
                 // this size, so the window remains usable on small displays
@@ -19,6 +19,7 @@ struct YouTubeMacApp: App {
                 .background(YouGlassWindowSizingView())
                 .task {
                     await store.loadHome()
+                    store.startAutomaticFeedRefresh()
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -63,9 +64,22 @@ struct YouTubeMacApp: App {
         Settings {
             YouGlassSettingsView()
                 .environmentObject(store)
+                .preferredColorScheme(store.colorScheme)
         }
         .defaultSize(width: 1040, height: 700)
         .windowResizability(.contentMinSize)
+    }
+}
+
+private struct YouGlassAppRoot: View {
+    @EnvironmentObject private var store: YouTubeStore
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        YouTubeHomeView()
+            .onChange(of: scenePhase) { _, phase in
+                store.handleScenePhaseChange(phase)
+            }
     }
 }
 

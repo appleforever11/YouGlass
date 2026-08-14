@@ -181,6 +181,45 @@ final class ModelsTests: XCTestCase {
         XCTAssertFalse(YouGlassCachePolicy.isFresh(lastUpdated: nil, now: now, maxAge: 30))
     }
 
+    func testFeedRefreshPolicyRefreshesMissingAndOldRecommendations() {
+        let now = Date(timeIntervalSince1970: 10_000)
+
+        XCTAssertFalse(
+            YouGlassFeedRefreshPolicy.needsRefresh(
+                lastUpdated: now.addingTimeInterval(-60),
+                now: now
+            )
+        )
+        XCTAssertTrue(
+            YouGlassFeedRefreshPolicy.needsRefresh(
+                lastUpdated: now.addingTimeInterval(-YouGlassFeedRefreshPolicy.activeRefreshInterval - 1),
+                now: now
+            )
+        )
+        XCTAssertTrue(YouGlassFeedRefreshPolicy.needsRefresh(lastUpdated: nil, now: now))
+    }
+
+    func testFeedRefreshPolicyUsesLongerSubscriptionWindow() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        let recentSubscriptionSync = now.addingTimeInterval(-10 * 60)
+        let staleSubscriptionSync = now.addingTimeInterval(-16 * 60)
+
+        XCTAssertFalse(
+            YouGlassFeedRefreshPolicy.needsRefresh(
+                lastUpdated: recentSubscriptionSync,
+                now: now,
+                maxAge: YouGlassFeedRefreshPolicy.subscriptionRefreshInterval
+            )
+        )
+        XCTAssertTrue(
+            YouGlassFeedRefreshPolicy.needsRefresh(
+                lastUpdated: staleSubscriptionSync,
+                now: now,
+                maxAge: YouGlassFeedRefreshPolicy.subscriptionRefreshInterval
+            )
+        )
+    }
+
     func testResponseCacheStoresAndClearsEntries() async {
         let cache = YouGlassResponseCache(maxEntries: 2)
         let value = Data("value".utf8)

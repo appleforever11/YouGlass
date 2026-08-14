@@ -62,7 +62,7 @@ struct YouTubeAPIClient: Sendable {
         }
         components.queryItems = queryItems
 
-        let data = try await data(from: components)
+        let data = try await data(from: components, cacheTTL: 45)
         let response = try JSONDecoder().decode(SearchResponse.self, from: data)
         let ids = response.items.map(\.id.videoId).filter { !$0.isEmpty }
         let resources = (try? await videoResources(ids: ids)) ?? []
@@ -235,6 +235,46 @@ struct YouTubeAPIClient: Sendable {
             pollingInterval: UInt64(max(2_000, response.pollingIntervalMillis ?? 5_000)) * 1_000_000,
             isLive: true,
             isAvailable: true
+        )
+    }
+
+    func sendLiveChatMessage(liveChatID: String, text: String) async throws -> LiveChatMessage {
+        let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !liveChatID.isEmpty, !cleanText.isEmpty else {
+            throw YouTubeAPIError.invalidRequest("A live chat and message are required.")
+        }
+        guard let token = try await oauth.validAccessToken() else {
+            throw YouTubeAPIError.authenticationRequired
+        }
+
+        var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/liveChat/messages")!
+        components.queryItems = [URLQueryItem(name: "part", value: "snippet,authorDetails")]
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "snippet": [
+                "liveChatId": liveChatID,
+                "type": "textMessageEvent",
+                "textMessageDetails": [
+                    "messageText": cleanText
+                ]
+            ]
+        ])
+
+        let data = try await requestData(request)
+        let response = try JSONDecoder().decode(LiveChatResponse.self, from: data)
+        guard let item = response.items.first else {
+            throw YouTubeAPIError.invalidResponse("YouTube accepted the chat message but did not return it.")
+        }
+        return LiveChatMessage(
+            id: item.id,
+            author: item.authorDetails?.displayName.htmlDecoded ?? "You",
+            text: item.snippet.displayMessage?.htmlDecoded ?? cleanText,
+            publishedAt: item.snippet.publishedAt.map(relativeDate) ?? "now",
+            avatarURL: item.authorDetails?.profileImageURL.flatMap(URL.init(string:)),
+            isHighlighted: item.snippet.type != "textMessageEvent"
         )
     }
 
@@ -622,7 +662,11 @@ struct YouTubeAPIClient: Sendable {
         }
     }
 
-    private func data(from components: URLComponents, preferOAuth: Bool = true) async throws -> Data {
+    private func data(
+        from components: URLComponents,
+        preferOAuth: Bool = true,
+        cacheTTL: TimeInterval = 20
+    ) async throws -> Data {
         guard let url = components.url else {
             throw YouTubeAPIError.invalidRequest("YouTube request URL could not be constructed.")
         }
@@ -646,7 +690,8 @@ struct YouTubeAPIClient: Sendable {
         // the key itself so it never becomes part of the in-memory cache map.
         return try await requestData(
             URLRequest(url: authenticated.url!),
-            cacheKey: url.absoluteString
+            cacheKey: url.absoluteString,
+            cacheTTL: cacheTTL
         )
     }
 
@@ -675,7 +720,8 @@ struct YouTubeAPIClient: Sendable {
             do {
                 // Keep bursts from the feed, search, comments, and channel
                 // paths below the quota/rate-limit threshold.
-                await requestGate.wait(minimumInterval: 0.18)
+                await youGlassSharedRateLimitState.waitIfBlocked()
+                await requestGate.wait(minimumInterval: 0.35)
                 let requestPath = request.url?.path ?? "/"
                 YouGlassDiagnostics.api.debug("YouTube request \(requestPath, privacy: .public)")
                 let (data, response) = try await session.data(for: request)
@@ -689,6 +735,15 @@ struct YouTubeAPIClient: Sendable {
                         reason: Self.apiErrorReason(from: data),
                         message: Self.apiErrorMessage(from: data)
                     )
+                    if httpResponse.statusCode == 429 {
+                        await youGlassSharedRateLimitState.markRateLimited()
+                        YouGlassDiagnostics.record(
+                            .warning,
+                            category: "api",
+                            message: "YouTube API rate limit cooldown started",
+                            metadata: ["cooldownSeconds": "30", "path": requestPath]
+                        )
+                    }
                     guard canRetry, apiError.isRetryable, attempt < 2 else {
                         YouGlassDiagnostics.api.error("YouTube request failed with HTTP \(httpResponse.statusCode, privacy: .public)")
                         YouGlassDiagnostics.record(

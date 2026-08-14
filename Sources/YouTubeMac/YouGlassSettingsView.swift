@@ -189,14 +189,25 @@ struct YouGlassSettingsView: View {
             settingsGroup("Connection", footer: "YouGlass keeps account tokens and API credentials in the macOS Keychain. A normal browser login is used only to establish the YouTube session.") {
                 settingsValueRow("Account", value: store.isSignedIn ? "Connected" : "Not connected", systemName: store.isSignedIn ? "checkmark.circle.fill" : "person.crop.circle")
                 settingsValueRow("Feed status", value: store.connectionMessage, systemName: "bolt.horizontal.circle")
+                settingsValueRow(
+                    "Account refresh",
+                    value: store.accountSyncInProgress
+                        ? "Refreshing account and feed..."
+                        : (store.accountSyncStatus ?? "Ready to refresh"),
+                    systemName: store.accountSyncInProgress ? "arrow.triangle.2.circlepath" : "checkmark.circle"
+                )
                 HStack {
                     Spacer()
                     Button {
                         store.refreshAccount()
                     } label: {
-                        Label("Refresh account and feed", systemImage: "arrow.clockwise")
+                        Label(
+                            store.accountSyncInProgress ? "Refreshing..." : "Refresh account and feed",
+                            systemImage: store.accountSyncInProgress ? "hourglass" : "arrow.clockwise"
+                        )
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(store.accountSyncInProgress)
                 }
             }
 
@@ -365,12 +376,22 @@ struct YouGlassSettingsView: View {
                     Text(store.lastAccountSyncDate?.formatted(date: .abbreviated, time: .shortened) ?? "Not synced yet")
                         .foregroundStyle(.secondary)
                 }
+                HStack {
+                    Text("Last feed refresh")
+                    Spacer()
+                    Text(store.feedLastRefreshedDate?.formatted(date: .abbreviated, time: .shortened) ?? "Not refreshed yet")
+                        .foregroundStyle(.secondary)
+                }
                 Button {
-                    Task { await store.loadHome(force: true) }
+                    store.refreshAccount()
                 } label: {
-                    Label("Refresh personalized recommendations", systemImage: "wand.and.stars")
+                    Label(
+                        store.accountSyncInProgress ? "Refreshing account and feed..." : "Refresh personalized recommendations",
+                        systemImage: store.accountSyncInProgress ? "hourglass" : "wand.and.stars"
+                    )
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(store.accountSyncInProgress)
             }
         }
     }
@@ -784,6 +805,7 @@ private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
         scrollView.documentView = context.coordinator.hostingView
+        context.coordinator.scheduleInitialScrollToTop(in: scrollView)
         return scrollView
     }
 
@@ -791,11 +813,13 @@ private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
         context.coordinator.hostingView.rootView = content
         context.coordinator.hostingView.needsLayout = true
         context.coordinator.resizeDocument(to: scrollView.contentSize.width)
+        context.coordinator.scheduleInitialScrollToTop(in: scrollView)
     }
 
     @MainActor
     final class Coordinator {
         let hostingView: NSHostingView<Content>
+        private var didSetInitialScrollPosition = false
 
         init(content: Content) {
             hostingView = NSHostingView(rootView: content)
@@ -807,6 +831,17 @@ private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
             hostingView.frame.size.width = width
             hostingView.layoutSubtreeIfNeeded()
             hostingView.frame.size.height = max(hostingView.fittingSize.height, 1)
+        }
+
+        func scheduleInitialScrollToTop(in scrollView: NSScrollView) {
+            guard !didSetInitialScrollPosition else { return }
+            DispatchQueue.main.async { [weak self, weak scrollView] in
+                guard let self, let scrollView, !self.didSetInitialScrollPosition else { return }
+                self.hostingView.layoutSubtreeIfNeeded()
+                scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+                self.didSetInitialScrollPosition = true
+            }
         }
     }
 }
