@@ -35,7 +35,19 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources" "$FRAMEWORKS"
 cp "$BUILD_BINARY" "$CONTENTS/MacOS/$APP_NAME"
 cp "Sources/YouTubeMac/Info.plist" "$CONTENTS/Info.plist"
-cp "Sources/YouTubeMac/Resources/YouGlassIcon.icns" "$CONTENTS/Resources/YouGlassIcon.icns"
+# Compile the layered Icon Composer document into the system CAR and ICNS resources.
+ditto "Sources/YouTubeMac/Resources/YouGlass.icon" "$CONTENTS/Resources/YouGlass.icon"
+ACTOOL_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/youglass-actool.XXXXXX")"
+trap 'rm -rf "$ACTOOL_TEMP_DIR"' EXIT
+xcrun actool \
+  --compile "$CONTENTS/Resources" \
+  --platform macosx \
+  --minimum-deployment-target 14.0 \
+  --app-icon YouGlass \
+  --standalone-icon-behavior all \
+  --skip-app-store-deployment \
+  --output-partial-info-plist "$ACTOOL_TEMP_DIR/partial.plist" \
+  "Sources/YouTubeMac/Resources/YouGlass.icon"
 ditto "$SPARKLE_FRAMEWORK" "$FRAMEWORKS/Sparkle.framework"
 chmod +x "$CONTENTS/MacOS/$APP_NAME"
 install_name_tool \

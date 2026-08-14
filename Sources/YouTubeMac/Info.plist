@@ -6,8 +6,10 @@
     <string>en</string>
     <key>CFBundleExecutable</key>
     <string>YouGlass</string>
+    <key>CFBundleIconName</key>
+    <string>YouGlass</string>
     <key>CFBundleIconFile</key>
-    <string>YouGlassIcon</string>
+    <string>YouGlass</string>
     <key>CFBundleIdentifier</key>
     <string>com.kevinhowe.YouGlass</string>
     <key>CFBundleInfoDictionaryVersion</key>
@@ -17,9 +19,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.8</string>
+    <string>1.0.9</string>
     <key>CFBundleVersion</key>
-	<string>100800</string>
+	<string>100900</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>

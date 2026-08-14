@@ -621,7 +621,9 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Button(action: { store.showSection("Home") }) {
+            Button {
+                Task { @MainActor in store.showSection("Home") }
+            } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "apple.logo")
                         .font(.system(size: 20, weight: .semibold))
@@ -655,8 +657,10 @@ struct SidebarView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 11) {
-                    ForEach(store.subscriptions) { item in
-                        Button(action: { store.openChannel(item) }) {
+                    ForEach(store.sidebarSubscriptionsSnapshot) { item in
+                        Button {
+                            Task { @MainActor in store.openChannel(item) }
+                        } label: {
                             HStack(spacing: 12) {
                                 AsyncAvatar(url: item.avatarURL)
                                     .frame(width: 28, height: 28)
@@ -686,19 +690,21 @@ struct SidebarView: View {
                         .buttonStyle(.plain)
                     }
 
-                    if store.subscriptions.isEmpty {
-                        Button(action: {
-                            if store.isSignedIn {
-                                store.refreshAccount()
-                            } else {
-                                store.login()
+                    if store.sidebarSubscriptionsSnapshot.isEmpty {
+                        Button {
+                            Task { @MainActor in
+                                if store.sidebarIsSignedInSnapshot {
+                                    store.refreshAccount()
+                                } else {
+                                    store.login()
+                                }
                             }
-                        }) {
+                        } label: {
                             HStack(spacing: 10) {
-                                Image(systemName: store.isSignedIn ? "arrow.clockwise" : "person.crop.circle.badge.plus")
+                                Image(systemName: store.sidebarIsSignedInSnapshot ? "arrow.clockwise" : "person.crop.circle.badge.plus")
                                     .frame(width: 28)
                                 if !compact {
-                                    Text(store.isSignedIn ? "Refresh account subscriptions" : "Sign in to load subscriptions")
+                                    Text(store.sidebarIsSignedInSnapshot ? "Refresh account subscriptions" : "Sign in to load subscriptions")
                                         .font(.system(size: 12, weight: .medium))
                                         .lineLimit(2)
                                         .multilineTextAlignment(.leading)
@@ -715,7 +721,9 @@ struct SidebarView: View {
             }
             .frame(height: compact ? 250 : 320)
 
-            Button(action: { store.showSection("Subscriptions") }) {
+            Button {
+                Task { @MainActor in store.showSection("Subscriptions") }
+            } label: {
                 HStack(spacing: 12) {
                     Image(systemName: "chevron.down")
                     if !compact {
@@ -1234,10 +1242,7 @@ struct VideoCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
-        .scaleEffect(isHovered ? 1.012 : 1.0)
-        .shadow(color: palette.pink.opacity(isHovered ? 0.20 : 0), radius: 14, y: 6)
-        .animation(.easeOut(duration: 0.18), value: isHovered)
+        .scaleEffect(1.0)
     }
 }
 

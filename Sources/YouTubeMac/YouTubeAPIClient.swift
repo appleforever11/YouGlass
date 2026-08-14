@@ -671,11 +671,13 @@ struct YouTubeAPIClient: Sendable {
         var attempt = 0
 
         while true {
+            let requestStartedAt = Date()
             do {
                 // Keep bursts from the feed, search, comments, and channel
                 // paths below the quota/rate-limit threshold.
                 await requestGate.wait(minimumInterval: 0.18)
-                YouGlassDiagnostics.api.debug("YouTube request \(request.url?.path ?? "/", privacy: .public)")
+                let requestPath = request.url?.path ?? "/"
+                YouGlassDiagnostics.api.debug("YouTube request \(requestPath, privacy: .public)")
                 let (data, response) = try await session.data(for: request)
                 guard let httpResponse = response as? HTTPURLResponse else {
                     throw YouTubeAPIError.invalidResponse("YouTube returned a non-HTTP response.")
@@ -689,11 +691,47 @@ struct YouTubeAPIClient: Sendable {
                     )
                     guard canRetry, apiError.isRetryable, attempt < 2 else {
                         YouGlassDiagnostics.api.error("YouTube request failed with HTTP \(httpResponse.statusCode, privacy: .public)")
+                        YouGlassDiagnostics.record(
+                            .error,
+                            category: "api",
+                            message: "YouTube request failed",
+                            metadata: [
+                                "path": requestPath,
+                                "status": String(httpResponse.statusCode),
+                                "attempt": String(attempt + 1),
+                                "error": apiError.localizedDescription
+                            ]
+                        )
                         throw apiError
+                    }
+                    if YouGlassDebugEngine.shared.isVerboseLoggingEnabled {
+                        YouGlassDiagnostics.record(
+                            .notice,
+                            category: "api",
+                            message: "Retrying a transient YouTube request",
+                            metadata: [
+                                "path": requestPath,
+                                "status": String(httpResponse.statusCode),
+                                "attempt": String(attempt + 1)
+                            ]
+                        )
                     }
                     try await Self.waitBeforeRetry(attempt: attempt)
                     attempt += 1
                     continue
+                }
+
+                if YouGlassDebugEngine.shared.isVerboseLoggingEnabled {
+                    YouGlassDiagnostics.record(
+                        .debug,
+                        category: "api",
+                        message: "YouTube request completed",
+                        metadata: [
+                            "path": requestPath,
+                            "status": String(httpResponse.statusCode),
+                            "durationMs": String(Int(Date().timeIntervalSince(requestStartedAt) * 1000))
+                        ]
+                    )
                 }
 
                 if let cacheKey {
@@ -701,9 +739,47 @@ struct YouTubeAPIClient: Sendable {
                 }
                 return data
             } catch let error as YouTubeAPIError {
+                if case .httpStatus = error {
+                    // HTTP failures are recorded at the status check above.
+                } else {
+                    YouGlassDiagnostics.record(
+                        .error,
+                        category: "api",
+                        message: "YouTube API request ended with an error",
+                        metadata: [
+                            "path": request.url?.path ?? "/",
+                            "attempt": String(attempt + 1),
+                            "error": error.localizedDescription
+                        ]
+                    )
+                }
                 throw error
             } catch {
-                guard canRetry, attempt < 2 else { throw error }
+                guard canRetry, attempt < 2 else {
+                    YouGlassDiagnostics.record(
+                        .error,
+                        category: "api",
+                        message: "YouTube request ended with a transport error",
+                        metadata: [
+                            "path": request.url?.path ?? "/",
+                            "attempt": String(attempt + 1),
+                            "error": error.localizedDescription
+                        ]
+                    )
+                    throw error
+                }
+                if YouGlassDebugEngine.shared.isVerboseLoggingEnabled {
+                    YouGlassDiagnostics.record(
+                        .notice,
+                        category: "api",
+                        message: "Retrying a transport error",
+                        metadata: [
+                            "path": request.url?.path ?? "/",
+                            "attempt": String(attempt + 1),
+                            "error": error.localizedDescription
+                        ]
+                    )
+                }
                 try await Self.waitBeforeRetry(attempt: attempt)
                 attempt += 1
             }

@@ -4,6 +4,14 @@ import SwiftUI
 
 @MainActor
 final class YouTubeStore: ObservableObject {
+    // SwiftUI may reevaluate a view body from an AttributeGraph transaction
+    // that is running on the main thread without carrying the Swift main
+    // executor. Keep render-only sidebar snapshots synchronized on the main
+    // actor so macOS 27 does not enter the crashing executor-check thunk while
+    // diffing subscriptions.
+    nonisolated(unsafe) private(set) var sidebarSubscriptionsSnapshot: [SubscriptionItem] = []
+    nonisolated(unsafe) private(set) var sidebarIsSignedInSnapshot = false
+
     @Published var theme: AppTheme = .dark
     @Published var query = ""
     @Published var feed = VideoItem.sampleFeed
@@ -16,9 +24,13 @@ final class YouTubeStore: ObservableObject {
     @Published var channelPage: YouTubeChannelPage?
     @Published var channelLoading = false
     @Published var channelError: String?
-    @Published var isSignedIn = false
+    @Published var isSignedIn = false {
+        didSet { sidebarIsSignedInSnapshot = isSignedIn }
+    }
     @Published var profileImageURL: URL?
-    @Published var subscriptions: [SubscriptionItem] = []
+    @Published var subscriptions: [SubscriptionItem] = [] {
+        didSet { sidebarSubscriptionsSnapshot = subscriptions }
+    }
     @Published private(set) var recentlyWatched: [VideoItem] = []
     @Published private(set) var savedVideos: [VideoItem] = []
     @Published private(set) var locallyLikedVideos: [VideoItem] = []
@@ -399,6 +411,12 @@ final class YouTubeStore: ObservableObject {
         isLoading = true
         sectionEmptyMessage = nil
         YouGlassDiagnostics.feed.info("Home load started; forced: \(force, privacy: .public)")
+        YouGlassDiagnostics.record(
+            .info,
+            category: "feed",
+            message: "Home feed load started",
+            metadata: ["forced": String(force)]
+        )
         if feed.forYou.isEmpty && feed.trending.isEmpty && feed.more.isEmpty && feed.queue.isEmpty,
            let data = defaults.data(forKey: DefaultsKey.cachedFeed),
            let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
@@ -417,6 +435,7 @@ final class YouTubeStore: ObservableObject {
             homeLoadInProgress = false
             lastHomeLoadDate = Date()
             YouGlassDiagnostics.feed.info("Home load finished")
+            YouGlassDiagnostics.record(.info, category: "feed", message: "Home feed load finished")
             if homeReloadPending {
                 homeReloadPending = false
                 let pendingForce = homeReloadPendingForce
@@ -857,6 +876,12 @@ final class YouTubeStore: ObservableObject {
                 // A Data API page token is opaque and cannot be translated
                 // into a web-session offset. Falling back to offset zero here
                 // duplicates the first page and makes the list look truncated.
+                YouGlassDiagnostics.record(
+                    .warning,
+                    category: "comments",
+                    message: "Comment page request failed",
+                    metadata: ["videoID": video.id, "error": error.localizedDescription]
+                )
                 return CommentPage(
                     comments: [],
                     totalCount: 0,
@@ -875,6 +900,12 @@ final class YouTubeStore: ObservableObject {
             let bridgePage = await commentsBridge.load(videoID: video.id, maxResults: 50, offset: 0)
             return bridgePage.isAvailable ? bridgePage : page
         } catch {
+            YouGlassDiagnostics.record(
+                .warning,
+                category: "comments",
+                message: "Comment request failed and web fallback was unavailable",
+                metadata: ["videoID": video.id, "error": error.localizedDescription]
+            )
             let bridgePage = await commentsBridge.load(videoID: video.id, maxResults: 50, offset: 0)
             if bridgePage.isAvailable || bridgePage.message?.localizedCaseInsensitiveContains("disabled") == true {
                 return bridgePage
@@ -922,6 +953,12 @@ final class YouTubeStore: ObservableObject {
                 return bridgePage
             }
             connectionMessage = error.localizedDescription
+            YouGlassDiagnostics.record(
+                .warning,
+                category: "live-chat",
+                message: "Live chat request failed and web fallback was unavailable",
+                metadata: ["videoID": video.id, "error": error.localizedDescription]
+            )
             return LiveChatPage(
                 messages: [],
                 nextPageToken: pageToken,
@@ -1343,11 +1380,7 @@ final class YouTubeStore: ObservableObject {
         case "Shorts":
             await loadShorts()
         case "History":
-            if recentlyWatched.isEmpty {
-                showEmptySection("No videos watched in YouGlass yet")
-            } else {
-                applyHomeVideos(recentlyWatched, message: "Recently watched on this Mac")
-            }
+            await loadHistory()
         case "Watch Later":
             if savedVideos.isEmpty {
                 showEmptySection("Your Watch Later list is empty")
@@ -1369,6 +1402,44 @@ final class YouTubeStore: ObservableObject {
             await loadSubscriptionFeed()
         default:
             if let query, !query.isEmpty { await search(query) }
+        }
+    }
+
+    private func loadHistory() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        // Data API v3 intentionally does not return the private system
+        // watch-history playlist. The signed-in YouTube session is the
+        // authoritative source for this page.
+        let webResult = await YouTubeWebFeedBridge.shared.loadHistoryVideos(maxResults: 100)
+        if webResult.isSignedIn && !isSignedIn {
+            isSignedIn = true
+            defaults.set(true, forKey: DefaultsKey.isSignedIn)
+        }
+        if !webResult.videos.isEmpty {
+            applyHomeVideos(
+                webResult.videos,
+                message: "Watch history from your signed-in YouTube session",
+                cacheFeed: false
+            )
+            YouGlassDiagnostics.feed.info("Loaded \(webResult.videos.count, privacy: .public) account watch-history videos from the signed-in web session")
+            return
+        }
+
+        if !recentlyWatched.isEmpty {
+            applyHomeVideos(
+                recentlyWatched,
+                message: "Showing videos watched in YouGlass on this Mac",
+                cacheFeed: false
+            )
+            return
+        }
+
+        if isSignedIn {
+            showEmptySection("Your YouTube watch history is unavailable in the current session. Reconnect YouTube and try again.")
+        } else {
+            showEmptySection("Sign in with Google to load your YouTube watch history")
         }
     }
 

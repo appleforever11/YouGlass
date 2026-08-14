@@ -85,6 +85,7 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
         }
 
         let configuration = WKWebViewConfiguration()
+        configuration.youGlassDisableWebMaterialsOnAffectedSystems()
         configuration.websiteDataStore = .default()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
         configuration.allowsAirPlayForMediaPlayback = true
@@ -151,8 +152,8 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
         guard webView.url?.host?.contains("youtube.com") == true else { return }
 
         Task { @MainActor in
-            let result = try? await webView.evaluateJavaScript(YouTubeAuthBridge.profileCaptureScript)
-            guard let urlString = result as? String, !urlString.isEmpty else { return }
+            let result = try? await webView.youGlassEvaluateJavaScript(YouTubeAuthBridge.profileCaptureScript)
+            guard let urlString = result, !urlString.isEmpty else { return }
             NotificationCenter.default.post(
                 name: .youTubeBrowserDidAuthenticate,
                 object: nil,

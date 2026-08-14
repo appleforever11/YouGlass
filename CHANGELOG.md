@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.9] - 2026-08-13
+
+Refined the account-aware native experience, added the Apple Icon Composer app icon, and expanded diagnostics for release troubleshooting. See [the complete end-user release notes](RELEASE_NOTES/1.0.9.md).
+
 ## [1.0.8] - 2026-08-13
 
 Added a native, color-coded settings window and improved player startup stability. See [the complete end-user release notes](RELEASE_NOTES/1.0.8.md).

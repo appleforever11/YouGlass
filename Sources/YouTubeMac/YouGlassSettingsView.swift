@@ -1,10 +1,13 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Native preferences for YouGlass. The settings scene is intentionally a
-/// split view so account, playback, and API controls stay discoverable without
-/// turning the main YouTube surface into a settings form.
+/// sidebar-detail layout so account, playback, and API controls stay
+/// discoverable without turning the main YouTube surface into a settings form.
 struct YouGlassSettingsView: View {
     @EnvironmentObject private var store: YouTubeStore
+    @State private var sidebarVisible = true
     @State private var selection: YouGlassSettingsPage? = .general
     @State private var apiKey = ""
     @State private var clientID = ""
@@ -13,22 +16,34 @@ struct YouGlassSettingsView: View {
     @State private var authorizing = false
     @State private var showingResetConfirmation = false
     @State private var showingCacheResetConfirmation = false
+    @State private var debugStatus: String?
     @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) private var reduceAmbientMotion = false
     @AppStorage("YouGlass.preferTechnicalErrorAlerts") private var preferTechnicalErrorAlerts = false
+    @AppStorage(YouGlassDebugEngine.diagnosticsEnabledKey) private var diagnosticsEnabled = false
+    @AppStorage(YouGlassDebugEngine.verboseLoggingKey) private var verboseDiagnostics = false
+    @AppStorage(YouGlassDebugEngine.webKitBreadcrumbsKey) private var captureWebKitBreadcrumbs = false
 
     var body: some View {
-        NavigationSplitView {
-            settingsSidebar
-        } detail: {
-            ScrollView(.vertical) {
-                settingsDetail
-                    .frame(maxWidth: 820, alignment: .topLeading)
-                    .padding(.horizontal, 34)
-                    .padding(.vertical, 28)
+        VStack(spacing: 0) {
+            settingsChrome
+
+            HStack(spacing: 0) {
+                if sidebarVisible {
+                    settingsSidebar
+                        .frame(minWidth: 238, idealWidth: 270, maxWidth: 310)
+
+                    Divider()
+                }
+
+                YouGlassSettingsScrollView {
+                    settingsDetail
+                        .frame(maxWidth: 820, alignment: .topLeading)
+                        .padding(.horizontal, 30)
+                        .padding(.vertical, 24)
+                }
+                .background(.regularMaterial)
             }
-            .background(.regularMaterial)
         }
-        .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 920, minHeight: 620)
         .alert("Reset YouTube connection?", isPresented: $showingResetConfirmation) {
             Button("Reset", role: .destructive) {
@@ -50,6 +65,35 @@ struct YouGlassSettingsView: View {
         }
     }
 
+    private var settingsChrome: some View {
+        HStack(spacing: 9) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    sidebarVisible.toggle()
+                }
+            } label: {
+                Image(systemName: sidebarVisible ? "sidebar.leading" : "sidebar.trailing")
+                    .frame(width: 26, height: 22)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help(sidebarVisible ? "Hide Settings Sidebar" : "Show Settings Sidebar")
+            .accessibilityLabel(sidebarVisible ? "Hide Settings Sidebar" : "Show Settings Sidebar")
+
+            Text("Settings")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.bar)
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
+    }
+
     private var settingsSidebar: some View {
         List(selection: $selection) {
             Section {
@@ -64,8 +108,8 @@ struct YouGlassSettingsView: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(.vertical, 7)
-                .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 8, trailing: 8))
+                .padding(.vertical, 5)
+                .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 7, trailing: 8))
                 .listRowSeparator(.hidden)
             }
 
@@ -90,7 +134,6 @@ struct YouGlassSettingsView: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .navigationSplitViewColumnWidth(min: 238, ideal: 270, max: 310)
     }
 
     @ViewBuilder
@@ -483,6 +526,57 @@ struct YouGlassSettingsView: View {
         VStack(alignment: .leading, spacing: 24) {
             settingsHeader(.advanced)
 
+            settingsGroup("Debug engine", footer: "YouGlass keeps a bounded, privacy-safe breadcrumb trail for lifecycle, API, feed, and playback failures. Native macOS crash reports remain authoritative; exported reports never include API keys, OAuth tokens, cookies, comments, or request bodies.") {
+                Toggle("Enable diagnostic logging", isOn: $diagnosticsEnabled)
+                Toggle("Verbose request timing", isOn: $verboseDiagnostics)
+                Toggle("WebKit and playback breadcrumbs", isOn: $captureWebKitBreadcrumbs)
+
+                settingsValueRow(
+                    "Current session",
+                    value: YouGlassDebugEngine.shared.sessionSummary,
+                    systemName: "waveform.path.ecg"
+                )
+
+                HStack(spacing: 8) {
+                    Button {
+                        exportDiagnostics()
+                    } label: {
+                        Label("Export report", systemImage: "square.and.arrow.up")
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button {
+                        copyDiagnostics()
+                    } label: {
+                        Label("Copy report", systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        revealDiagnosticsFolder()
+                    } label: {
+                        Label("Open logs", systemImage: "folder")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                HStack {
+                    Button("Clear stored logs", role: .destructive) {
+                        YouGlassDebugEngine.shared.clearPersistedDiagnostics()
+                        debugStatus = "Stored diagnostic logs cleared."
+                    }
+                    .buttonStyle(.bordered)
+                    Spacer(minLength: 0)
+                }
+
+                if let debugStatus {
+                    Text(debugStatus)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             settingsGroup("Diagnostics", footer: "Technical details are useful when a YouTube API request or native player surface fails. They never include API keys or OAuth secrets.") {
                 Toggle("Prefer technical error alerts", isOn: $preferTechnicalErrorAlerts)
                 settingsValueRow("Feed engine", value: "YouTube session + Data API + local ranking", systemName: "cpu")
@@ -530,22 +624,23 @@ struct YouGlassSettingsView: View {
 
     @ViewBuilder
     private func settingsHeader(_ page: YouGlassSettingsPage) -> some View {
-        VStack(spacing: 9) {
+        HStack(spacing: 14) {
             SettingsIconBadge(systemName: page.systemName, tint: page.tint, size: 68)
-            Text(page.title)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-            Text(page.subtitle)
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(page.title)
+                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                Text(page.subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 24)
-        .padding(.vertical, 24)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(.quaternary, lineWidth: 1)
         }
     }
@@ -617,6 +712,101 @@ struct YouGlassSettingsView: View {
             status = authorized
                 ? "Google account actions are ready."
                 : store.connectionMessage
+        }
+    }
+
+    private func exportDiagnostics() {
+        let panel = NSSavePanel()
+        panel.title = "Export YouGlass Diagnostics"
+        panel.nameFieldStringValue = "YouGlass-Diagnostics-\(Self.debugFilenameTimestamp()).json"
+        panel.allowedContentTypes = [.json]
+        panel.canCreateDirectories = true
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try YouGlassDebugEngine.shared.exportDiagnostics(to: url)
+            debugStatus = "Diagnostics exported to \(url.lastPathComponent)."
+        } catch {
+            debugStatus = "Diagnostics export failed: \(error.localizedDescription)"
+            YouGlassDiagnostics.record(
+                .error,
+                category: "debug-engine",
+                message: "Diagnostics export failed",
+                metadata: ["error": error.localizedDescription]
+            )
+        }
+    }
+
+    private func copyDiagnostics() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(
+            YouGlassDebugEngine.shared.makeTextReport(),
+            forType: .string
+        )
+        debugStatus = "Diagnostics copied to the clipboard."
+    }
+
+    private func revealDiagnosticsFolder() {
+        NSWorkspace.shared.activateFileViewerSelecting([
+            YouGlassDebugEngine.shared.diagnosticsDirectoryURL
+        ])
+        debugStatus = "Opened the local diagnostics folder."
+    }
+
+    private static func debugFilenameTimestamp() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        return formatter.string(from: Date())
+    }
+}
+
+/// SwiftUI's private HostingScrollView crashes in its hit-test responder path
+/// on the macOS 27 beta. Keep settings scrollable while routing the container
+/// through AppKit's mature NSScrollView implementation.
+@MainActor
+private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(content: content)
+    }
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = true
+        scrollView.documentView = context.coordinator.hostingView
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        context.coordinator.hostingView.rootView = content
+        context.coordinator.hostingView.needsLayout = true
+        context.coordinator.resizeDocument(to: scrollView.contentSize.width)
+    }
+
+    @MainActor
+    final class Coordinator {
+        let hostingView: NSHostingView<Content>
+
+        init(content: Content) {
+            hostingView = NSHostingView(rootView: content)
+            hostingView.autoresizingMask = [.width]
+        }
+
+        func resizeDocument(to width: CGFloat) {
+            guard width > 0 else { return }
+            hostingView.frame.size.width = width
+            hostingView.layoutSubtreeIfNeeded()
+            hostingView.frame.size.height = max(hostingView.fittingSize.height, 1)
         }
     }
 }

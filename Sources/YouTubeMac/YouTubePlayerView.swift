@@ -78,20 +78,12 @@ struct YouTubePlayerOverlay: View {
                         .accessibilityIdentifier("pip-close-button")
                         .help("Stop playback")
                     }
-                    .onHover { isHovering in
-                        compactChromePointerHovering = isHovering
-                        if isHovering {
-                            showCompactChrome()
-                        } else {
-                            scheduleCompactChromeHide(after: 0.9)
-                        }
-                    }
                     .offset(y: 18)
                     .padding(.top, 30)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
-                    .opacity(compactChromeVisible || cornerMenuPresented ? 1 : 0)
-                    .allowsHitTesting(compactChromeVisible || cornerMenuPresented)
+                    .opacity(1)
+                    .allowsHitTesting(true)
                     .animation(.easeOut(duration: 0.18), value: compactChromeVisible)
                     .zIndex(20)
                 }
@@ -135,14 +127,6 @@ struct YouTubePlayerOverlay: View {
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
                     .zIndex(21)
-                    .onHover { isHovering in
-                        compactChromePointerHovering = isHovering
-                        if isHovering {
-                            showCompactChrome()
-                        } else {
-                            scheduleCompactChromeHide(after: 0.9)
-                        }
-                    }
                 }
             }
             .overlay {
@@ -1188,18 +1172,6 @@ private struct NativeYouTubePlayer: View {
             // video opens. They then follow the normal hover timeout.
             revealControls()
         }
-        // Hover tracking belongs to the player container, not to a full-size
-        // transparent gesture view. `onHover` observes the pointer without
-        // taking the click target away from the native Buttons above it.
-        .onHover { isHovering in
-            isPointerHovering = isHovering
-            onPlayerHoverChanged?(isHovering)
-            if isHovering {
-                revealControls()
-            } else {
-                scheduleControlsHide(after: 0.85)
-            }
-        }
         .animation(.easeOut(duration: 0.18), value: controlsVisible)
     }
 
@@ -1352,19 +1324,11 @@ private struct NativeYouTubePlayer: View {
             // lift the row into that band so its circular hit targets stay
             // completely inside the clipped PIP content rect.
             .offset(y: isCompact ? -22 : 0)
-            .onHover { isHovering in
-                isPointerHovering = isHovering
-                if isHovering {
-                    revealControls()
-                } else {
-                    scheduleControlsHide(after: 0.9)
-                }
-            }
-            .opacity(transportControlsVisible && !playbackController.canRetry ? 1 : 0)
+            .opacity(playbackController.canRetry ? 0 : 1)
             // Keep the visible SwiftUI controls as the only hit-testable views
             // in the transport area. PlayerInteractionLayer is bounded above
             // this band, so no transparent sibling can win these clicks.
-            .allowsHitTesting(transportControlsVisible && !playbackController.canRetry)
+            .allowsHitTesting(!playbackController.canRetry)
             .zIndex(isCompact ? 22 : 10)
     }
 

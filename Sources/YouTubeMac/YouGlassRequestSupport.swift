@@ -1,4 +1,52 @@
 import Foundation
+import WebKit
+
+extension WKWebViewConfiguration {
+    /// macOS 27 beta can crash in WKMaterialHostingSupport while committing a
+    /// remote layer tree containing CSS backdrop effects. YouGlass does not
+    /// depend on those effects, so suppress them before page styles are
+    /// painted while leaving ordinary compositing and video layers intact.
+    @MainActor
+    func youGlassDisableWebMaterialsOnAffectedSystems() {
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 else { return }
+        let source = #"""
+        (() => {
+          const style = document.createElement('style');
+          style.id = 'youglass-disable-web-materials';
+          style.textContent = `
+            *, *::before, *::after {
+              -webkit-backdrop-filter: none !important;
+              backdrop-filter: none !important;
+            }
+          `;
+          (document.documentElement || document).appendChild(style);
+        })();
+        """#
+        userContentController.addUserScript(
+            WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        )
+    }
+}
+
+extension WKWebView {
+    /// WebKit's Swift async importer declares the JavaScript result as
+    /// non-optional even though the Objective-C callback can return nil (for
+    /// example, for `undefined` or when evaluation fails). On macOS 27 that
+    /// mismatch traps in the generated continuation thunk before callers can
+    /// catch the error. Preserve the callback API's true optionality here.
+    @MainActor
+    func youGlassEvaluateJavaScript(_ script: String) async throws -> String? {
+        try await withCheckedThrowingContinuation { continuation in
+            evaluateJavaScript(script) { result, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: result as? String)
+                }
+            }
+        }
+    }
+}
 
 actor YouGlassRequestGate {
     private var nextAllowedDate = Date.distantPast

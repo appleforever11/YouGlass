@@ -2,9 +2,9 @@
 
 YouGlass is a native Apple Silicon macOS YouTube client with an Apple-inspired liquid-glass interface, native navigation, an in-app player, desktop Picture in Picture, account-aware feeds, and a Sparkle update channel.
 
-![YouGlass home screen](docs/screenshots/youglass-home.png)
+![YouGlass 1.0.9 home screen](docs/screenshots/youglass-home-1.0.9.png)
 
-![YouGlass app icon](Sources/YouTubeMac/Resources/YouGlassIconSource.png)
+![YouGlass 1.0.9 Liquid Glass app icon](Sources/YouTubeMac/Resources/YouGlassIconSource.png)
 
 ## Install
 
@@ -28,7 +28,7 @@ swift package resolve
 ./script/build_and_run.sh
 ```
 
-The test script stages Sparkle for SwiftPM's test runner before running the test suite. The build script stages a complete `.app` bundle, including `Sparkle.framework` and its updater helpers. `./script/build_and_run.sh --verify` builds, launches, and verifies the signed bundle. `./script/package_dmg.sh` creates the installable DMG. `./script/package_release.sh 1.0.0` creates the Sparkle-compatible arm64 ZIP.
+The test script stages Sparkle for SwiftPM's test runner before running the test suite. The build script stages a complete `.app` bundle, including `Sparkle.framework` and its updater helpers. `./script/build_and_run.sh --verify` builds, launches, and verifies the signed bundle. `./script/package_dmg.sh` creates the installable DMG. `./script/package_release.sh 1.0.9` creates the Sparkle-compatible arm64 ZIP.
 
 ## Fast development deployment to another Mac
 

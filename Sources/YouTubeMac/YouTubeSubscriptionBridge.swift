@@ -72,6 +72,7 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
         }
 
         let configuration = WKWebViewConfiguration()
+        configuration.youGlassDisableWebMaterialsOnAffectedSystems()
         configuration.websiteDataStore = .default()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.mediaTypesRequiringUserActionForPlayback = [.audio, .video]
@@ -83,7 +84,7 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
         webView.navigationDelegate = self
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         webView.isHidden = true
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.setValue(true, forKey: "drawsBackground")
 
         let hostView = NSView(frame: NSRect(x: 0, y: 0, width: 1440, height: 1800))
         hostView.addSubview(webView)
@@ -95,8 +96,8 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
             defer: false
         )
         hostWindow.contentView = hostView
-        hostWindow.isOpaque = false
-        hostWindow.backgroundColor = .clear
+        hostWindow.isOpaque = true
+        hostWindow.backgroundColor = .white
         hostWindow.hasShadow = false
         hostWindow.ignoresMouseEvents = true
         hostWindow.alphaValue = 0.001
@@ -131,7 +132,7 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
                 try? await Task.sleep(nanoseconds: attempt == 0 ? 1_000_000_000 : 750_000_000)
 
                 if attempt == 2 || attempt == 5 || attempt == 8 {
-                    _ = try? await webView.evaluateJavaScript(
+                    _ = try? await webView.youGlassEvaluateJavaScript(
                         "window.scrollTo(0, Math.max(document.documentElement.scrollHeight * 0.55, 900)); void 0;"
                     )
                 }
@@ -241,8 +242,8 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
         """
 
         do {
-            let result = try await webView.evaluateJavaScript(script)
-            guard let json = result as? String,
+            let result = try await webView.youGlassEvaluateJavaScript(script)
+            guard let json = result,
                   let data = json.data(using: .utf8),
                   let payload = try? JSONDecoder().decode(SubscriptionPayload.self, from: data) else {
                 return []

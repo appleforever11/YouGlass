@@ -155,6 +155,7 @@ final class YouTubeLiveChatBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         if let webView { return webView }
 
         let configuration = WKWebViewConfiguration()
+        configuration.youGlassDisableWebMaterialsOnAffectedSystems()
         configuration.websiteDataStore = .default()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.mediaTypesRequiringUserActionForPlayback = [.audio, .video]
@@ -167,7 +168,7 @@ final class YouTubeLiveChatBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         webView.uiDelegate = self
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         webView.isHidden = true
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.setValue(true, forKey: "drawsBackground")
 
         let hostView = NSView(frame: NSRect(x: 0, y: 0, width: 980, height: 900))
         hostView.addSubview(webView)
@@ -179,8 +180,8 @@ final class YouTubeLiveChatBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
             defer: false
         )
         hostWindow.contentView = hostView
-        hostWindow.isOpaque = false
-        hostWindow.backgroundColor = .clear
+        hostWindow.isOpaque = true
+        hostWindow.backgroundColor = .white
         hostWindow.hasShadow = false
         hostWindow.ignoresMouseEvents = true
         hostWindow.alphaValue = 0.001
@@ -270,8 +271,8 @@ final class YouTubeLiveChatBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         """
 
         do {
-            let value = try await webView.evaluateJavaScript(script)
-            guard let json = value as? String,
+            let value = try await webView.youGlassEvaluateJavaScript(script)
+            guard let json = value,
                   let data = json.data(using: .utf8),
                   let payload = try? JSONDecoder().decode(LiveChatBridgePayload.self, from: data) else {
                 return .unavailable

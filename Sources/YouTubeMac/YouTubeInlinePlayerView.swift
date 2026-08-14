@@ -35,6 +35,11 @@ final class YouTubePlaybackController: ObservableObject {
         self.webView = webView
         resetPublishedStateForAttachment()
         prepareAmbientPalette(for: video)
+        YouGlassDiagnostics.breadcrumb(
+            "playback",
+            "Attached WebKit player surface",
+            metadata: ["videoID": video.id]
+        )
         status = "Player connected"
         startLoadWatchdog(for: video.id)
         schedulePlaybackBootstrap()
@@ -161,6 +166,11 @@ final class YouTubePlaybackController: ObservableObject {
         guard self.webView === webView, activeVideoID != nil else { return }
         canRetry = false
         status = "Preparing player..."
+        YouGlassDiagnostics.breadcrumb(
+            "playback",
+            "WebKit player navigation finished",
+            metadata: ["videoID": activeVideoID ?? "unknown"]
+        )
         startLoadWatchdog(for: activeVideoID)
         schedulePlaybackBootstrap()
     }
@@ -178,6 +188,17 @@ final class YouTubePlaybackController: ObservableObject {
         isSurfaceReady = false
         canRetry = true
         status = "Playback unavailable"
+        YouGlassDiagnostics.record(
+            .warning,
+            category: "playback",
+            message: "WebKit player navigation failed",
+            metadata: [
+                "videoID": activeVideoID ?? "unknown",
+                "domain": nsError.domain,
+                "code": String(nsError.code),
+                "error": nsError.localizedDescription
+            ]
+        )
     }
 
     func retryPlayback() {
@@ -195,6 +216,11 @@ final class YouTubePlaybackController: ObservableObject {
         currentTime = 0
         duration = 0
         status = "Retrying playback..."
+        YouGlassDiagnostics.breadcrumb(
+            "playback",
+            "User requested playback retry",
+            metadata: ["videoID": activeVideoID]
+        )
         webView.reload()
         startLoadWatchdog(for: activeVideoID)
         schedulePlaybackBootstrap()
@@ -576,6 +602,18 @@ fileprivate extension VideoAmbientPalette {
 }
 
 /// Hosts YouTube's supported watch client inside the native player surface.
+@MainActor
+private final class YouGlassPlaybackWebView: WKWebView {
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        // WKMouseTrackingObserver asks the surrounding SwiftUI hosting view to
+        // hit-test every pointer move. macOS 27 beta performs that hit test
+        // outside the executor context required by SwiftUI and traps. YouGlass
+        // uses native controls, so the playback surface needs no mouse tracking.
+        trackingAreas.forEach(removeTrackingArea)
+    }
+}
+
 @MainActor
 final class YouTubeInlinePlayerHostView: NSView {
     let webView: WKWebView
@@ -1388,6 +1426,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> YouTubeInlinePlayerHostView {
         let configuration = WKWebViewConfiguration()
+        configuration.youGlassDisableWebMaterialsOnAffectedSystems()
         configuration.websiteDataStore = .default()
         configuration.allowsAirPlayForMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
@@ -1421,7 +1460,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
             name: "youglassPlayback"
         )
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = YouGlassPlaybackWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.wantsLayer = true
@@ -1497,13 +1536,19 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
     }
 
     private final class ScriptMessageHandlerProxy: NSObject, WKScriptMessageHandler {
-        weak var coordinator: Coordinator?
+        // WKScriptMessageHandler is entered through an Objective-C thunk. On
+        // macOS 27 beta, applying the enclosing SwiftUI type's inferred main
+        // actor isolation to that thunk can pass an invalid executor reference
+        // into Swift's precondition before this method even begins. Keep only
+        // this bridge nonisolated; the parsed Sendable value is handed back to
+        // the main actor below.
+        nonisolated(unsafe) weak var coordinator: Coordinator?
 
         init(coordinator: Coordinator) {
             self.coordinator = coordinator
         }
 
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        nonisolated func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "youglassPlayback",
                   let payload = PlaybackMessage(body: message.body) else { return }
             let coordinator = self.coordinator

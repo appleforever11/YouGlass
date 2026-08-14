@@ -28,6 +28,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     private var maxResults = 20
     private var sessionCookiePresent = false
     private var requestLabel = "YouTube homepage"
+    private var includeShorts = false
 
     private static let sessionCookieNames: Set<String> = [
         "APISID",
@@ -48,7 +49,17 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         await loadVideos(
             at: URL(string: "https://www.youtube.com/")!,
             maxResults: maxResults,
-            label: "YouTube homepage"
+            label: "YouTube homepage",
+            includeShorts: false
+        )
+    }
+
+    func loadHistoryVideos(maxResults: Int = 100) async -> YouTubeWebFeedResult {
+        await loadVideos(
+            at: URL(string: "https://www.youtube.com/feed/history")!,
+            maxResults: maxResults,
+            label: "YouTube watch history",
+            includeShorts: true
         )
     }
 
@@ -63,16 +74,23 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         return await loadVideos(
             at: url,
             maxResults: maxResults,
-            label: "YouTube search"
+            label: "YouTube search",
+            includeShorts: false
         )
     }
 
-    private func loadVideos(at url: URL, maxResults: Int, label: String) async -> YouTubeWebFeedResult {
+    private func loadVideos(
+        at url: URL,
+        maxResults: Int,
+        label: String,
+        includeShorts: Bool
+    ) async -> YouTubeWebFeedResult {
         await waitUntilAvailable()
         requestActive = true
 
         self.maxResults = maxResults
         requestLabel = label
+        self.includeShorts = includeShorts
         let cookieSession = await hasYouTubeSessionCookie()
         sessionCookiePresent = cookieSession
         let webView = existingOrCreateWebView()
@@ -117,6 +135,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         }
 
         let configuration = WKWebViewConfiguration()
+        configuration.youGlassDisableWebMaterialsOnAffectedSystems()
         configuration.websiteDataStore = .default()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         // This view only extracts homepage metadata. Do not let a hidden
@@ -130,7 +149,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         webView.navigationDelegate = self
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         webView.isHidden = true
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.setValue(true, forKey: "drawsBackground")
 
         // WebKit needs a real AppKit view hierarchy to hydrate custom elements and
         // run the same homepage code path as the visible sign-in web window.
@@ -144,8 +163,8 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             defer: false
         )
         hostWindow.contentView = hostView
-        hostWindow.isOpaque = false
-        hostWindow.backgroundColor = .clear
+        hostWindow.isOpaque = true
+        hostWindow.backgroundColor = .white
         hostWindow.hasShadow = false
         hostWindow.ignoresMouseEvents = true
         hostWindow.alphaValue = 0.001
@@ -195,12 +214,12 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             try? await Task.sleep(nanoseconds: attempt == 0 ? 1_200_000_000 : 850_000_000)
 
             if attempt == 2 || attempt == 5 || attempt == 8 {
-                _ = try? await webView.evaluateJavaScript(
+                _ = try? await webView.youGlassEvaluateJavaScript(
                     "window.scrollTo(0, Math.max(document.documentElement.scrollHeight * 0.55, 900)); void 0;"
                 )
             }
             if attempt == 10 {
-                _ = try? await webView.evaluateJavaScript("window.scrollTo(0, 0); void 0;")
+                _ = try? await webView.youGlassEvaluateJavaScript("window.scrollTo(0, 0); void 0;")
             }
 
             let result = await extractVideos(from: webView)
@@ -271,6 +290,7 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         let script = """
         (() => {
           const limit = \(maxResults);
+          const includeShorts = \(includeShorts ? "true" : "false");
           const seen = new Set();
           const items = [];
           let initialCount = 0;
@@ -305,11 +325,11 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
             } catch (_) { return ''; }
           };
           const add = (entry) => {
-            if (!entry || entry.isShort || !entry.id || seen.has(entry.id)) return;
+            if (!entry || (!includeShorts && entry.isShort) || !entry.id || seen.has(entry.id)) return;
             const title = String(entry.title || '').replace(/\\s+/g, ' ').trim();
             if (!title || title.length < 2) return;
             const titleLower = title.toLowerCase();
-            if (titleLower.includes('#short') || titleLower.includes('youtube shorts') || titleLower.includes('short form')) return;
+            if (!includeShorts && (titleLower.includes('#short') || titleLower.includes('youtube shorts') || titleLower.includes('short form'))) return;
             seen.add(entry.id);
             items.push({
               id: entry.id,
@@ -427,8 +447,8 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         """
 
         do {
-            let result = try await webView.evaluateJavaScript(script)
-            guard let json = result as? String,
+            let result = try await webView.youGlassEvaluateJavaScript(script)
+            guard let json = result,
                   let data = json.data(using: .utf8),
                   let payload = try? JSONDecoder().decode(WebFeedPayload.self, from: data) else {
                 return .empty

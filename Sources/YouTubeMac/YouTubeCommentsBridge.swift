@@ -60,7 +60,7 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         // stages while retrying so the page has a chance to render them.
         for attempt in 0..<12 {
             if attempt == 1 || attempt == 4 || attempt == 7 {
-                _ = try? await webView?.evaluateJavaScript(
+                _ = try? await webView?.youGlassEvaluateJavaScript(
                     """
                     (() => {
                       const scrolling = document.scrollingElement || document.documentElement;
@@ -204,6 +204,7 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         if let webView { return webView }
 
         let configuration = WKWebViewConfiguration()
+        configuration.youGlassDisableWebMaterialsOnAffectedSystems()
         configuration.websiteDataStore = .default()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.mediaTypesRequiringUserActionForPlayback = [.audio, .video]
@@ -216,7 +217,7 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         webView.uiDelegate = self
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
         webView.isHidden = true
-        webView.setValue(false, forKey: "drawsBackground")
+        webView.setValue(true, forKey: "drawsBackground")
 
         let hostView = NSView(frame: NSRect(x: 0, y: 0, width: 1200, height: 1800))
         hostView.addSubview(webView)
@@ -228,8 +229,8 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
             defer: false
         )
         hostWindow.contentView = hostView
-        hostWindow.isOpaque = false
-        hostWindow.backgroundColor = .clear
+        hostWindow.isOpaque = true
+        hostWindow.backgroundColor = .white
         hostWindow.hasShadow = false
         hostWindow.ignoresMouseEvents = true
         hostWindow.alphaValue = 0.001
@@ -505,8 +506,8 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
         """
 
         do {
-            let value = try await webView.evaluateJavaScript(script)
-            guard let json = value as? String,
+            let value = try await webView.youGlassEvaluateJavaScript(script)
+            guard let json = value,
                   let data = json.data(using: .utf8),
                   let payload = try? JSONDecoder().decode(CommentBridgePayload.self, from: data) else {
                 return CommentPage(comments: [], totalCount: 0, isAvailable: false, message: "Comments are still loading.")
