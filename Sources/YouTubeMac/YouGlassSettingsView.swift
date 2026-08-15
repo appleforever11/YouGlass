@@ -819,7 +819,11 @@ private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
     @MainActor
     final class Coordinator {
         let hostingView: NSHostingView<Content>
-        private var didSetInitialScrollPosition = false
+        // The settings window can receive several layout updates while it is
+        // becoming visible. Keep the first presentation at the top until the
+        // document height has settled, then leave scrolling entirely to the user.
+        private var initialScrollPassesRemaining = 6
+        private var initialScrollScheduled = false
 
         init(content: Content) {
             hostingView = NSHostingView(rootView: content)
@@ -834,14 +838,36 @@ private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
         }
 
         func scheduleInitialScrollToTop(in scrollView: NSScrollView) {
-            guard !didSetInitialScrollPosition else { return }
-            DispatchQueue.main.async { [weak self, weak scrollView] in
-                guard let self, let scrollView, !self.didSetInitialScrollPosition else { return }
+            guard initialScrollPassesRemaining > 0, !initialScrollScheduled else { return }
+            initialScrollScheduled = true
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self, weak scrollView] in
+                guard let self, let scrollView else { return }
+                self.initialScrollScheduled = false
                 self.hostingView.layoutSubtreeIfNeeded()
-                scrollView.contentView.scroll(to: NSPoint(x: 0, y: 0))
+                self.resizeDocument(to: scrollView.contentSize.width)
+                self.scrollToTop(in: scrollView)
                 scrollView.reflectScrolledClipView(scrollView.contentView)
-                self.didSetInitialScrollPosition = true
+
+                self.initialScrollPassesRemaining -= 1
+                if self.initialScrollPassesRemaining > 0 {
+                    self.scheduleInitialScrollToTop(in: scrollView)
+                }
             }
+        }
+
+        private func scrollToTop(in scrollView: NSScrollView) {
+            let documentView = scrollView.documentView
+            let topY: CGFloat
+
+            if documentView?.isFlipped ?? true {
+                topY = 0
+            } else {
+                let documentHeight = documentView?.bounds.height ?? 0
+                topY = max(0, documentHeight - scrollView.contentView.bounds.height)
+            }
+
+            scrollView.contentView.scroll(to: NSPoint(x: 0, y: topY))
         }
     }
 }

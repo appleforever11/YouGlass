@@ -12,7 +12,16 @@ CONTENTS="$APP_BUNDLE/Contents"
 FRAMEWORKS="$CONTENTS/Frameworks"
 
 if [[ -z "$SIGNING_IDENTITY" ]]; then
-  SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/^[[:space:]]*[0-9]+\)/ {print $2; exit}')"
+  # Prefer a stable Apple signing identity. Ad-hoc signatures change their
+  # designated access on every rebuilt binary and cause repeated Keychain ACL
+  # prompts for credentials created by an earlier build.
+  for identity_pattern in 'Developer ID Application' 'Apple Development'; do
+    SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' -v pattern="$identity_pattern" '$0 ~ /^[[:space:]]*[0-9]+\)/ && index($2, pattern) {print $2; exit}')"
+    [[ -n "$SIGNING_IDENTITY" ]] && break
+  done
+  if [[ -z "$SIGNING_IDENTITY" ]]; then
+    SIGNING_IDENTITY="$(security find-identity -v -p codesigning 2>/dev/null | awk -F'"' '/^[[:space:]]*[0-9]+\)/ {print $2; exit}')"
+  fi
 fi
 SIGNING_IDENTITY="${SIGNING_IDENTITY:--}"
 
@@ -35,19 +44,26 @@ rm -rf "$APP_BUNDLE"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources" "$FRAMEWORKS"
 cp "$BUILD_BINARY" "$CONTENTS/MacOS/$APP_NAME"
 cp "Sources/YouTubeMac/Info.plist" "$CONTENTS/Info.plist"
+chmod 644 "$CONTENTS/Info.plist"
 # Compile the layered Icon Composer document into the system CAR and ICNS resources.
 ditto "Sources/YouTubeMac/Resources/YouGlass.icon" "$CONTENTS/Resources/YouGlass.icon"
 ACTOOL_TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/youglass-actool.XXXXXX")"
 trap 'rm -rf "$ACTOOL_TEMP_DIR"' EXIT
-xcrun actool \
-  --compile "$CONTENTS/Resources" \
-  --platform macosx \
-  --minimum-deployment-target 14.0 \
-  --app-icon YouGlass \
-  --standalone-icon-behavior all \
-  --skip-app-store-deployment \
-  --output-partial-info-plist "$ACTOOL_TEMP_DIR/partial.plist" \
-  "Sources/YouTubeMac/Resources/YouGlass.icon"
+if ! xcrun actool \
+    --compile "$CONTENTS/Resources" \
+    --platform macosx \
+    --minimum-deployment-target 14.0 \
+    --app-icon YouGlass \
+    --standalone-icon-behavior all \
+    --skip-app-store-deployment \
+    --output-partial-info-plist "$ACTOOL_TEMP_DIR/partial.plist" \
+    "Sources/YouTubeMac/Resources/YouGlass.icon"; then
+  # Older Xcode beta builds can reject Icon Composer packages even though the
+  # source .icns is valid. Keep local debug/stability packaging usable while
+  # preserving the layered source for toolchains that support actool here.
+  echo "Icon Composer compilation unavailable; using the checked-in ICNS fallback." >&2
+  cp "Sources/YouTubeMac/Resources/YouGlassIcon.icns" "$CONTENTS/Resources/YouGlass.icns"
+fi
 ditto "$SPARKLE_FRAMEWORK" "$FRAMEWORKS/Sparkle.framework"
 chmod +x "$CONTENTS/MacOS/$APP_NAME"
 install_name_tool \
@@ -55,7 +71,15 @@ install_name_tool \
   "@loader_path/../Frameworks/Sparkle.framework/Versions/B/Sparkle" \
   "$CONTENTS/MacOS/$APP_NAME"
 
+# A copied app can carry quarantine/provenance attributes from Icon Composer,
+# iCloud, or a previous release. Remove them before signing so LaunchServices
+# and the code-signature page hashes see the exact bundle being shipped.
+xattr -cr "$APP_BUNDLE" 2>/dev/null || true
+
 if [[ "$SIGNING_IDENTITY" == "-" ]]; then
+  if [[ "$BUILD_CONFIGURATION" == "release" ]]; then
+    echo "Warning: building a release bundle ad-hoc signed; use YOUGLASS_SIGNING_IDENTITY for stable Keychain access." >&2
+  fi
   codesign --force --deep --sign - "$FRAMEWORKS/Sparkle.framework"
   codesign --force --deep --sign - "$APP_BUNDLE"
 else

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 private struct YouGlassThumbnailParallax: ViewModifier {
@@ -6,7 +7,6 @@ private struct YouGlassThumbnailParallax: ViewModifier {
 
     @State private var pointer: CGPoint = .zero
     @State private var isHovering = false
-    @State private var contentSize: CGSize = .zero
 
     init(translation: CGFloat = 5, rotation: Double = 2.8) {
         self.translation = translation
@@ -15,17 +15,6 @@ private struct YouGlassThumbnailParallax: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background {
-                GeometryReader { geometry in
-                    Color.clear
-                        .onAppear {
-                            contentSize = geometry.size
-                        }
-                        .onChange(of: geometry.size) { _, newSize in
-                            contentSize = newSize
-                        }
-                }
-            }
             .scaleEffect(isHovering ? 1.025 : 1)
             .rotation3DEffect(
                 .degrees(-Double(pointer.y) * rotation),
@@ -55,22 +44,119 @@ private struct YouGlassThumbnailParallax: ViewModifier {
                 value: isHovering
             )
             .contentShape(Rectangle())
-            .onContinuousHover(coordinateSpace: .local) { phase in
-                switch phase {
-                case .active(let location):
-                    let width = max(contentSize.width, 1)
-                    let height = max(contentSize.height, 1)
-                    let normalized = CGPoint(
-                        x: min(max((location.x / width - 0.5) * 2, -1), 1),
-                        y: min(max((location.y / height - 0.5) * 2, -1), 1)
-                    )
-                    pointer = normalized
-                    isHovering = true
-                case .ended:
-                    pointer = .zero
-                    isHovering = false
+            .background {
+                YouGlassParallaxTrackingView { phase in
+                    updatePointer(for: phase)
                 }
             }
+    }
+
+    private func updatePointer(for phase: YouGlassParallaxTrackingView.Phase) {
+        switch phase {
+        case .active(let normalized):
+            pointer = normalized
+            isHovering = true
+        case .ended:
+            pointer = .zero
+            isHovering = false
+        }
+    }
+}
+
+/// Tracks pointer movement without putting a GeometryReader-backed state
+/// update into SwiftUI's layout graph. That matters for cards that are removed
+/// while a personalized feed refresh is diffing its LazyVGrid.
+private struct YouGlassParallaxTrackingView: NSViewRepresentable {
+    enum Phase {
+        case active(CGPoint)
+        case ended
+    }
+
+    let onChange: (Phase) -> Void
+
+    func makeNSView(context: Context) -> TrackingView {
+        let view = TrackingView()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackingView, context: Context) {
+        nsView.onChange = onChange
+    }
+
+    static func dismantleNSView(_ nsView: TrackingView, coordinator: ()) {
+        nsView.onChange = nil
+    }
+
+    final class TrackingView: NSView {
+        var onChange: ((Phase) -> Void)?
+        private var trackingArea: NSTrackingArea?
+        private var pendingPhase: Phase?
+        private var reportScheduled = false
+
+        override var isFlipped: Bool { true }
+
+        override func updateTrackingAreas() {
+            if let trackingArea {
+                removeTrackingArea(trackingArea)
+            }
+
+            let options: NSTrackingArea.Options = [
+                .mouseEnteredAndExited,
+                .mouseMoved,
+                .activeInKeyWindow,
+                .inVisibleRect
+            ]
+            let trackingArea = NSTrackingArea(
+                rect: .zero,
+                options: options,
+                owner: self,
+                userInfo: nil
+            )
+            addTrackingArea(trackingArea)
+            self.trackingArea = trackingArea
+            super.updateTrackingAreas()
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            report(event)
+        }
+
+        override func mouseMoved(with event: NSEvent) {
+            report(event)
+        }
+
+        override func mouseExited(with event: NSEvent) {
+            scheduleReport(.ended)
+        }
+
+        private func report(_ event: NSEvent) {
+            let width = max(bounds.width, 1)
+            let height = max(bounds.height, 1)
+            let location = convert(event.locationInWindow, from: nil)
+            let normalized = CGPoint(
+                x: min(max((location.x / width - 0.5) * 2, -1), 1),
+                y: min(max((location.y / height - 0.5) * 2, -1), 1)
+            )
+            scheduleReport(.active(normalized))
+        }
+
+        private func scheduleReport(_ phase: Phase) {
+            pendingPhase = phase
+            guard !reportScheduled else { return }
+            reportScheduled = true
+
+            // Keep AppKit's mouse event out of SwiftUI's current transaction.
+            // Coalescing also prevents a fast pointer sweep from rebuilding a
+            // LazyVGrid once for every event.
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                self.reportScheduled = false
+                guard let pendingPhase = self.pendingPhase else { return }
+                self.pendingPhase = nil
+                self.onChange?(pendingPhase)
+            }
+        }
     }
 }
 
