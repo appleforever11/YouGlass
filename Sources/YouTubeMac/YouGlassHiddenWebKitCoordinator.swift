@@ -6,8 +6,18 @@ import Foundation
 enum YouGlassHiddenWebKitPolicy {
     static let enabledKey = "YouGlass.debug.hiddenWebKitBridgesEnabled"
 
-    static func isEnabled(defaults: UserDefaults = .standard) -> Bool {
-        defaults.bool(forKey: enabledKey)
+    static var isForcedOffOnCurrentSystem: Bool {
+        YouGlassRuntimeStabilityPolicy.isAffectedSystem
+    }
+
+    static func isEnabled(
+        defaults: UserDefaults = .standard,
+        operatingSystemVersion: OperatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion
+    ) -> Bool {
+        guard !YouGlassRuntimeStabilityPolicy.isAffectedSystem(operatingSystemVersion) else {
+            return false
+        }
+        return defaults.bool(forKey: enabledKey)
     }
 
     static func setEnabled(_ enabled: Bool, defaults: UserDefaults = .standard) {

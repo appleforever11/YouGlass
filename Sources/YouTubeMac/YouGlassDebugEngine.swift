@@ -34,6 +34,7 @@ struct YouGlassDebugSnapshot: Codable, Sendable {
     let verboseLoggingEnabled: Bool
     let webKitBreadcrumbsEnabled: Bool
     let hiddenWebKitBridgesEnabled: Bool
+    let parallaxMode: String
     let previousSessionWasUnclean: Bool
     let recentEvents: [YouGlassDiagnosticEvent]
 }
@@ -58,6 +59,8 @@ private struct YouGlassDebugCrashReport: Codable {
     let sessionID: String
     let exceptionName: String
     let exceptionReason: String
+    let hiddenWebKitBridgesEnabled: Bool
+    let parallaxMode: String
     let callStack: [String]
     let recentEvents: [YouGlassDiagnosticEvent]
 }
@@ -76,7 +79,7 @@ final class YouGlassDebugEngine: @unchecked Sendable {
     static let webKitBreadcrumbsKey = "YouGlass.debug.webKitBreadcrumbs"
 
     private static let maximumEventCount = 240
-    private static let schemaVersion = 2
+    private static let schemaVersion = 3
 
     private let lock = NSLock()
     private let fileManager: FileManager
@@ -253,6 +256,7 @@ final class YouGlassDebugEngine: @unchecked Sendable {
             verboseLoggingEnabled: verboseLoggingEnabled,
             webKitBreadcrumbsEnabled: webKitBreadcrumbsEnabled,
             hiddenWebKitBridgesEnabled: hiddenWebKitBridgesEnabled,
+            parallaxMode: YouGlassRuntimeStabilityPolicy.parallaxMode.rawValue,
             previousSessionWasUnclean: previousSessionWasUnclean,
             recentEvents: events
         )
@@ -279,6 +283,7 @@ final class YouGlassDebugEngine: @unchecked Sendable {
         lines.append("Verbose logging enabled: " + String(snapshot.verboseLoggingEnabled))
         lines.append("WebKit breadcrumbs enabled: " + String(snapshot.webKitBreadcrumbsEnabled))
         lines.append("Hidden WebKit bridges enabled: " + String(snapshot.hiddenWebKitBridgesEnabled))
+        lines.append("Thumbnail parallax mode: " + snapshot.parallaxMode)
         lines.append("Previous session unclean: " + String(snapshot.previousSessionWasUnclean))
         lines.append("")
         lines.append("Recent events")
@@ -343,6 +348,8 @@ final class YouGlassDebugEngine: @unchecked Sendable {
             sessionID: reportSessionID,
             exceptionName: Self.sanitize(exception.name.rawValue),
             exceptionReason: Self.sanitize(exception.reason ?? "No exception reason provided"),
+            hiddenWebKitBridgesEnabled: hiddenWebKitBridgesEnabled,
+            parallaxMode: YouGlassRuntimeStabilityPolicy.parallaxMode.rawValue,
             callStack: exception.callStackSymbols.map(Self.sanitize),
             recentEvents: reportEvents
         )

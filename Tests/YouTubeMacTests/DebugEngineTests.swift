@@ -79,9 +79,10 @@ final class DebugEngineTests: XCTestCase {
         let object = try XCTUnwrap(
             JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
-        XCTAssertEqual(object["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(object["schemaVersion"] as? Int, 3)
         XCTAssertEqual(object["verboseLoggingEnabled"] as? Bool, true)
         XCTAssertEqual(object["hiddenWebKitBridgesEnabled"] as? Bool, false)
+        XCTAssertEqual(object["parallaxMode"] as? String, YouGlassRuntimeStabilityPolicy.parallaxMode.rawValue)
 
         let events = try XCTUnwrap(object["recentEvents"] as? [[String: Any]])
         XCTAssertTrue(events.contains { ($0["message"] as? String) == "export check" })
@@ -97,10 +98,31 @@ final class DebugEngineTests: XCTestCase {
         XCTAssertFalse(YouGlassHiddenWebKitPolicy.isEnabled(defaults: defaults))
 
         YouGlassHiddenWebKitPolicy.setEnabled(true, defaults: defaults)
-        XCTAssertTrue(YouGlassHiddenWebKitPolicy.isEnabled(defaults: defaults))
+        XCTAssertFalse(
+            YouGlassHiddenWebKitPolicy.isEnabled(
+                defaults: defaults,
+                operatingSystemVersion: OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0)
+            )
+        )
+        XCTAssertTrue(
+            YouGlassHiddenWebKitPolicy.isEnabled(
+                defaults: defaults,
+                operatingSystemVersion: OperatingSystemVersion(majorVersion: 25, minorVersion: 0, patchVersion: 0)
+            )
+        )
 
         YouGlassHiddenWebKitPolicy.setEnabled(false, defaults: defaults)
         XCTAssertFalse(YouGlassHiddenWebKitPolicy.isEnabled(defaults: defaults))
+    }
+
+    func testRuntimeStabilityPolicyUsesSafeModeOnMacOS26AndLater() {
+        let macOS25 = OperatingSystemVersion(majorVersion: 25, minorVersion: 0, patchVersion: 0)
+        let macOS26 = OperatingSystemVersion(majorVersion: 26, minorVersion: 0, patchVersion: 0)
+
+        XCTAssertFalse(YouGlassRuntimeStabilityPolicy.isAffectedSystem(macOS25))
+        XCTAssertTrue(YouGlassRuntimeStabilityPolicy.isAffectedSystem(macOS26))
+        XCTAssertEqual(YouGlassRuntimeStabilityPolicy.parallaxMode(for: macOS25), .pointerTilt)
+        XCTAssertEqual(YouGlassRuntimeStabilityPolicy.parallaxMode(for: macOS26), .stableHover)
     }
 
     func testNewSessionReportsPreviousUncleanSession() throws {
@@ -148,5 +170,7 @@ final class DebugEngineTests: XCTestCase {
         )
         XCTAssertEqual(object["exceptionName"] as? String, "YouGlassTestException")
         XCTAssertEqual(object["exceptionReason"] as? String, "synthetic failure")
+        XCTAssertEqual(object["hiddenWebKitBridgesEnabled"] as? Bool, false)
+        XCTAssertEqual(object["parallaxMode"] as? String, YouGlassRuntimeStabilityPolicy.parallaxMode.rawValue)
     }
 }

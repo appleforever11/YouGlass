@@ -603,12 +603,16 @@ struct YouGlassSettingsView: View {
                 Toggle("Prefer technical error alerts", isOn: $preferTechnicalErrorAlerts)
                 settingsValueRow("Feed engine", value: "YouTube session + Data API + local ranking", systemName: "cpu")
                 settingsValueRow("Player engine", value: "Native SwiftUI surface with WebKit playback", systemName: "play.tv")
+                settingsValueRow("Thumbnail motion", value: YouGlassRuntimeStabilityPolicy.parallaxMode.rawValue, systemName: "rectangle.3.group")
             }
 
-            settingsGroup("WebKit stability", footer: "Hidden YouTube compatibility bridges use offscreen WKWebViews for session-only feed, history, channel, comments, and live-chat fallbacks. They are disabled by default because WebKit can crash while committing an invisible remote layer tree. Restart YouGlass after changing this setting.") {
+            settingsGroup("WebKit stability", footer: "Hidden YouTube compatibility bridges use offscreen WKWebViews for session-only feed, history, channel, comments, and live-chat fallbacks. They are disabled by default and forced off on macOS 26+ because WebKit can crash while committing an invisible remote layer tree.") {
                 Toggle("Allow hidden YouTube compatibility bridges", isOn: $hiddenWebKitCompatibility)
                     .tint(.orange)
-                Text(hiddenWebKitCompatibility
+                    .disabled(YouGlassHiddenWebKitPolicy.isForcedOffOnCurrentSystem)
+                Text(YouGlassHiddenWebKitPolicy.isForcedOffOnCurrentSystem
+                    ? "Stable mode is enforced on macOS 26+. The compatibility setting is preserved but cannot start hidden WebViews on this system."
+                    : hiddenWebKitCompatibility
                     ? "Compatibility bridges are enabled. Use this only when API-backed data is unavailable and you accept the additional WebKit crash risk."
                     : "Stable mode is active. YouGlass will use OAuth, the YouTube Data API, local caches, and the visible player/login WebViews only.")
                     .font(.footnote)

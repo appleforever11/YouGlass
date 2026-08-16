@@ -220,6 +220,16 @@ final class ModelsTests: XCTestCase {
         )
     }
 
+    func testFeedRefreshPolicyKeepsForegroundAccountDataFresh() {
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.activeRefreshInterval, 3 * 60)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.accountSignalRefreshInterval, 3 * 60)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.subscriptionRefreshInterval, 10 * 60)
+        XCTAssertLessThan(
+            YouGlassFeedRefreshPolicy.activeRefreshInterval,
+            YouGlassFeedRefreshPolicy.subscriptionRefreshInterval
+        )
+    }
+
     func testResponseCacheStoresAndClearsEntries() async {
         let cache = YouGlassResponseCache(maxEntries: 2)
         let value = Data("value".utf8)

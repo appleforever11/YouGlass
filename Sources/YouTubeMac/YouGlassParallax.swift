@@ -13,7 +13,32 @@ private struct YouGlassThumbnailParallax: ViewModifier {
         self.rotation = rotation
     }
 
+    @ViewBuilder
     func body(content: Content) -> some View {
+        if YouGlassRuntimeStabilityPolicy.parallaxMode == .stableHover {
+            stableHoverBody(content: content)
+        } else {
+            pointerParallaxBody(content: content)
+        }
+    }
+
+    private func stableHoverBody(content: Content) -> some View {
+        content
+            .scaleEffect(isHovering ? 1.012 : 1)
+            .shadow(
+                color: .black.opacity(isHovering ? 0.18 : 0),
+                radius: isHovering ? 10 : 0,
+                y: isHovering ? 5 : 0
+            )
+            .animation(.easeOut(duration: 0.18), value: isHovering)
+            .contentShape(Rectangle())
+            .onHover { hovering in
+                guard isHovering != hovering else { return }
+                isHovering = hovering
+            }
+    }
+
+    private func pointerParallaxBody(content: Content) -> some View {
         content
             .scaleEffect(isHovering ? 1.025 : 1)
             .rotation3DEffect(

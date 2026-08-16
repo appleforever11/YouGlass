@@ -32,8 +32,8 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
             message: "Application did finish launching",
             metadata: ["os": ProcessInfo.processInfo.operatingSystemVersionString]
         )
-        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 else { return }
-        // macOS 27 beta routes pointer-motion events through SwiftUI's
+        guard YouGlassRuntimeStabilityPolicy.isAffectedSystem else { return }
+        // macOS 26+ routes pointer-motion events through SwiftUI's
         // HoverEventDispatcher without a valid main-executor context, causing
         // a framework assertion or bad access before app code runs. YouGlass
         // does not require passive pointer motion; clicks and scrolling use
@@ -42,6 +42,7 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
             matching: [.mouseMoved],
             handler: Self.discardMouseMovedEvent
         )
+        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 else { return }
         // SwiftUI 8's AppKit hit-test bridge can be entered by AppKit's
         // synchronous event route without the main-actor executor installed.
         // On macOS 27 that path calls MainActor.assumeIsolated and can crash

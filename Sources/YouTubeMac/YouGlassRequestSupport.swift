@@ -2,13 +2,13 @@ import Foundation
 import WebKit
 
 extension WKWebViewConfiguration {
-    /// macOS 27 beta can crash in WKMaterialHostingSupport while committing a
-    /// remote layer tree containing CSS backdrop effects. YouGlass does not
-    /// depend on those effects, so suppress them before page styles are
-    /// painted while leaving ordinary compositing and video layers intact.
+    /// macOS 26+ can crash in WebKit's material/layer-tree path while committing
+    /// CSS backdrop effects. YouGlass does not depend on those effects, so
+    /// suppress them before page styles are painted while leaving ordinary
+    /// compositing and video layers intact.
     @MainActor
     func youGlassDisableWebMaterialsOnAffectedSystems() {
-        guard ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 else { return }
+        guard YouGlassRuntimeStabilityPolicy.isAffectedSystem else { return }
         let source = #"""
         (() => {
           const style = document.createElement('style');
@@ -32,8 +32,8 @@ extension WKWebView {
     /// WebKit's Swift async importer declares the JavaScript result as
     /// non-optional even though the Objective-C callback can return nil (for
     /// example, for `undefined` or when evaluation fails). On macOS 27 that
-    /// mismatch traps in the generated continuation thunk before callers can
-    /// catch the error. Preserve the callback API's true optionality here.
+    /// mismatch can trap in the generated continuation thunk before callers
+    /// can catch the error. Preserve the callback API's true optionality here.
     @MainActor
     func youGlassEvaluateJavaScript(_ script: String) async throws -> String? {
         try await withCheckedThrowingContinuation { continuation in
@@ -137,9 +137,9 @@ enum YouGlassCachePolicy {
 enum YouGlassFeedRefreshPolicy {
     /// Homepage refreshes are intentionally bounded so a foreground app keeps
     /// up with YouTube without repeatedly spending Data API quota.
-    static let activeRefreshInterval: TimeInterval = 5 * 60
-    static let accountSignalRefreshInterval: TimeInterval = 5 * 60
-    static let subscriptionRefreshInterval: TimeInterval = 15 * 60
+    static let activeRefreshInterval: TimeInterval = 3 * 60
+    static let accountSignalRefreshInterval: TimeInterval = 3 * 60
+    static let subscriptionRefreshInterval: TimeInterval = 10 * 60
 
     static func needsRefresh(
         lastUpdated: Date?,

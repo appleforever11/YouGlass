@@ -28,8 +28,16 @@ SIGNING_IDENTITY="${SIGNING_IDENTITY:--}"
 pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
 cd "$ROOT_DIR"
-swift build --product "$APP_NAME" --configuration "$BUILD_CONFIGURATION"
-BUILD_BINARY="$(swift build --show-bin-path --configuration "$BUILD_CONFIGURATION")/$APP_NAME"
+if [[ -n "${YOUGLASS_BUILD_BINARY:-}" ]]; then
+  BUILD_BINARY="$YOUGLASS_BUILD_BINARY"
+  if [[ ! -x "$BUILD_BINARY" ]]; then
+    echo "YOUGLASS_BUILD_BINARY is not executable: $BUILD_BINARY" >&2
+    exit 1
+  fi
+else
+  swift build --product "$APP_NAME" --configuration "$BUILD_CONFIGURATION"
+  BUILD_BINARY="$(swift build --show-bin-path --configuration "$BUILD_CONFIGURATION")/$APP_NAME"
+fi
 
 SPARKLE_FRAMEWORK="${SPARKLE_FRAMEWORK_PATH:-$ROOT_DIR/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework}"
 if [[ ! -d "$SPARKLE_FRAMEWORK" ]]; then

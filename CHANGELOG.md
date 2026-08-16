@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.11.0] - 2026-08-16
+
+Focused the next release on macOS 26 crash resistance, safer WebKit lifecycles, fresher account-backed recommendations, and more useful diagnostics. See [the complete end-user release notes](RELEASE_NOTES/1.11.0.md).
+
 ## [1.0.9] - 2026-08-13
 
 Refined the account-aware native experience, added the Apple Icon Composer app icon, and expanded diagnostics for release troubleshooting. See [the complete end-user release notes](RELEASE_NOTES/1.0.9.md).
