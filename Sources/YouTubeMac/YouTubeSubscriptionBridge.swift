@@ -31,6 +31,14 @@ final class YouTubeSubscriptionBridge: NSObject, WKNavigationDelegate {
     private var triedDedicatedSubscriptionsRoute = false
 
     func loadSubscriptions(maxResults: Int = 40) async -> [SubscriptionItem] {
+        guard YouGlassHiddenWebKitPolicy.isEnabled() else {
+            YouGlassDiagnostics.record(
+                .notice,
+                category: "webkit",
+                message: "Hidden WebKit subscriptions bridge skipped by stability policy"
+            )
+            return []
+        }
         guard continuation == nil else { return [] }
         guard await hasYouTubeSessionCookie() else { return [] }
 

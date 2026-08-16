@@ -18,6 +18,15 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
     private var maxResults = 30
 
     func loadChannel(_ subscription: SubscriptionItem, maxResults: Int = 30) async -> YouTubeChannelPage? {
+        guard YouGlassHiddenWebKitPolicy.isEnabled() else {
+            YouGlassDiagnostics.record(
+                .notice,
+                category: "webkit",
+                message: "Hidden WebKit channel bridge skipped by stability policy",
+                metadata: ["channel": subscription.name]
+            )
+            return nil
+        }
         guard continuation == nil else { return nil }
 
         await YouGlassHiddenWebKitCoordinator.shared.acquire("channel")

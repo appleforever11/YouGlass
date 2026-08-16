@@ -98,6 +98,16 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
         label: String,
         includeShorts: Bool
     ) async -> YouTubeWebFeedResult {
+        guard YouGlassHiddenWebKitPolicy.isEnabled() else {
+            YouGlassDiagnostics.record(
+                .notice,
+                category: "webkit",
+                message: "Hidden WebKit feed bridge skipped by stability policy",
+                metadata: ["request": label]
+            )
+            return .empty
+        }
+
         await waitUntilAvailable()
         await YouGlassHiddenWebKitCoordinator.shared.acquire("home-feed")
         defer { YouGlassHiddenWebKitCoordinator.shared.release("home-feed") }

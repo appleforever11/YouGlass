@@ -33,6 +33,7 @@ struct YouGlassDebugSnapshot: Codable, Sendable {
     let diagnosticsEnabled: Bool
     let verboseLoggingEnabled: Bool
     let webKitBreadcrumbsEnabled: Bool
+    let hiddenWebKitBridgesEnabled: Bool
     let previousSessionWasUnclean: Bool
     let recentEvents: [YouGlassDiagnosticEvent]
 }
@@ -75,7 +76,7 @@ final class YouGlassDebugEngine: @unchecked Sendable {
     static let webKitBreadcrumbsKey = "YouGlass.debug.webKitBreadcrumbs"
 
     private static let maximumEventCount = 240
-    private static let schemaVersion = 1
+    private static let schemaVersion = 2
 
     private let lock = NSLock()
     private let fileManager: FileManager
@@ -251,6 +252,7 @@ final class YouGlassDebugEngine: @unchecked Sendable {
             diagnosticsEnabled: diagnosticsEnabled,
             verboseLoggingEnabled: verboseLoggingEnabled,
             webKitBreadcrumbsEnabled: webKitBreadcrumbsEnabled,
+            hiddenWebKitBridgesEnabled: hiddenWebKitBridgesEnabled,
             previousSessionWasUnclean: previousSessionWasUnclean,
             recentEvents: events
         )
@@ -276,6 +278,7 @@ final class YouGlassDebugEngine: @unchecked Sendable {
         lines.append("Diagnostics enabled: " + String(snapshot.diagnosticsEnabled))
         lines.append("Verbose logging enabled: " + String(snapshot.verboseLoggingEnabled))
         lines.append("WebKit breadcrumbs enabled: " + String(snapshot.webKitBreadcrumbsEnabled))
+        lines.append("Hidden WebKit bridges enabled: " + String(snapshot.hiddenWebKitBridgesEnabled))
         lines.append("Previous session unclean: " + String(snapshot.previousSessionWasUnclean))
         lines.append("")
         lines.append("Recent events")
@@ -364,6 +367,10 @@ final class YouGlassDebugEngine: @unchecked Sendable {
 
     private var webKitBreadcrumbsEnabled: Bool {
         userDefaults.bool(forKey: Self.webKitBreadcrumbsKey)
+    }
+
+    private var hiddenWebKitBridgesEnabled: Bool {
+        YouGlassHiddenWebKitPolicy.isEnabled(defaults: userDefaults)
     }
 
     private var appVersion: String {

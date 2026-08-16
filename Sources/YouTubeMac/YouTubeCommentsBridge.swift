@@ -26,6 +26,21 @@ final class YouTubeCommentsBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
     private var extractedNextContinuationToken: String?
 
     func load(videoID: String, maxResults: Int = 50, offset: Int = 0) async -> CommentPage {
+        guard YouGlassHiddenWebKitPolicy.isEnabled() else {
+            YouGlassDiagnostics.record(
+                .notice,
+                category: "webkit",
+                message: "Hidden WebKit comments bridge skipped by stability policy",
+                metadata: ["videoID": videoID]
+            )
+            return CommentPage(
+                comments: [],
+                totalCount: 0,
+                isAvailable: false,
+                message: "Signed-in web-session comments are disabled for stability. Connect the YouTube Data API to load comments."
+            )
+        }
+
         guard Self.isValidVideoID(videoID) else {
             return CommentPage(
                 comments: [],

@@ -21,6 +21,23 @@ final class YouTubeLiveChatBridge: NSObject, WKNavigationDelegate, WKUIDelegate 
     private var requestGeneration = 0
 
     func load(videoID: String) async -> LiveChatPage {
+        guard YouGlassHiddenWebKitPolicy.isEnabled() else {
+            YouGlassDiagnostics.record(
+                .notice,
+                category: "webkit",
+                message: "Hidden WebKit live chat bridge skipped by stability policy",
+                metadata: ["videoID": videoID]
+            )
+            return LiveChatPage(
+                messages: [],
+                nextPageToken: nil,
+                pollingInterval: 5_000_000_000,
+                isLive: false,
+                isAvailable: false,
+                message: "Signed-in web-session live chat is disabled for stability. Connect the YouTube Data API to load live chat."
+            )
+        }
+
         guard Self.isValidVideoID(videoID) else {
             return .unavailable
         }

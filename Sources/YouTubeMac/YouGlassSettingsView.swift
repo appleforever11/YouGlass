@@ -22,6 +22,7 @@ struct YouGlassSettingsView: View {
     @AppStorage(YouGlassDebugEngine.diagnosticsEnabledKey) private var diagnosticsEnabled = false
     @AppStorage(YouGlassDebugEngine.verboseLoggingKey) private var verboseDiagnostics = false
     @AppStorage(YouGlassDebugEngine.webKitBreadcrumbsKey) private var captureWebKitBreadcrumbs = false
+    @AppStorage(YouGlassHiddenWebKitPolicy.enabledKey) private var hiddenWebKitCompatibility = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -602,6 +603,17 @@ struct YouGlassSettingsView: View {
                 Toggle("Prefer technical error alerts", isOn: $preferTechnicalErrorAlerts)
                 settingsValueRow("Feed engine", value: "YouTube session + Data API + local ranking", systemName: "cpu")
                 settingsValueRow("Player engine", value: "Native SwiftUI surface with WebKit playback", systemName: "play.tv")
+            }
+
+            settingsGroup("WebKit stability", footer: "Hidden YouTube compatibility bridges use offscreen WKWebViews for session-only feed, history, channel, comments, and live-chat fallbacks. They are disabled by default because WebKit can crash while committing an invisible remote layer tree. Restart YouGlass after changing this setting.") {
+                Toggle("Allow hidden YouTube compatibility bridges", isOn: $hiddenWebKitCompatibility)
+                    .tint(.orange)
+                Text(hiddenWebKitCompatibility
+                    ? "Compatibility bridges are enabled. Use this only when API-backed data is unavailable and you accept the additional WebKit crash risk."
+                    : "Stable mode is active. YouGlass will use OAuth, the YouTube Data API, local caches, and the visible player/login WebViews only.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             settingsGroup("Account recovery", footer: "Use this when a signed-in browser session is stale or the account profile is not reflected in the app.") {

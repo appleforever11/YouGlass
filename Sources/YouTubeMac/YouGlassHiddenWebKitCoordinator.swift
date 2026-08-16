@@ -1,8 +1,23 @@
 import Foundation
 
-/// Serializes the offscreen YouTube metadata pages. A hidden WKWebView still
-/// owns a remote layer tree, so concurrent bridges create avoidable commit and
-/// teardown pressure even though none of the pages are visible.
+/// Controls the legacy signed-in-session metadata path. A hidden WKWebView
+/// still owns a remote layer tree even when it is offscreen, so this path is
+/// opt-in while the native/API path is the stable default.
+enum YouGlassHiddenWebKitPolicy {
+    static let enabledKey = "YouGlass.debug.hiddenWebKitBridgesEnabled"
+
+    static func isEnabled(defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: enabledKey)
+    }
+
+    static func setEnabled(_ enabled: Bool, defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: enabledKey)
+    }
+}
+
+/// Serializes the opt-in offscreen YouTube metadata pages. A hidden WKWebView
+/// still owns a remote layer tree, so concurrent bridges create avoidable
+/// commit and teardown pressure even though none of the pages are visible.
 @MainActor
 final class YouGlassHiddenWebKitCoordinator {
     static let shared = YouGlassHiddenWebKitCoordinator()

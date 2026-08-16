@@ -79,8 +79,9 @@ final class DebugEngineTests: XCTestCase {
         let object = try XCTUnwrap(
             JSONSerialization.jsonObject(with: data) as? [String: Any]
         )
-        XCTAssertEqual(object["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(object["schemaVersion"] as? Int, 2)
         XCTAssertEqual(object["verboseLoggingEnabled"] as? Bool, true)
+        XCTAssertEqual(object["hiddenWebKitBridgesEnabled"] as? Bool, false)
 
         let events = try XCTUnwrap(object["recentEvents"] as? [[String: Any]])
         XCTAssertTrue(events.contains { ($0["message"] as? String) == "export check" })
@@ -90,6 +91,16 @@ final class DebugEngineTests: XCTestCase {
             includingPropertiesForKeys: nil
         )
         XCTAssertTrue(files.contains { $0.pathExtension == "jsonl" })
+    }
+
+    func testHiddenWebKitBridgesAreOptIn() {
+        XCTAssertFalse(YouGlassHiddenWebKitPolicy.isEnabled(defaults: defaults))
+
+        YouGlassHiddenWebKitPolicy.setEnabled(true, defaults: defaults)
+        XCTAssertTrue(YouGlassHiddenWebKitPolicy.isEnabled(defaults: defaults))
+
+        YouGlassHiddenWebKitPolicy.setEnabled(false, defaults: defaults)
+        XCTAssertFalse(YouGlassHiddenWebKitPolicy.isEnabled(defaults: defaults))
     }
 
     func testNewSessionReportsPreviousUncleanSession() throws {
