@@ -221,8 +221,8 @@ final class ModelsTests: XCTestCase {
     }
 
     func testFeedRefreshPolicyKeepsForegroundAccountDataFresh() {
-        XCTAssertEqual(YouGlassFeedRefreshPolicy.activeRefreshInterval, 3 * 60)
-        XCTAssertEqual(YouGlassFeedRefreshPolicy.accountSignalRefreshInterval, 3 * 60)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.activeRefreshInterval, 90)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.accountSignalRefreshInterval, 2 * 60)
         XCTAssertEqual(YouGlassFeedRefreshPolicy.subscriptionRefreshInterval, 10 * 60)
         XCTAssertLessThan(
             YouGlassFeedRefreshPolicy.activeRefreshInterval,
@@ -325,6 +325,45 @@ final class ModelsTests: XCTestCase {
         )
 
         XCTAssertEqual(ranked.first?.id, "subscribed-video")
+    }
+
+    func testRecommendationRankerUsesFreshnessAndChannelDiversity() {
+        let firstChannel = (1...3).map { index in
+            VideoItem(
+                id: "fresh-\(index)",
+                title: "Fresh channel upload \(index)",
+                channel: "Fresh Channel",
+                views: "",
+                age: "\(index) minutes ago",
+                duration: "",
+                imageURL: nil,
+                verified: false,
+                channelID: "UC1234567890123456789012"
+            )
+        }
+        let secondChannel = VideoItem(
+            id: "other-channel",
+            title: "Older but different channel upload",
+            channel: "Other Channel",
+            views: "",
+            age: "1 month ago",
+            duration: "",
+            imageURL: nil,
+            verified: false,
+            channelID: "UC9999999999999999999999"
+        )
+
+        let ranked = RecommendationRanker.rank(
+            firstChannel + [secondChannel],
+            subscriptions: [],
+            history: [],
+            liked: [],
+            seeds: [],
+            limit: 4
+        )
+
+        XCTAssertEqual(ranked.first?.id, "fresh-1")
+        XCTAssertEqual(ranked.dropFirst().first?.id, "other-channel")
     }
 
 }

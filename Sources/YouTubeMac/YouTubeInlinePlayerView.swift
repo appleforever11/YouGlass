@@ -402,11 +402,11 @@ final class YouTubePlaybackController: ObservableObject {
             let attempts = 0;
             const timer = window.setInterval(() => {
               attempts += 1;
-              if (execute() || attempts >= 20) {
+              if (execute() || attempts >= 24) {
                 window.clearInterval(timer);
-                resolve(attempts < 20);
+                resolve(attempts < 24);
               }
-            }, 50);
+            }, 30);
           });
         })()
         """
@@ -436,16 +436,21 @@ final class YouTubePlaybackController: ObservableObject {
 
         guard let videoID = activeVideoID, webView != nil else { return }
         let generation = loadGeneration
+        // Start as soon as the native surface exists. The retry schedule below
+        // handles the short interval before YouTube creates its media element.
+        // This removes the avoidable quarter-second delay on the first click
+        // without bypassing the muted autoplay policy.
+        run("window.__youglassControls?.startPlayback()")
         playbackBootstrapTask = Task { @MainActor [weak self] in
             let delays: [UInt64] = [
-                250_000_000,
-                700_000_000,
-                1_500_000_000,
-                3_000_000_000,
-                5_000_000_000,
-                7_000_000_000,
-                8_000_000_000,
-                8_000_000_000,
+                80_000_000,
+                220_000_000,
+                500_000_000,
+                900_000_000,
+                1_600_000_000,
+                2_800_000_000,
+                4_500_000_000,
+                6_500_000_000,
                 8_000_000_000
             ]
 
@@ -932,6 +937,8 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
       // native controls keep working across those page transitions.
       const findMediaElement = (root = document, seen = new Set()) => {
         if (!root || seen.has(root)) return null;
+        const cached = window.__youglassBoundMedia;
+        if (root === document && cached && cached.isConnected) return cached;
         seen.add(root);
         const direct = root.querySelector?.('video');
         if (direct) return direct;
@@ -1432,7 +1439,7 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
           window.clearInterval(playbackTimer);
           emitState('Video frame did not load');
         }
-      }, 700);
+      }, 220);
       window.__youglassPlaybackTimer = playbackTimer;
       window.__youglassPlaybackObserver = new MutationObserver(() => {
         if (window.__youglassPlaybackStopped ||
@@ -1628,7 +1635,10 @@ struct YouTubeInlinePlayerView: NSViewRepresentable {
 
             webView.load(URLRequest(
                 url: url,
-                cachePolicy: .reloadIgnoringLocalAndRemoteCacheData,
+                // Reuse WebKit's normal page and connection cache so the next
+                // first click can reach YouTube's media element sooner. The
+                // watch surface still performs its own account/session checks.
+                cachePolicy: .useProtocolCachePolicy,
                 timeoutInterval: 30
             ))
         }

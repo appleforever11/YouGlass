@@ -9,6 +9,8 @@ private struct YouGlassDeferredMouseEvent: @unchecked Sendable {
 /// used by the SwiftUI YouGlass menu.
 @MainActor
 final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
+    private static weak var shared: YouGlassAppDelegate?
+
     private let updaterController: SPUStandardUpdaterController
     private var mouseMovedMonitor: Any?
     private var mouseButtonMonitor: Any?
@@ -23,9 +25,14 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
             userDriverDelegate: nil
         )
         super.init()
+        Self.shared = self
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // SwiftUI's delegate adaptor may install a proxy as NSApp.delegate on
+        // newer systems. Keep the instance that owns the event monitor as the
+        // replay target regardless of that adaptor implementation detail.
+        Self.shared = self
         YouGlassDiagnostics.record(
             .info,
             category: "lifecycle",
@@ -53,6 +60,16 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
             matching: Self.mouseEventsNeedingMainActorReplay,
             handler: Self.deferMouseEventToMainActor
         )
+        YouGlassDiagnostics.record(
+            .info,
+            category: "input",
+            message: "Installed beta input monitors",
+            metadata: [
+                "osMajor": String(ProcessInfo.processInfo.operatingSystemVersion.majorVersion),
+                "mouseMoved": mouseMovedMonitor == nil ? "missing" : "installed",
+                "mouseButton": mouseButtonMonitor == nil ? "missing" : "installed"
+            ]
+        )
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -66,6 +83,7 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
         }
         mouseMovedMonitor = nil
         mouseButtonMonitor = nil
+        Self.shared = nil
     }
 
     nonisolated private static func discardMouseMovedEvent(_ event: NSEvent) -> NSEvent? {
@@ -86,22 +104,59 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
     ]
 
     nonisolated private static func deferMouseEventToMainActor(_ event: NSEvent) -> NSEvent? {
+        YouGlassDiagnostics.record(
+            .debug,
+            category: "input",
+            message: "Deferred pointer event",
+            metadata: ["type": String(event.type.rawValue)]
+        )
         let deferredEvent = YouGlassDeferredMouseEvent(event: event)
         Task { @MainActor in
-            guard let delegate = NSApp.delegate as? YouGlassAppDelegate else { return }
+            guard let delegate = Self.shared else {
+                YouGlassDiagnostics.record(
+                    .warning,
+                    category: "input",
+                    message: "Could not find app delegate for deferred pointer event",
+                    metadata: ["type": String(deferredEvent.event.type.rawValue)]
+                )
+                return
+            }
+            YouGlassDiagnostics.record(
+                .debug,
+                category: "input",
+                message: "Replaying deferred pointer event",
+                metadata: ["type": String(deferredEvent.event.type.rawValue)]
+            )
             delegate.replayMouseEvent(deferredEvent.event)
         }
         return nil
     }
 
     private func replayMouseEvent(_ event: NSEvent) {
-        guard let monitor = mouseButtonMonitor else { return }
+        guard let monitor = mouseButtonMonitor else {
+            YouGlassDiagnostics.record(
+                .warning,
+                category: "input",
+                message: "Dropped deferred pointer event because monitor was unavailable",
+                metadata: ["type": String(event.type.rawValue)]
+            )
+            return
+        }
         NSEvent.removeMonitor(monitor)
         self.mouseButtonMonitor = nil
         NSApp.sendEvent(event)
         mouseButtonMonitor = NSEvent.addLocalMonitorForEvents(
             matching: Self.mouseEventsNeedingMainActorReplay,
             handler: Self.deferMouseEventToMainActor
+        )
+        YouGlassDiagnostics.record(
+            .debug,
+            category: "input",
+            message: "Replayed pointer event",
+            metadata: [
+                "type": String(event.type.rawValue),
+                "monitor": mouseButtonMonitor == nil ? "missing" : "reinstalled"
+            ]
         )
     }
 

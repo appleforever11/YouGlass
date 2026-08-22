@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.12.0] - 2026-08-22
+
+Improved MacBook Neo input stability, refreshed account-aware recommendations more efficiently, and shortened the first-click playback bootstrap. See [the complete end-user release notes](RELEASE_NOTES/1.12.0.md).
+
 ## [1.11.0] - 2026-08-16
 
 Focused the next release on macOS 26 crash resistance, safer WebKit lifecycles, fresher account-backed recommendations, and more useful diagnostics. See [the complete end-user release notes](RELEASE_NOTES/1.11.0.md).

@@ -5,6 +5,14 @@ struct SafariHomeFeedClient: Sendable {
         let name: String
         let source: URL
         let category: String
+        let channelID: String?
+
+        init(name: String, source: URL, category: String, channelID: String? = nil) {
+            self.name = name
+            self.source = source
+            self.category = category
+            self.channelID = channelID
+        }
     }
 
     private struct FetchedVideo: Sendable {
@@ -61,10 +69,16 @@ struct SafariHomeFeedClient: Sendable {
 
     private func fetch(channel: Channel, limit: Int) async -> [FetchedVideo] {
         do {
-            let page = try await get(channel.source)
-            guard let channelID = Self.channelID(in: page) else { return [] }
+            let resolvedChannelID: String
+            if let channelID = channel.channelID, !channelID.isEmpty {
+                resolvedChannelID = channelID
+            } else {
+                let page = try await get(channel.source)
+                guard let channelID = Self.channelID(in: page) else { return [] }
+                resolvedChannelID = channelID
+            }
 
-            let feedURL = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelID)")!
+            let feedURL = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(resolvedChannelID)")!
             let xml = try await get(feedURL)
             let parser = AtomFeedParser(data: xml)
             guard parser.parse() else { return [] }
@@ -86,7 +100,8 @@ struct SafariHomeFeedClient: Sendable {
                     age: Self.relativeDate(publishedAt),
                     duration: "",
                     imageURL: URL(string: entry.thumbnail ?? "https://i.ytimg.com/vi/\(videoID)/hqdefault.jpg"),
-                    verified: false
+                    verified: false,
+                    channelID: resolvedChannelID
                 )
                 return FetchedVideo(video: video, publishedAt: publishedAt)
             }

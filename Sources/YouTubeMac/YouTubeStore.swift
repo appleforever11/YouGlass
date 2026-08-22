@@ -1296,17 +1296,24 @@ final class YouTubeStore: ObservableObject {
     private func personalizedVideos(maxResults: Int) async -> [VideoItem] {
         guard !recommendationSeeds.isEmpty else { return [] }
 
-        var videos: [VideoItem] = []
-        for seed in recommendationSeeds.prefix(3) {
-            if let results = try? await client.searchVideos(
-                query: seed,
-                maxResults: max(4, maxResults / 3),
-                order: "relevance"
-            ) {
-                videos.append(contentsOf: results)
+        let results = await withTaskGroup(of: [VideoItem].self, returning: [VideoItem].self) { group in
+            for seed in recommendationSeeds.prefix(3) {
+                group.addTask {
+                    (try? await self.client.searchVideos(
+                        query: seed,
+                        maxResults: max(4, maxResults / 3),
+                        order: "relevance"
+                    )) ?? []
+                }
             }
+
+            var videos: [VideoItem] = []
+            for await batch in group {
+                videos.append(contentsOf: batch)
+            }
+            return videos
         }
-        return Array(mergeVideos(videos).prefix(maxResults))
+        return Array(mergeVideos(results).prefix(maxResults))
     }
 
     private func personalizedAccountFeed(webHomepageVideos: [VideoItem] = []) async -> [VideoItem] {
@@ -1324,24 +1331,34 @@ final class YouTubeStore: ObservableObject {
             return SafariHomeFeedClient.Channel(
                 name: subscription.name,
                 source: source,
-                category: "Subscriptions"
+                category: "Subscriptions",
+                channelID: subscription.canonicalChannelID
             )
         }
 
-        if !subscribedChannels.isEmpty {
-            let uploads = await safariHomeFeed.loadFeed(
-                channels: Array(subscribedChannels.prefix(24)),
-                maxResultsPerChannel: 3
-            )
-            videos.append(contentsOf: uploads)
-        }
+        let hasCredentials = await client.hasCredentials()
+        await withTaskGroup(of: [VideoItem].self) { group in
+            if !subscribedChannels.isEmpty {
+                group.addTask {
+                    await self.safariHomeFeed.loadFeed(
+                        channels: Array(subscribedChannels.prefix(24)),
+                        maxResultsPerChannel: 3
+                    )
+                }
+            }
 
-        if await client.hasCredentials() {
-            videos.append(contentsOf: await accountSignalVideos(maxResults: 16))
-            videos.append(contentsOf: await personalizedVideos(maxResults: 12))
-            if client.canConnect,
-               let popular = try? await client.mostPopularVideos(maxResults: 6) {
-                videos.append(contentsOf: popular)
+            if hasCredentials {
+                group.addTask { await self.accountSignalVideos(maxResults: 16) }
+                group.addTask { await self.personalizedVideos(maxResults: 12) }
+                if client.canConnect {
+                    group.addTask {
+                        (try? await self.client.mostPopularVideos(maxResults: 6)) ?? []
+                    }
+                }
+            }
+
+            for await batch in group {
+                videos.append(contentsOf: batch)
             }
         }
 
@@ -1401,32 +1418,6 @@ final class YouTubeStore: ObservableObject {
 
         if let liked = try? await client.likedVideos(maxResults: 8) {
             videos.append(contentsOf: liked)
-        }
-
-        let accountSubscriptions: [SubscriptionItem]
-        if !subscriptions.isEmpty {
-            accountSubscriptions = subscriptions
-        } else {
-            accountSubscriptions = (try? await client.mySubscriptions(maxResults: 60)) ?? []
-        }
-        if !accountSubscriptions.isEmpty {
-            // A channel-page request is several API calls. Keep the burst
-            // bounded so a refresh remains useful even on a small quota.
-            for subscription in accountSubscriptions.prefix(12) {
-                if let channelPage = try? await client.channelPage(for: subscription, maxResults: 4),
-                   !channelPage.videos.isEmpty {
-                    videos.append(contentsOf: channelPage.videos.prefix(4))
-                    continue
-                }
-
-                if let latest = try? await client.searchVideos(
-                    query: "\(subscription.name) latest",
-                    maxResults: 4,
-                    order: "date"
-                ) {
-                    videos.append(contentsOf: latest)
-                }
-            }
         }
 
         videos.append(contentsOf: recentlyWatched.prefix(8))

@@ -305,6 +305,10 @@ struct RecommendationRanker {
         let subscriptionIDs = Set(subscriptions.compactMap(\.canonicalChannelID))
         let historyChannels = Set(history.map { normalized($0.channel) })
         let historyIDs = Set(history.map(\.id))
+        let historyIndexByID = Dictionary(
+            history.enumerated().map { ($0.element.id, $0.offset) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let likedIDs = Set(liked.map(\.id))
         let savedIDs = Set(saved.map(\.id))
         let seedText = seeds.map(normalized).filter { !$0.isEmpty }
@@ -327,7 +331,17 @@ struct RecommendationRanker {
 
             if likedIDs.contains(video.id) { score += 48 }
             if savedIDs.contains(video.id) { score += 36 }
-            if historyIDs.contains(video.id) { score -= 24 }
+            if let historyIndex = historyIndexByID[video.id],
+               !likedIDs.contains(video.id),
+               !savedIDs.contains(video.id) {
+                // Keep watched channels useful, but move the exact videos the
+                // user just watched out of the first screen until the feed has
+                // a chance to find something new.
+                let recentPenalty = max(18, 46 - Double(min(historyIndex, 14)) * 2)
+                score -= recentPenalty
+            } else if historyIDs.contains(video.id) {
+                score -= 8
+            }
             if historyChannels.contains(channelName) { score += 22 }
             if normalizedChannelID.map(subscriptionIDs.contains) == true
                 || subscriptions.contains(where: {
@@ -359,18 +373,32 @@ struct RecommendationRanker {
             }
 
         var selected: [VideoItem] = []
-        var deferred: [VideoItem] = []
+        var remaining = sorted.map(\.video)
         var channelCounts: [String: Int] = [:]
-        for candidate in sorted {
-            let key = channelKey(for: candidate.video)
-            if channelCounts[key, default: 0] < 3 {
-                selected.append(candidate.video)
-                channelCounts[key, default: 0] += 1
-            } else {
-                deferred.append(candidate.video)
+
+        // Round-robin through the ranked list so a single prolific channel
+        // cannot fill the entire first screen. If the account only follows one
+        // channel, the remaining items are still returned after the diversity
+        // pass rather than being discarded.
+        while selected.count < limit, !remaining.isEmpty {
+            let eligibleCounts = remaining.compactMap { video -> Int? in
+                let count = channelCounts[channelKey(for: video), default: 0]
+                return count < 3 ? count : nil
             }
+            guard let minimumCount = eligibleCounts.min(),
+                  let nextIndex = remaining.firstIndex(where: { video in
+                      let count = channelCounts[channelKey(for: video), default: 0]
+                      return count == minimumCount && count < 3
+                  }) else {
+                selected.append(contentsOf: remaining)
+                break
+            }
+
+            let video = remaining.remove(at: nextIndex)
+            let key = channelKey(for: video)
+            selected.append(video)
+            channelCounts[key, default: 0] += 1
         }
-        selected.append(contentsOf: deferred)
         return Array(selected.prefix(limit))
     }
 
@@ -393,8 +421,11 @@ struct RecommendationRanker {
     }
 
     private static func channelKey(for video: VideoItem) -> String {
+        if let channelID = video.channelID.flatMap(canonicalChannelID) {
+            return "channel:\(channelID)"
+        }
         let channel = normalized(video.channel)
-        return channel.isEmpty ? (video.channelID ?? video.id) : channel
+        return channel.isEmpty ? (video.channelID ?? video.id) : "name:\(channel)"
     }
 
     private static func canonicalChannelID(_ value: String) -> String? {
@@ -404,11 +435,32 @@ struct RecommendationRanker {
 
     private static func recencyScore(_ value: String) -> Double {
         let lower = value.lowercased()
-        if lower.contains("just now") || lower.contains("fresh") || lower.contains("minute") || lower.contains(" min") { return 11 }
-        if lower.contains("hour") || lower.contains(" hr") { return 9 }
-        if lower.contains("day") { return 7 }
-        if lower.contains("week") { return 4 }
-        if lower.contains("month") { return 2 }
+        if lower.contains("just now") { return 13 }
+        if lower.contains("fresh upload") { return 12 }
+
+        let pattern = #"\b(\d+)\s*(m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|week|weeks|mo|month|months|y|year|years)\b"#
+        if let expression = try? NSRegularExpression(pattern: pattern),
+           let match = expression.firstMatch(in: lower, range: NSRange(lower.startIndex..<lower.endIndex, in: lower)),
+           match.numberOfRanges > 2,
+           let numberRange = Range(match.range(at: 1), in: lower),
+           let unitRange = Range(match.range(at: 2), in: lower),
+           let number = Double(lower[numberRange]) {
+            switch String(lower[unitRange]) {
+            case "m", "min", "mins", "minute", "minutes":
+                return max(8, 13 - min(number, 180) / 30)
+            case "h", "hr", "hrs", "hour", "hours":
+                return max(5, 10 - min(number, 72) / 18)
+            case "d", "day", "days":
+                return max(2, 7 - min(number, 30) / 10)
+            case "w", "week", "weeks":
+                return max(1, 4 - min(number, 12) / 6)
+            case "mo", "month", "months":
+                return max(0.5, 2 - min(number, 12) / 12)
+            default:
+                return 0.5
+            }
+        }
+
         return lower.contains("year") ? 0.5 : 1
     }
 
