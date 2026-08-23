@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.2] - 2026-08-23
+
+Completes the 1.13 distribution repair by applying the Developer ID signature and secure timestamp to the final DMG container before notarization and stapling. See [the complete end-user release notes](RELEASE_NOTES/1.13.2.md).
+
 ## [1.13.1] - 2026-08-23
 
 Repackages the 1.13 feature update with enforced Apple notarization, secure signing timestamps, and stapled trust tickets for reliable Sparkle installation. See [the complete end-user release notes](RELEASE_NOTES/1.13.1.md).
