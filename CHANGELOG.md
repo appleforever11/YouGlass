@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.0] - 2026-08-23
+
+Improved feed freshness, first-click playback, signed-in subscriptions and history, native channel browsing, and keyboard playback controls while preserving the stable Picture in Picture implementation. See [the complete end-user release notes](RELEASE_NOTES/1.13.0.md).
+
 ## [1.12.0] - 2026-08-22
 
 Improved MacBook Neo input stability, refreshed account-aware recommendations more efficiently, and shortened the first-click playback bootstrap. See [the complete end-user release notes](RELEASE_NOTES/1.12.0.md).
