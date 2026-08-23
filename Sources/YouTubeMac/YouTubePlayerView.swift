@@ -198,6 +198,7 @@ private struct NativeWatchScreen: View {
     @State private var commentAuthorizationRequired = false
     @State private var commentChannelID: String?
     @State private var playbackStopHandlerToken: UUID?
+    @State private var playbackCommandHandlerToken: UUID?
     @StateObject private var playbackController = YouTubePlaybackController()
     @FocusState private var commentFieldFocused: Bool
     let video: VideoItem
@@ -253,6 +254,35 @@ private struct NativeWatchScreen: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.space) {
+            guard !commentFieldFocused else { return .ignored }
+            playbackController.togglePlayback()
+            return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            guard !commentFieldFocused else { return .ignored }
+            playbackController.seek(by: -5)
+            return .handled
+        }
+        .onKeyPress(.rightArrow) {
+            guard !commentFieldFocused else { return .ignored }
+            playbackController.seek(by: 5)
+            return .handled
+        }
+        .onKeyPress(characters: CharacterSet(charactersIn: "jJkKlLmMcC")) { press in
+            guard !commentFieldFocused else { return .ignored }
+            switch press.characters.lowercased() {
+            case "j": playbackController.seek(by: -10)
+            case "k": playbackController.togglePlayback()
+            case "l": playbackController.seek(by: 10)
+            case "m": playbackController.toggleMute()
+            case "c": playbackController.toggleCaptions()
+            default: return .ignored
+            }
+            return .handled
+        }
         .task(id: video.id) {
             chatMessages = []
             liveChatPage = .unavailable
@@ -328,6 +358,16 @@ private struct NativeWatchScreen: View {
                 )
                 controller.stopPlayback()
             }
+            playbackCommandHandlerToken = store.registerPlaybackCommandHandler { [weak controller] command in
+                guard let controller else { return }
+                switch command {
+                case .togglePlayback: controller.togglePlayback()
+                case .seek(let seconds): controller.seek(by: seconds)
+                case .toggleMute: controller.toggleMute()
+                case .toggleCaptions: controller.toggleCaptions()
+                case .retry: controller.retryPlayback()
+                }
+            }
             playbackController.restorePlaybackPosition(
                 store.playbackPosition(for: video.id),
                 for: video.id
@@ -357,6 +397,10 @@ private struct NativeWatchScreen: View {
                 store.unregisterPlaybackStopHandler(playbackStopHandlerToken)
             }
             playbackStopHandlerToken = nil
+            if let playbackCommandHandlerToken {
+                store.unregisterPlaybackCommandHandler(playbackCommandHandlerToken)
+            }
+            playbackCommandHandlerToken = nil
             store.resetAmbientPalette()
         }
     }
@@ -1864,6 +1908,7 @@ private struct CommentRow: View {
 }
 
 private struct RelatedVideoCard: View {
+    @EnvironmentObject private var store: YouTubeStore
     let video: VideoItem
     let palette: Palette
 
@@ -1893,6 +1938,9 @@ private struct RelatedVideoCard: View {
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(palette.stroke, lineWidth: 1))
+        .onHover { hovering in
+            if hovering { store.prewarmPlayback(for: video) }
+        }
     }
 }
 

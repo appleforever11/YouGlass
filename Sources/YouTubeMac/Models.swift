@@ -502,6 +502,15 @@ struct YouTubeChannelPage: Hashable {
     let videos: [VideoItem]
     let shorts: [VideoItem]
     let live: [VideoItem]
+    let playlists: [YouTubePlaylist]
+}
+
+enum YouGlassPlaybackCommand: Sendable {
+    case togglePlayback
+    case seek(Double)
+    case toggleMute
+    case toggleCaptions
+    case retry
 }
 
 struct YouTubePlaylist: Identifiable, Hashable {
@@ -691,5 +700,9 @@ extension VideoItem {
             trending: Array(samples.dropFirst(4)),
             more: []
         )
+    }
+
+    static var loadingFeed: HomeFeed {
+        HomeFeed(hero: .hero, queue: [], forYou: [], trending: [], more: [])
     }
 }

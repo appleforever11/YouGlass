@@ -43,6 +43,33 @@ struct YouTubeMacApp: App {
 
                 Divider()
 
+                Button("Play or Pause") {
+                    store.sendPlaybackCommand(.togglePlayback)
+                }
+                .disabled(store.selectedVideo == nil)
+
+                Button("Back 10 Seconds") {
+                    store.sendPlaybackCommand(.seek(-10))
+                }
+                .disabled(store.selectedVideo == nil)
+
+                Button("Forward 10 Seconds") {
+                    store.sendPlaybackCommand(.seek(10))
+                }
+                .disabled(store.selectedVideo == nil)
+
+                Button("Mute or Unmute") {
+                    store.sendPlaybackCommand(.toggleMute)
+                }
+                .disabled(store.selectedVideo == nil)
+
+                Button("Toggle Captions") {
+                    store.sendPlaybackCommand(.toggleCaptions)
+                }
+                .disabled(store.selectedVideo == nil)
+
+                Divider()
+
                 Button("Open Picture in Picture") {
                     store.presentDesktopPIP()
                 }

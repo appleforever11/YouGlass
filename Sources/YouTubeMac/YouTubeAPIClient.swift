@@ -193,7 +193,14 @@ struct YouTubeAPIClient: Sendable {
             isSubscribed: true
         )
 
-        return YouTubeChannelPage(channel: channel, videos: orderedItems, shorts: shorts, live: live)
+        let playlists = (try? await channelPlaylists(channelID: resource.id, maxResults: 30)) ?? []
+        return YouTubeChannelPage(
+            channel: channel,
+            videos: orderedItems,
+            shorts: shorts,
+            live: live,
+            playlists: playlists
+        )
     }
 
     func videoDetails(videoID: String) async throws -> VideoDetails {
@@ -492,6 +499,49 @@ struct YouTubeAPIClient: Sendable {
                 result.append(playlist)
             }
         }
+    }
+
+    func channelPlaylists(channelID: String, maxResults: Int = 30) async throws -> [YouTubePlaylist] {
+        guard !channelID.isEmpty else {
+            throw YouTubeAPIError.invalidRequest("A channel ID is required.")
+        }
+
+        let limit = max(1, min(maxResults, 200))
+        var pageToken: String?
+        var playlists: [YouTubePlaylist] = []
+
+        repeat {
+            var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/playlists")!
+            components.queryItems = [
+                URLQueryItem(name: "part", value: "snippet,contentDetails"),
+                URLQueryItem(name: "channelId", value: channelID),
+                URLQueryItem(name: "maxResults", value: "\(min(limit - playlists.count, 50))")
+            ]
+            if let pageToken {
+                components.queryItems?.append(URLQueryItem(name: "pageToken", value: pageToken))
+            }
+
+            let data = try await data(from: components)
+            let response = try JSONDecoder().decode(PlaylistListResponse.self, from: data)
+            playlists.append(contentsOf: response.items.map(Self.playlist(from:)))
+            pageToken = response.nextPageToken
+        } while playlists.count < limit && pageToken != nil
+
+        return playlists.reduce(into: [YouTubePlaylist]()) { result, playlist in
+            if !result.contains(where: { $0.id == playlist.id }) {
+                result.append(playlist)
+            }
+        }
+    }
+
+    private static func playlist(from item: PlaylistResource) -> YouTubePlaylist {
+        YouTubePlaylist(
+            id: item.id,
+            title: item.snippet.title.htmlDecoded,
+            description: item.snippet.description.htmlDecoded,
+            thumbnailURL: URL(string: item.snippet.thumbnails.high?.url ?? item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.defaultThumbnail.url),
+            itemCount: item.contentDetails?.itemCount ?? 0
+        )
     }
 
     func playlistVideos(playlistID: String, maxResults: Int = 50) async throws -> [VideoItem] {

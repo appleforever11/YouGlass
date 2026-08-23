@@ -14,7 +14,7 @@ final class YouTubeStore: ObservableObject {
 
     @Published var theme: AppTheme = .dark
     @Published var query = ""
-    @Published var feed = VideoItem.sampleFeed
+    @Published var feed = VideoItem.loadingFeed
     @Published var isLoading = false
     @Published var connectionMessage = "Sample feed"
     @Published private(set) var sectionEmptyMessage: String?
@@ -81,6 +81,8 @@ final class YouTubeStore: ObservableObject {
     private var subscriptionsLoaded = false
     private var playbackStopHandler: (() -> Void)?
     private var playbackStopHandlerToken: UUID?
+    private var playbackCommandHandler: ((YouGlassPlaybackCommand) -> Void)?
+    private var playbackCommandHandlerToken: UUID?
     private var pipTransitionTask: Task<Void, Never>?
     private let defaults = UserDefaults.standard
     private let playbackLogger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")
@@ -240,6 +242,33 @@ final class YouTubeStore: ObservableObject {
         playbackStopHandlerToken = nil
     }
 
+    @discardableResult
+    func registerPlaybackCommandHandler(
+        _ handler: @escaping (YouGlassPlaybackCommand) -> Void
+    ) -> UUID {
+        let token = UUID()
+        playbackCommandHandler = handler
+        playbackCommandHandlerToken = token
+        return token
+    }
+
+    func unregisterPlaybackCommandHandler(_ token: UUID) {
+        guard playbackCommandHandlerToken == token else { return }
+        playbackCommandHandler = nil
+        playbackCommandHandlerToken = nil
+    }
+
+    func sendPlaybackCommand(_ command: YouGlassPlaybackCommand) {
+        guard selectedVideo != nil else { return }
+        playbackCommandHandler?(command)
+    }
+
+    func prewarmPlayback(for video: VideoItem) {
+        Task.detached(priority: .utility) {
+            await YouTubePlaybackPrewarmer.shared.prewarm(video)
+        }
+    }
+
     var hasDataAPIKey: Bool { client.canConnect }
 
     var hasOAuthClientID: Bool { oauth.hasClientID }
@@ -307,7 +336,7 @@ final class YouTubeStore: ObservableObject {
         feedLastRefreshedDate = nil
         cachedAccountSignalVideos = []
         lastHomeLoadDate = nil
-        feed = VideoItem.sampleFeed
+        feed = VideoItem.loadingFeed
         sectionEmptyMessage = nil
         connectionMessage = "Cached recommendation data cleared"
     }
@@ -467,7 +496,7 @@ final class YouTubeStore: ObservableObject {
                     || !feed.trending.isEmpty
                     || !feed.more.isEmpty
                     || !feed.queue.isEmpty
-                if !recentlyFinished || !hasVisibleFeed {
+                if pendingForce || !recentlyFinished || !hasVisibleFeed {
                     scheduleHomeReload(force: pendingForce)
                 }
             }
@@ -828,6 +857,8 @@ final class YouTubeStore: ObservableObject {
         let handler = playbackStopHandler
         playbackStopHandler = nil
         playbackStopHandlerToken = nil
+        playbackCommandHandler = nil
+        playbackCommandHandlerToken = nil
         handler?()
     }
 
@@ -849,7 +880,17 @@ final class YouTubeStore: ObservableObject {
                 selectedSection = page.channel.name
             } catch {
                 guard selectedChannelItem?.id == item.id else { return }
-                if let page = await channelBridge.loadChannel(item) {
+                if let page = await safariHomeFeed.loadChannelPage(for: item) {
+                    channelPage = page
+                    selectedSection = page.channel.name
+                    connectionMessage = "Native channel view from your YouTube subscription feed"
+                    YouGlassDiagnostics.record(
+                        .info,
+                        category: "channel",
+                        message: "Loaded native channel subscription feed",
+                        metadata: ["channel": item.name]
+                    )
+                } else if let page = await channelBridge.loadChannel(item) {
                     channelPage = page
                     selectedSection = page.channel.name
                     connectionMessage = "Native channel view from your signed-in YouTube session"
@@ -1536,6 +1577,19 @@ final class YouTubeStore: ObservableObject {
         isLoading = true
         defer { isLoading = false }
 
+        // YouTube does not expose account watch history through Data API v3.
+        // Show YouGlass's durable local history immediately, then reconcile it
+        // with the optional signed-in web session only when that bridge is
+        // explicitly enabled. This keeps History useful without mounting a
+        // hidden WebKit surface on systems where it has been unstable.
+        if !recentlyWatched.isEmpty {
+            applyHomeVideos(
+                recentlyWatched,
+                message: "Videos watched in YouGlass on this Mac",
+                cacheFeed: false
+            )
+        }
+
         // Data API v3 intentionally does not return the private system
         // watch-history playlist. The signed-in YouTube session is the
         // authoritative source for this page.
@@ -1550,23 +1604,17 @@ final class YouTubeStore: ObservableObject {
             defaults.set(true, forKey: DefaultsKey.isSignedIn)
         }
         if !webResult.videos.isEmpty {
+            let reconciled = mergeVideos(webResult.videos + recentlyWatched)
             applyHomeVideos(
-                webResult.videos,
-                message: "Watch history from your signed-in YouTube session",
+                reconciled,
+                message: "YouTube session history combined with YouGlass history",
                 cacheFeed: false
             )
             YouGlassDiagnostics.feed.info("Loaded \(webResult.videos.count, privacy: .public) account watch-history videos from the signed-in web session")
             return
         }
 
-        if !recentlyWatched.isEmpty {
-            applyHomeVideos(
-                recentlyWatched,
-                message: "Showing videos watched in YouGlass on this Mac",
-                cacheFeed: false
-            )
-            return
-        }
+        if !recentlyWatched.isEmpty { return }
 
         if isSignedIn {
             showEmptySection("Your YouTube watch history is unavailable in the current session. Reconnect YouTube and try again.")
@@ -1617,19 +1665,32 @@ final class YouTubeStore: ObservableObject {
 
     private func loadSubscriptionFeed() async {
         await loadSubscriptions(force: false)
-        guard await client.hasCredentials() else {
-            connectionMessage = "Sign in with Google or add a YouTube API key to load subscription uploads"
+        guard isSignedIn else {
+            connectionMessage = "Sign in with Google to load subscription uploads"
             return
         }
 
         isLoading = true
         defer { isLoading = false }
-        var uploads: [VideoItem] = []
-        for subscription in subscriptions.prefix(12) {
-            if let page = try? await client.channelPage(for: subscription, maxResults: 6), !page.videos.isEmpty {
-                uploads.append(contentsOf: page.videos)
-            }
+
+        let subscribedChannels = subscriptions.compactMap { subscription -> SafariHomeFeedClient.Channel? in
+            let source = subscription.channelURL
+                ?? (subscription.id.hasPrefix("UC")
+                    ? URL(string: "https://www.youtube.com/channel/\(subscription.id)")
+                    : nil)
+            guard let source else { return nil }
+            return SafariHomeFeedClient.Channel(
+                name: subscription.name,
+                source: source,
+                category: "Subscriptions",
+                channelID: subscription.canonicalChannelID
+            )
         }
+
+        var uploads = await safariHomeFeed.loadFeed(
+            channels: Array(subscribedChannels.prefix(40)),
+            maxResultsPerChannel: 4
+        )
         if uploads.isEmpty {
             uploads = await accountSignalVideos(maxResults: 16)
         }
@@ -1679,6 +1740,10 @@ final class YouTubeStore: ObservableObject {
         if selectedVideo != nil {
             isPlayerCompact = true
         }
+        selectedChannelItem = nil
+        channelPage = nil
+        channelError = nil
+        channelLoading = false
         selectedPlaylist = playlist
         selectedSection = playlist.title
         playlistItems = []

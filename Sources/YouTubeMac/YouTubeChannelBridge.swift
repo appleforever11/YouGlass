@@ -362,7 +362,8 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
             channel: channel,
             videos: items,
             shorts: items.filter { shortsIDs.contains($0.id) },
-            live: items.filter { liveIDs.contains($0.id) }
+            live: items.filter { liveIDs.contains($0.id) },
+            playlists: []
         )
     }
 

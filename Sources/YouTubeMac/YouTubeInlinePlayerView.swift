@@ -419,7 +419,7 @@ final class YouTubePlaybackController: ObservableObject {
         guard let videoID else { return }
         let generation = loadGeneration
         loadWatchdogTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 45_000_000_000)
+            try? await Task.sleep(nanoseconds: 20_000_000_000)
             guard let self,
                   !Task.isCancelled,
                   self.loadGeneration == generation,
@@ -428,6 +428,12 @@ final class YouTubePlaybackController: ObservableObject {
                   !self.isSurfaceReady else { return }
             self.status = "Video frame did not load"
             self.canRetry = true
+            YouGlassDiagnostics.record(
+                .warning,
+                category: "playback",
+                message: "Player surface watchdog timed out",
+                metadata: ["videoID": videoID]
+            )
         }
     }
 

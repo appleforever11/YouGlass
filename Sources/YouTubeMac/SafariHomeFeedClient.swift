@@ -67,6 +67,57 @@ struct SafariHomeFeedClient: Sendable {
         }
     }
 
+    func loadChannelPage(
+        for subscription: SubscriptionItem,
+        maxResults: Int = 30
+    ) async -> YouTubeChannelPage? {
+        guard let source = subscription.channelURL else { return nil }
+        let channel = Channel(
+            name: subscription.name,
+            source: source,
+            category: "Subscription",
+            channelID: subscription.canonicalChannelID
+        )
+        let fetched = await fetch(channel: channel, limit: max(8, min(maxResults, 40)))
+        let videos = fetched
+            .sorted { $0.publishedAt > $1.publishedAt }
+            .map(\.video)
+        guard !videos.isEmpty else { return nil }
+
+        let shorts = videos.filter { $0.isShortForm }
+        let live = videos.filter { video in
+            let title = video.title.lowercased()
+            return title.contains(" live ")
+                || title.hasPrefix("live ")
+                || title.contains("livestream")
+                || title.contains("live stream")
+        }
+        let handle = source.pathComponents
+            .first(where: { $0.hasPrefix("@") })
+            ?? subscription.name
+        let channelID = subscription.canonicalChannelID
+            ?? videos.compactMap(\.channelID).first
+            ?? subscription.id
+
+        return YouTubeChannelPage(
+            channel: YouTubeChannel(
+                id: channelID,
+                name: subscription.name,
+                handle: handle,
+                description: "Recent public uploads from your YouTube subscription.",
+                avatarURL: subscription.avatarURL,
+                bannerURL: videos.first?.thumbnailURL,
+                subscriberCount: "Subscribed",
+                videoCount: "\(videos.count) recent videos",
+                isSubscribed: true
+            ),
+            videos: videos,
+            shorts: shorts,
+            live: live,
+            playlists: []
+        )
+    }
+
     private func fetch(channel: Channel, limit: Int) async -> [FetchedVideo] {
         do {
             let resolvedChannelID: String

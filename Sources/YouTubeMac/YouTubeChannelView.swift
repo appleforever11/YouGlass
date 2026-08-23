@@ -67,7 +67,7 @@ struct YouTubeChannelView: View {
                 .controlSize(.regular)
             Text("Loading channel...")
                 .font(.system(size: 15, weight: .semibold))
-            Text("YouGlass is loading the channel header and public videos through the YouTube Data API.")
+            Text("YouGlass is loading public channel details and recent videos.")
                 .font(.system(size: 12))
                 .foregroundStyle(palette.secondaryText)
                 .multilineTextAlignment(.center)
@@ -170,21 +170,23 @@ struct YouTubeChannelView: View {
     }
 
     private var channelTabs: some View {
-        HStack(spacing: 6) {
-            ForEach(ChannelTab.allCases) { tab in
-                Button(action: { selectedTab = tab }) {
-                    Text(tab.title)
-                        .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
-                        .foregroundStyle(selectedTab == tab ? palette.text : palette.secondaryText)
-                        .padding(.horizontal, 16)
-                        .frame(height: 36)
-                        .background(selectedTab == tab ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.clear))
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(selectedTab == tab ? palette.stroke : .clear, lineWidth: 1))
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(ChannelTab.allCases) { tab in
+                    Button(action: { selectedTab = tab }) {
+                        Text(tab.title)
+                            .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
+                            .foregroundStyle(selectedTab == tab ? palette.text : palette.secondaryText)
+                            .padding(.horizontal, 16)
+                            .frame(height: 36)
+                            .background(selectedTab == tab ? AnyShapeStyle(.thinMaterial) : AnyShapeStyle(.clear))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(selectedTab == tab ? palette.stroke : .clear, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .overlay(alignment: .bottom) {
             Rectangle()
@@ -226,7 +228,16 @@ struct YouTubeChannelView: View {
                 }
             }
         case .playlists:
-            emptyChannelState("Channel playlists will appear here when YouTube returns them through the Data API.")
+            VStack(alignment: .leading, spacing: 18) {
+                channelSectionHeader("Playlists", count: page.playlists.count)
+                if page.playlists.isEmpty {
+                    emptyChannelState("No public playlists were returned for this channel.")
+                } else {
+                    playlistGrid(page.playlists)
+                }
+            }
+        case .posts:
+            emptyChannelState("Community posts are not available through the public YouTube Data API.")
         }
     }
 
@@ -244,13 +255,50 @@ struct YouTubeChannelView: View {
     private func videoGrid(_ videos: [VideoItem]) -> some View {
         let visible = Array(videos.prefix(24))
         return LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 18), count: 4),
+            columns: [GridItem(.adaptive(minimum: 180, maximum: 320), spacing: 18)],
+            alignment: .leading,
             spacing: 24
         ) {
             ForEach(visible) { video in
                 ChannelVideoCard(video: video, palette: palette) {
                     store.open(video)
                 }
+            }
+        }
+    }
+
+    private func playlistGrid(_ playlists: [YouTubePlaylist]) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 180, maximum: 320), spacing: 18)],
+            alignment: .leading,
+            spacing: 24
+        ) {
+            ForEach(playlists) { playlist in
+                Button { store.openPlaylist(playlist) } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ZStack(alignment: .bottomTrailing) {
+                            RemoteImage(url: playlist.thumbnailURL)
+                                .aspectRatio(16 / 9, contentMode: .fill)
+                                .clipped()
+                            Label("\(playlist.itemCount)", systemImage: "rectangle.stack.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 4)
+                                .background(.black.opacity(0.78))
+                                .clipShape(Capsule())
+                                .padding(8)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                        Text(playlist.title)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(palette.text)
+                            .lineLimit(2)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
@@ -278,6 +326,7 @@ private enum ChannelTab: String, CaseIterable, Identifiable {
     case shorts
     case live
     case playlists
+    case posts
 
     var id: String { rawValue }
 
@@ -288,11 +337,13 @@ private enum ChannelTab: String, CaseIterable, Identifiable {
         case .shorts: return "Shorts"
         case .live: return "Live"
         case .playlists: return "Playlists"
+        case .posts: return "Posts"
         }
     }
 }
 
 private struct ChannelVideoCard: View {
+    @EnvironmentObject private var store: YouTubeStore
     let video: VideoItem
     let palette: Palette
     let action: () -> Void
@@ -334,5 +385,8 @@ private struct ChannelVideoCard: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering { store.prewarmPlayback(for: video) }
+        }
     }
 }

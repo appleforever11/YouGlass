@@ -201,8 +201,8 @@ final class ModelsTests: XCTestCase {
 
     func testFeedRefreshPolicyUsesLongerSubscriptionWindow() {
         let now = Date(timeIntervalSince1970: 10_000)
-        let recentSubscriptionSync = now.addingTimeInterval(-10 * 60)
-        let staleSubscriptionSync = now.addingTimeInterval(-16 * 60)
+        let recentSubscriptionSync = now.addingTimeInterval(-4 * 60)
+        let staleSubscriptionSync = now.addingTimeInterval(-6 * 60)
 
         XCTAssertFalse(
             YouGlassFeedRefreshPolicy.needsRefresh(
@@ -221,13 +221,22 @@ final class ModelsTests: XCTestCase {
     }
 
     func testFeedRefreshPolicyKeepsForegroundAccountDataFresh() {
-        XCTAssertEqual(YouGlassFeedRefreshPolicy.activeRefreshInterval, 90)
-        XCTAssertEqual(YouGlassFeedRefreshPolicy.accountSignalRefreshInterval, 2 * 60)
-        XCTAssertEqual(YouGlassFeedRefreshPolicy.subscriptionRefreshInterval, 10 * 60)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.activeRefreshInterval, 60)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.accountSignalRefreshInterval, 90)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.subscriptionRefreshInterval, 5 * 60)
         XCTAssertLessThan(
             YouGlassFeedRefreshPolicy.activeRefreshInterval,
             YouGlassFeedRefreshPolicy.subscriptionRefreshInterval
         )
+    }
+
+    func testLoadingFeedDoesNotExposeSampleRecommendations() {
+        let feed = VideoItem.loadingFeed
+
+        XCTAssertTrue(feed.queue.isEmpty)
+        XCTAssertTrue(feed.forYou.isEmpty)
+        XCTAssertTrue(feed.trending.isEmpty)
+        XCTAssertTrue(feed.more.isEmpty)
     }
 
     func testResponseCacheStoresAndClearsEntries() async {
