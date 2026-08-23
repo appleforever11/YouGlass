@@ -12,7 +12,9 @@ else
 fi
 ARCHIVE_PATH="${2:-$DIST_DIR/YouGlass-${VERSION}-arm64.zip}"
 
-YOUGLASS_BUILD_CONFIGURATION="$BUILD_CONFIGURATION" "$ROOT_DIR/script/build_and_run.sh" build
+if [[ "${YOUGLASS_SKIP_BUILD:-0}" != "1" ]]; then
+  YOUGLASS_BUILD_CONFIGURATION="$BUILD_CONFIGURATION" "$ROOT_DIR/script/build_and_run.sh" build
+fi
 
 test -d "$APP_BUNDLE"
 codesign --verify --deep --strict "$APP_BUNDLE"

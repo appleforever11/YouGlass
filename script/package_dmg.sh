@@ -6,6 +6,7 @@ DIST_DIR="$ROOT_DIR/dist"
 APP_BUNDLE="$DIST_DIR/YouGlass.app"
 DMG_PATH="${1:-$DIST_DIR/YouGlass-Apple-Silicon.dmg}"
 BUILD_CONFIGURATION="${YOUGLASS_BUILD_CONFIGURATION:-release}"
+SIGNING_IDENTITY="${YOUGLASS_SIGNING_IDENTITY:-}"
 STAGING_DIR="$(mktemp -d "${TMPDIR:-/tmp}/youglass-dmg.XXXXXX")"
 
 cleanup() {
@@ -13,7 +14,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-YOUGLASS_BUILD_CONFIGURATION="$BUILD_CONFIGURATION" "$ROOT_DIR/script/build_and_run.sh" build
+if [[ "${YOUGLASS_SKIP_BUILD:-0}" != "1" ]]; then
+  YOUGLASS_BUILD_CONFIGURATION="$BUILD_CONFIGURATION" "$ROOT_DIR/script/build_and_run.sh" build
+fi
 
 test -d "$APP_BUNDLE"
 codesign --verify --deep --strict "$APP_BUNDLE"
@@ -30,6 +33,10 @@ hdiutil create \
   -format UDZO \
   -imagekey zlib-level=9 \
   "$DMG_PATH"
+
+if [[ -n "$SIGNING_IDENTITY" && "$SIGNING_IDENTITY" != "-" ]]; then
+  codesign --force --timestamp --sign "$SIGNING_IDENTITY" "$DMG_PATH"
+fi
 
 hdiutil verify "$DMG_PATH"
 echo "$DMG_PATH"

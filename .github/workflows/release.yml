@@ -107,7 +107,6 @@ jobs:
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
           ./script/package_release.sh "$version" "$RUNNER_TEMP/YouGlass-${version}-arm64.zip"
-          ./script/package_dmg.sh "$RUNNER_TEMP/YouGlass-${version}-arm64.dmg"
 
       - name: Notarize release archives
         shell: bash
@@ -118,9 +117,45 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$APPLE_NOTARY_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
-          for archive in "$RUNNER_TEMP"/YouGlass-*.zip "$RUNNER_TEMP"/YouGlass-*.dmg; do
-            xcrun notarytool submit "$archive" --key "$RUNNER_TEMP/AuthKey_${APPLE_NOTARY_KEY_ID}.p8" --key-id "$APPLE_NOTARY_KEY_ID" --issuer "$APPLE_NOTARY_ISSUER" --wait
-          done
+          version="${GITHUB_REF_NAME#v}"
+          key="$RUNNER_TEMP/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
+          zip="$RUNNER_TEMP/YouGlass-${version}-arm64.zip"
+          dmg="$RUNNER_TEMP/YouGlass-${version}-arm64.dmg"
+
+          notarize_and_require_acceptance() {
+            local archive="$1"
+            local label="$2"
+            local result="$RUNNER_TEMP/notary-${label}.json"
+            xcrun notarytool submit "$archive" \
+              --key "$key" \
+              --key-id "$APPLE_NOTARY_KEY_ID" \
+              --issuer "$APPLE_NOTARY_ISSUER" \
+              --wait \
+              --output-format json > "$result"
+            local status
+            local submission_id
+            status="$(plutil -extract status raw -o - "$result")"
+            submission_id="$(plutil -extract id raw -o - "$result")"
+            if [[ "$status" != "Accepted" ]]; then
+              echo "Apple notarization rejected $archive with status: $status" >&2
+              xcrun notarytool log "$submission_id" \
+                --key "$key" \
+                --key-id "$APPLE_NOTARY_KEY_ID" \
+                --issuer "$APPLE_NOTARY_ISSUER" || true
+              exit 1
+            fi
+          }
+
+          notarize_and_require_acceptance "$zip" zip
+          xcrun stapler staple dist/YouGlass.app
+          xcrun stapler validate dist/YouGlass.app
+
+          YOUGLASS_SKIP_BUILD=1 ./script/package_release.sh "$version" "$zip"
+          YOUGLASS_SKIP_BUILD=1 ./script/package_dmg.sh "$dmg"
+
+          notarize_and_require_acceptance "$dmg" dmg
+          xcrun stapler staple "$dmg"
+          xcrun stapler validate "$dmg"
 
       - name: Generate Sparkle appcast
         shell: bash

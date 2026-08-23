@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.1] - 2026-08-23
+
+Repackages the 1.13 feature update with enforced Apple notarization, secure signing timestamps, and stapled trust tickets for reliable Sparkle installation. See [the complete end-user release notes](RELEASE_NOTES/1.13.1.md).
+
 ## [1.13.0] - 2026-08-23
 
 Improved feed freshness, first-click playback, signed-in subscriptions and history, native channel browsing, and keyboard playback controls while preserving the stable Picture in Picture implementation. See [the complete end-user release notes](RELEASE_NOTES/1.13.0.md).

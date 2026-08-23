@@ -91,8 +91,13 @@ if [[ "$SIGNING_IDENTITY" == "-" ]]; then
   codesign --force --deep --sign - "$FRAMEWORKS/Sparkle.framework"
   codesign --force --deep --sign - "$APP_BUNDLE"
 else
-  codesign --force --deep --options runtime --timestamp=none --sign "$SIGNING_IDENTITY" "$FRAMEWORKS/Sparkle.framework"
-  codesign --force --deep --options runtime --timestamp=none --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
+  if [[ "$BUILD_CONFIGURATION" == "release" || "$SIGNING_IDENTITY" == Developer\ ID\ Application:* ]]; then
+    TIMESTAMP_ARGUMENT="--timestamp"
+  else
+    TIMESTAMP_ARGUMENT="--timestamp=none"
+  fi
+  codesign --force --deep --options runtime "$TIMESTAMP_ARGUMENT" --sign "$SIGNING_IDENTITY" "$FRAMEWORKS/Sparkle.framework"
+  codesign --force --deep --options runtime "$TIMESTAMP_ARGUMENT" --sign "$SIGNING_IDENTITY" "$APP_BUNDLE"
 fi
 
 open_app() {
