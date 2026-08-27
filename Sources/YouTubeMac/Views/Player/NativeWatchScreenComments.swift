@@ -127,7 +127,7 @@ extension NativeWatchScreen {
                 ScrollView(.vertical, showsIndicators: false) {
                     LazyVStack(spacing: 10) {
                         ForEach(recommendations.isEmpty ? store.relatedVideos(for: video) : recommendations) { item in
-                            Button(action: { store.open(item) }) {
+                            Button(action: { store.openFromUserInteraction(item) }) {
                                 RelatedVideoCard(video: item, palette: palette)
                             }
                             .buttonStyle(.plain)

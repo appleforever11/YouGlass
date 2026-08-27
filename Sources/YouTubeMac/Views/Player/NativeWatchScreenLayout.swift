@@ -45,10 +45,13 @@ extension NativeWatchScreen {
                 .frame(width: documentWidth, alignment: .topLeading)
                 .frame(minHeight: availableSize.height, alignment: .topLeading)
                 .padding(.horizontal, horizontalPadding)
-                .background(palette.content)
+                // This is intentionally translucent. PlayerAmbientSurface is
+                // mounted behind the watch screen; an opaque content fill made
+                // each theme stop abruptly at the player/page boundary.
+                .background(palette.content.opacity(palette.isDark ? 0.78 : 0.84))
             }
             .frame(width: availableSize.width, height: availableSize.height, alignment: .top)
-            .background(palette.window)
+            .background(palette.window.opacity(palette.isDark ? 0.62 : 0.72))
             .clipShape(Rectangle())
             .clipped()
             .accessibilityIdentifier("player-main-scroll")
@@ -83,12 +86,9 @@ extension NativeWatchScreen {
                         ambientPalette: store.ambientPalette
                     )
                 )
-                // The remote WebKit surface, transport shelf, and ambient glass
-                // are one visual media surface. Apply the final clip after every
-                // modifier so scrolling cannot expose a stale layer or shadow
-                // below the video's document frame.
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                // Re-assert the hit-test boundary after the visual surface modifier.
+                // BlendedPlayerSurfaceModifier clips the media content while
+                // preserving its ambient glow and shadow outside the rounded
+                // edge. A second final clip here would cut that flow off again.
                 .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
                 YouGlassVideoTitleBlock(
@@ -145,7 +145,7 @@ extension NativeWatchScreen {
                         LazyHStack(spacing: 10) {
                             ForEach(recommendations) { related in
                                 Button {
-                                    store.open(related)
+                                    store.openFromUserInteraction(related)
                                 } label: {
                                     RelatedVideoCard(video: related, palette: palette)
                                         .frame(width: 232)

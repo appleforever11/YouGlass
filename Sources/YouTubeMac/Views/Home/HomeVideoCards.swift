@@ -79,7 +79,7 @@ struct VideoCard: View {
     @State private var isHovered = false
 
     var body: some View {
-        Button(action: { store.open(video) }) {
+        Button(action: { store.openFromUserInteraction(video) }) {
             VStack(alignment: .leading, spacing: 9) {
                 YouGlassVideoPreview {
                     ZStack(alignment: .bottomTrailing) {

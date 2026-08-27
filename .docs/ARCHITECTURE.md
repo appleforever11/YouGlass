@@ -25,6 +25,14 @@ The source tree is organized by responsibility rather than by one-file-per-featu
 - `Views/Home/YouTubeHomeView` renders the main navigation and feed surfaces from the store, with sidebar, hero, card, playlist, image, background, and loading states separated into focused files.
 - `Views/Player/` renders native controls and coordinates player state. The inline player owns the visible WebKit media surface, lifecycle, coordinator, messages, and ordered JavaScript command bridge independently from the native watch screen.
 
+## Full-player ambient surface and interaction safety
+
+`YouTubePlayerOverlay` mounts `PlayerAmbientSurface` behind `NativeWatchScreen`. The full watch page must preserve that layer as the visual source of truth: `NativeWatchScreenBody` stays transparent, `NativeWatchScreenLayout` uses translucent page/window fills, and `BlendedPlayerSurfaceModifier` clips the WebKit media content without applying a second outer clip to its ambient glow. This keeps the theme flowing around the video, metadata, and recommendation rail while retaining the media's rounded boundary. The relevant implementation lives in `Views/Player/NativeWatchScreenBody.swift`, `NativeWatchScreenLayout.swift`, and `PlayerAmbientViews.swift`.
+
+Video-opening buttons use `YouTubeStore.openFromUserInteraction(_:)` from the home and player surfaces. It yields one MainActor turn before mutating the selected video so macOS 26 accessibility presses do not copy title/geometry state while SwiftUI's AttributeGraph transaction is still updating. The supplied 1.13.3 crash report showed `AccessibilityNode.sendAction`/`accessibilityPerformPress` reaching `initializeWithCopy for YouGlassVideoTitleBlock`; the guarded path was rebuilt and exercised successfully in the player.
+
+Runtime visual validation for this boundary covers all 12 theme families in both Light and Dark (24 rebuilt app launches/captures). Each state must open the player, retain the themed ambient flow at the media/page boundary, and avoid a flat opaque rectangle or clipped glow.
+
 ## Settings layout
 
 The settings surface is intentionally a sidebar/detail layout:

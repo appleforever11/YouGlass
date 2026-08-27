@@ -97,7 +97,9 @@ struct BlendedPlayerSurfaceModifier: ViewModifier {
                         .blur(radius: 22)
                         .padding(-12)
                 }
-                .clipShape(shape)
+                // Let the blurred tint breathe beyond the media bounds. The
+                // content itself remains clipped by the modifier below, while
+                // this background can blend into the page ambience smoothly.
             }
             .overlay {
                 shape

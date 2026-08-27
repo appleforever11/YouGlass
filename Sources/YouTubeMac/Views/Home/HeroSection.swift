@@ -49,7 +49,7 @@ struct HeroSection: View {
                             .lineSpacing(4)
                             .padding(.top, narrow ? 8 : 14)
 
-                        Button(action: { store.open(store.feed.hero) }) {
+                        Button(action: { store.openFromUserInteraction(store.feed.hero) }) {
                             HStack(spacing: 9) {
                                 Image(systemName: "play.circle.fill")
                                     .font(.system(size: 21))
@@ -124,7 +124,7 @@ struct HeroSection: View {
             if hasQueue {
                 VStack(spacing: 10) {
                     ForEach(store.feed.queue.prefix(4)) { video in
-                        Button(action: { store.open(video) }) {
+                        Button(action: { store.openFromUserInteraction(video) }) {
                             CompactVideoCard(video: video, palette: palette)
                         }
                         .buttonStyle(.plain)

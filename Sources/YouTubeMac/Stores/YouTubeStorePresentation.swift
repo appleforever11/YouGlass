@@ -3,6 +3,17 @@ import Foundation
 import SwiftUI
 
 extension YouTubeStore {
+        /// Accessibility presses on macOS 26 can still be inside SwiftUI's
+        /// AttributeGraph transaction when a button mutates the selected video.
+        /// Defer the mutation one main-actor turn so the current view graph can
+        /// finish copying its title and geometry values first.
+        func openFromUserInteraction(_ video: VideoItem) {
+            Task { @MainActor [weak self] in
+                await Task.yield()
+                self?.open(video)
+            }
+        }
+
         func open(_ video: VideoItem) {
             stopCurrentPlayback()
             closeDesktopPIPWindow()

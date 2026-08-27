@@ -47,7 +47,11 @@ extension NativeWatchScreen {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(isCompact ? Color.clear : palette.window)
+            // The player overlay owns the shared ambient backdrop. Keep the
+            // watch screen transparent so that backdrop can flow through the
+            // header, page margins, and recommendation rail instead of ending
+            // at an opaque rectangle around the video.
+            .background(Color.clear)
             .clipShape(Rectangle())
             .focusable()
             .focusEffectDisabled()
