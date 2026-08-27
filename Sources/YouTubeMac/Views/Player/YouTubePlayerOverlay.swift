@@ -190,14 +190,14 @@ enum YouGlassVideoTitlePlacement {
 
     var titleSize: CGFloat {
         switch self {
-        case .header: 17
+        case .header: 22
         case .detail: 25
         }
     }
 
     var titleWeight: Font.Weight {
         switch self {
-        case .header: .semibold
+        case .header: .heavy
         case .detail: .semibold
         }
     }
@@ -211,7 +211,7 @@ enum YouGlassVideoTitlePlacement {
 
     var eyebrowSize: CGFloat {
         switch self {
-        case .header: 11
+        case .header: 10
         case .detail: 12
         }
     }
@@ -236,29 +236,69 @@ struct YouGlassVideoTitleBlock: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: placement == .header ? 3 : 7) {
-            if let eyebrow {
-                Text(eyebrow.uppercased())
-                    .font(.system(size: placement.eyebrowSize, weight: .semibold, design: .rounded))
-                    .foregroundStyle(palette.secondaryText)
-                    .tracking(0)
+            if placement == .header {
+                titleLabel
+                eyebrowLabel
+                channelLabel
+            } else {
+                eyebrowLabel
+                titleLabel
+                channelLabel
             }
-
-            Text(title)
-                .font(.system(size: placement.titleSize, weight: placement.titleWeight, design: .rounded))
-                .foregroundStyle(palette.text)
-                .lineLimit(placement.titleLineLimit)
-                .lineSpacing(placement == .header ? 1 : 2)
-                .minimumScaleFactor(placement == .header ? 0.82 : 0.76)
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(1)
-
-            Text(channel)
-                .font(.system(size: placement.channelSize, weight: .medium, design: .rounded))
-                .foregroundStyle(palette.secondaryText.opacity(0.86))
-                .lineLimit(1)
-                .truncationMode(.tail)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var titleLabel: some View {
+        if placement == .header {
+            titleBase
+                .foregroundStyle(titleGradient)
+                .shadow(
+                    color: palette.accent.opacity(palette.isDark ? 0.26 : 0.16),
+                    radius: 5,
+                    y: 1
+                )
+        } else {
+            titleBase
+                .foregroundStyle(palette.text)
+        }
+    }
+
+    private var titleBase: some View {
+        Text(title)
+            .font(.system(size: placement.titleSize, weight: placement.titleWeight, design: .rounded))
+            .lineLimit(placement.titleLineLimit)
+            .lineSpacing(placement == .header ? -1 : 2)
+            .minimumScaleFactor(placement == .header ? 0.74 : 0.76)
+            .fixedSize(horizontal: false, vertical: true)
+            .layoutPriority(1)
+    }
+
+    @ViewBuilder
+    private var eyebrowLabel: some View {
+        if let eyebrow {
+            Text(eyebrow.uppercased())
+                .font(.system(size: placement.eyebrowSize, weight: .bold, design: .rounded))
+                .foregroundStyle(placement == .header ? palette.accent : palette.secondaryText)
+                .tracking(placement == .header ? 1.25 : 0)
+        }
+    }
+
+    private var channelLabel: some View {
+        Text(channel)
+            .font(.system(size: placement.channelSize, weight: .medium, design: .rounded))
+            .foregroundStyle(palette.secondaryText.opacity(0.86))
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+
+    private var titleGradient: LinearGradient {
+        LinearGradient(
+            colors: [palette.pink, palette.purple, palette.accent],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 }

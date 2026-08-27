@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — strengthen the expanded-player title hierarchy
+
+- Reworked the shared player header title block so the video title is the primary visual anchor: it is larger, heavy-weight, and filled with a gradient derived from the active theme. `NOW PLAYING` now sits immediately below the title in the theme accent, while the channel remains subdued; the detail title below the media is unchanged.
+- Rebuilt and opened `dist/YouGlass.app`; the native smoke check confirmed the title-first ordering, themed color treatment, readable wrapping, smooth header shelf, and ten-item Up Next rail. `./script/test.sh` passed all 32 tests.
+
 ## 2026-08-27 — blend the player header into the watch page
 
 - Removed the independent page-start and header lower-edge rectangles. A single low-contrast watch-screen fade now sits behind the fixed header and scroll document, allowing the media halo to transition continuously into the header while retaining the small top inset needed to keep the perimeter glow visible.
