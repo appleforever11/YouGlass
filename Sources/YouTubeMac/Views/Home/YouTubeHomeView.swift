@@ -22,6 +22,12 @@ struct YouTubeHomeView: View {
             // sidebar. This keeps medium windows from forcing desktop-sized
             // grids into a layout that cannot hold them.
             let compactContent = mainContentWidth < 1_000
+            let fullPlayerPresented = store.selectedVideo != nil &&
+                !store.isDesktopPIPActive &&
+                !store.isPlayerCompact
+            let shellTopInset: CGFloat = fullPlayerPresented
+                ? 0
+                : (compactShell ? 8 : 12)
 
             ZStack {
                 YouGlassAmbientBackdrop(palette: palette, ambientPalette: store.ambientPalette, intensity: 1.15)
@@ -86,11 +92,12 @@ struct YouTubeHomeView: View {
                         .stroke(palette.stroke, lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.12), radius: 24, y: 10)
-                // The hidden title-bar region already contributes a safe inset.
-                // Add only a small visual breathing room so the app surface does
-                // not create a second, oversized black band above the content.
+                // The main window is full-size under its hidden title bar. Give
+                // the regular feed a small shell inset, but let the expanded
+                // player header reach the top edge so no separate title-bar cap
+                // interrupts the watch surface.
                 .padding(.horizontal, shellInset)
-                .padding(.top, compactShell ? 8 : 12)
+                .padding(.top, shellTopInset)
                 .padding(.bottom, compactShell ? 8 : 14)
             }
         }

@@ -199,71 +199,7 @@ extension NativeWatchScreen {
 
                 Spacer()
 
-                Button {
-                    store.presentDesktopPIP()
-                } label: {
-                    Label("PIP", systemImage: "pip.enter")
-                        .font(.system(size: 12, weight: .semibold))
-                        .labelStyle(.titleAndIcon)
-                        .frame(minWidth: 68, minHeight: 34)
-                        .contentShape(Capsule())
-                }
-                .buttonStyle(GlassCapsuleButtonStyle(palette: palette))
-                .accessibilityLabel("Picture in Picture")
-                .accessibilityHint("Open this video in a floating desktop window")
-                .help("Picture in Picture")
-
-                Button {
-                    queuePresented.toggle()
-                } label: {
-                    Image(systemName: queuePresented ? "list.bullet.rectangle.portrait.fill" : "list.bullet.rectangle.portrait")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .buttonStyle(GlassIconButtonStyle(palette: palette))
-                .accessibilityLabel(queuePresented ? "Hide playback queue" : "Show playback queue")
-                .help("Playback queue")
-
-                Menu {
-                    ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in
-                        Button(rate == 1 ? "Normal" : "\(rate)x") {
-                            store.sendPlaybackCommand(.setPlaybackRate(rate))
-                        }
-                    }
-                } label: {
-                    Image(systemName: "speedometer")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .menuStyle(.borderlessButton)
-                .frame(width: 34, height: 34)
-                .foregroundStyle(palette.text)
-                .help("Playback speed")
-
-                Button(action: store.minimizePlayer) {
-                    Image(systemName: "minus")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .buttonStyle(GlassIconButtonStyle(palette: palette))
-                .accessibilityLabel("Minimize player")
-                .help("Mini-player")
-
-                Button(action: store.toggleMainWindowFullScreen) {
-                    Image(systemName: "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .buttonStyle(GlassIconButtonStyle(palette: palette))
-                .accessibilityLabel("Toggle full screen")
-                .help("Full screen")
-
-                Button {
-                    saved.toggle()
-                    store.toggleSaved(video)
-                } label: {
-                    Image(systemName: saved ? "bookmark.fill" : "bookmark")
-                        .font(.system(size: 16, weight: .semibold))
-                }
-                .buttonStyle(GlassIconButtonStyle(palette: palette))
-                .accessibilityLabel(saved ? "Remove from Watch Later" : "Save to Watch Later")
-                .help(saved ? "Remove from Watch Later" : "Save to Watch Later")
+                headerControlGroup
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -302,5 +238,103 @@ extension NativeWatchScreen {
                     .allowsHitTesting(false)
             }
             .zIndex(4)
+        }
+
+        private var headerControlGroup: some View {
+            HStack(spacing: 3) {
+                Button {
+                    store.presentDesktopPIP()
+                } label: {
+                    Label("PIP", systemImage: "pip.enter")
+                        .labelStyle(.titleAndIcon)
+                        .frame(width: 72, height: 32)
+                }
+                .buttonStyle(PlayerHeaderControlButtonStyle(palette: palette, minimumWidth: 72))
+                .accessibilityLabel("Picture in Picture")
+                .accessibilityHint("Open this video in a floating desktop window")
+                .help("Picture in Picture")
+
+                Capsule()
+                    .fill(palette.stroke.opacity(0.36))
+                    .frame(width: 1, height: 20)
+                    .padding(.horizontal, 2)
+                    .allowsHitTesting(false)
+
+                Button {
+                    queuePresented.toggle()
+                } label: {
+                    Image(systemName: queuePresented ? "list.bullet.rectangle.portrait.fill" : "list.bullet.rectangle.portrait")
+                }
+                .buttonStyle(PlayerHeaderControlButtonStyle(palette: palette))
+                .accessibilityLabel(queuePresented ? "Hide playback queue" : "Show playback queue")
+                .help("Playback queue")
+
+                Menu {
+                    ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in
+                        Button(rate == 1 ? "Normal" : "\(rate)x") {
+                            store.sendPlaybackCommand(.setPlaybackRate(rate))
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "speedometer")
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                }
+                .menuStyle(.borderlessButton)
+                .buttonStyle(PlayerHeaderControlButtonStyle(palette: palette, minimumWidth: 42))
+                .accessibilityLabel("Playback speed")
+                .help("Playback speed")
+
+                Button(action: store.minimizePlayer) {
+                    Image(systemName: "minus")
+                }
+                .buttonStyle(PlayerHeaderControlButtonStyle(palette: palette))
+                .accessibilityLabel("Minimize player")
+                .help("Mini-player")
+
+                Button(action: store.toggleMainWindowFullScreen) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                }
+                .buttonStyle(PlayerHeaderControlButtonStyle(palette: palette))
+                .accessibilityLabel("Toggle full screen")
+                .help("Full screen")
+
+                Button {
+                    saved.toggle()
+                    store.toggleSaved(video)
+                } label: {
+                    Image(systemName: saved ? "bookmark.fill" : "bookmark")
+                }
+                .buttonStyle(PlayerHeaderControlButtonStyle(palette: palette))
+                .accessibilityLabel(saved ? "Remove from Watch Later" : "Save to Watch Later")
+                .help(saved ? "Remove from Watch Later" : "Save to Watch Later")
+            }
+            .padding(4)
+            .background {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .fill(.thinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 21, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        palette.text.opacity(palette.isDark ? 0.07 : 0.10),
+                                        .clear
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 21, style: .continuous)
+                    .stroke(palette.stroke.opacity(0.72), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: .black.opacity(palette.isDark ? 0.28 : 0.14), radius: 12, x: 0, y: 3)
+            .fixedSize(horizontal: true, vertical: false)
         }
 }

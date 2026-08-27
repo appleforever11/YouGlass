@@ -16,7 +16,7 @@ Source boundaries:
 
 `YouTubeStoreQueue` prepares a bounded queue from the selected video, existing queue, feed candidates, history, and saved videos. `PlayerQueuePanel` exposes autoplay, remove, clear, and direct selection. The native watch screen handles queue auto-advance, playback speed, mini-player, full screen, PIP, save, and Share. Player state remains usable for playable cached videos even when the network is unavailable.
 
-The full watch page has one vertical scroll owner. The media/details column, comments panel, and Up Next rail use intrinsic-height stacks so comments remain reachable at compact window sizes; the rail supplements sparse API responses from the local catalog and is capped at ten visible recommendations. Keep the primary playback controls centered on the media independently of status/PIP chrome, and preserve the shared media radius plus centered glow when changing the player boundary.
+The full watch page has one vertical scroll owner. The media/details column, comments panel, and Up Next rail use intrinsic-height stacks so comments remain reachable at compact window sizes; the rail supplements sparse API responses from the local catalog and is capped at ten visible recommendations. The expanded player uses the window's full-size content region so its header has no standalone title-bar cap; regular feed mode retains the shell's top breathing room. Keep the primary playback controls centered on the media independently of status/PIP chrome, use one continuous rounded shelf for the header actions, and preserve the shared media radius plus centered glow when changing the player boundary.
 
 ## 3. Personal Library
 

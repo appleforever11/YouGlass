@@ -62,6 +62,16 @@ struct YouGlassWindowSizingView: NSViewRepresentable {
             guard let window,
                   let screen = window.screen ?? NSScreen.main else { return }
 
+            // The main window uses a custom SwiftUI header in place of the
+            // system title bar. Keep the content view in the title-bar region
+            // so the player header and the ambient surface read as one
+            // continuous window instead of a dark AppKit strip above them.
+            window.titleVisibility = .hidden
+            window.titlebarAppearsTransparent = true
+            window.styleMask.insert(.fullSizeContentView)
+            window.isOpaque = false
+            window.backgroundColor = .clear
+
             if self.window !== window {
                 self.window = window
                 configuredScreen = nil

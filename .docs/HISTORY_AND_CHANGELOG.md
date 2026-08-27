@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — remove expanded-player title-bar cap and smooth header controls
+
+- Enabled the main SwiftUI window's full-size content region with a transparent hidden title bar and made expanded player mode use a zero top shell inset. The custom player header now reaches the window edge instead of sitting below a separate dark AppKit strip; regular feed mode keeps its original inset.
+- Replaced the expanded-player header's mixed capsule/circle chrome with one continuous rounded glass control shelf and consistent pressed states, spacing, typography, and hit targets.
+- Rebuilt and opened `dist/YouGlass.app`; the live native smoke check confirmed the cap was gone, the header shelf was smooth, and the player still exposed all ten Up Next items. `./script/test.sh` passed all 32 tests.
+
 ## 2026-08-27 — repair full-player edge flow, controls, and scrolling
 
 - Made the watch header part of the shared ambient surface by masking its material and fading the lower edge instead of drawing a hard divider. The media receives matching top breathing room, a shared 24-point media/WebKit/native radius, and centered ambient/neutral perimeter shadows.

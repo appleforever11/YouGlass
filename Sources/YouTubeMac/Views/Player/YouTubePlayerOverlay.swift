@@ -44,7 +44,16 @@ struct YouTubePlayerOverlay: View {
                 .id(video.id)
         }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.ultraThinMaterial)
+            // The full watch surface already owns the ambient backdrop. An
+            // additional full-rect material here creates the dark rectangular
+            // cap above the custom header when the window extends under its
+            // hidden title bar. Keep the material only for compact PIP.
+            .background {
+                if isCompact {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: isCompact ? 18 : 0, style: .continuous))
             .overlay(alignment: .topLeading) {
                 if isCompact {
