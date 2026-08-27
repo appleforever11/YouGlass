@@ -4,7 +4,7 @@ This document is the detailed companion to the concise product rules in `AGENTS.
 
 ## 1. Continue Watching as the Home center
 
-`YouTubeStorePlayback` records a position, duration, and last-updated date for recently watched videos. The store removes checkpoints near completion and bounds the remaining entries. `ContinueWatchingRow` renders progress and a resume label on Home and Library; the progress track is shown only when a real checkpoint exists and is constrained to the thumbnail's bottom overlay so it cannot become a top-of-card decoration. Removing a card clears only its local checkpoint.
+`YouTubeStorePlayback` records a position, duration, and last-updated date for recently watched videos. The store removes checkpoints near completion and bounds the remaining entries. `ContinueWatchingRow` renders progress and a resume label on Home and Library; the progress track is shown only when a real unfinished checkpoint with a known duration exists and is constrained to the thumbnail's bottom overlay so it cannot become a top-of-card decoration. Removing a card clears only its local checkpoint.
 
 Source boundaries:
 

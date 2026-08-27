@@ -13,7 +13,7 @@ This file records durable project context, not every line edit. The local Git hi
 
 ### Follow-up visual correction
 
-- Moved the Continue Watching progress track to the bottom of each thumbnail and made it conditional on a real playback checkpoint. The measuring `GeometryReader` had been constrained on its child instead of on the reader itself, which caused a translucent track to render at the top of every card; unwatched cards now render no resume track at all.
+- Moved the Continue Watching progress track to the bottom of each thumbnail and made it conditional on a real, unfinished playback checkpoint with a known duration. The measuring `GeometryReader` had been constrained on its child instead of on the reader itself, which caused a translucent track to render at the top of every card; unwatched or duration-less cards now render no resume track at all.
 - Rebuilt `dist/YouGlass.app` and verified Home, Library, Settings General, Settings Appearance top alignment, Appearance bottom scrolling, and the native player workspace with Computer Use. The corrected Home capture shows no top bars.
 
 ## 2026-08-27 — smooth player theme flow and safe video opening

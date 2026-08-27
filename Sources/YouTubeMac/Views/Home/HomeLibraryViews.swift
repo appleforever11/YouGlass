@@ -60,7 +60,7 @@ struct ContinueWatchingCard: View {
                         endPoint: .bottom
                     )
 
-                    if store.playbackPosition(for: video.id) > 1 {
+                    if store.hasResumeCheckpoint(for: video.id) {
                         GeometryReader { geometry in
                             ZStack(alignment: .leading) {
                                 Capsule().fill(.white.opacity(0.25))

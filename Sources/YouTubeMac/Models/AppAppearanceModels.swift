@@ -70,6 +70,13 @@ enum PlaybackCheckpointPolicy {
     static let maxEntries = 200
     static let completionGraceSeconds = 3.0
     static let completionFraction = 0.98
+
+    static func isResumable(position: Double, duration: Double) -> Bool {
+        guard position.isFinite, duration.isFinite, position > 1, duration > 0 else {
+            return false
+        }
+        return position / duration < completionFraction
+    }
 }
 
 struct VideoAmbientColor: Equatable, Sendable {

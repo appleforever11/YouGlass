@@ -19,14 +19,15 @@ extension YouTubeStore {
             return min(max(playbackPosition(for: video.id) / duration, 0), 1)
         }
 
+        func hasResumeCheckpoint(for videoID: String) -> Bool {
+            PlaybackCheckpointPolicy.isResumable(
+                position: playbackPosition(for: videoID),
+                duration: playbackDuration(for: videoID)
+            )
+        }
+
         var continueWatching: [VideoItem] {
-            recentlyWatched.filter { video in
-                let position = playbackPosition(for: video.id)
-                let duration = playbackDuration(for: video.id)
-                guard position > 1 else { return false }
-                guard duration > 0 else { return true }
-                return position / duration < PlaybackCheckpointPolicy.completionFraction
-            }
+            recentlyWatched.filter { hasResumeCheckpoint(for: $0.id) }
         }
 
         func savePlaybackPosition(for video: VideoItem, at seconds: Double, duration: Double) {

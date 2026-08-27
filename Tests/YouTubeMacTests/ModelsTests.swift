@@ -44,6 +44,10 @@ final class ModelsTests: XCTestCase {
         XCTAssertLessThan(PlaybackCheckpointPolicy.completionGraceSeconds, 10)
         XCTAssertGreaterThan(PlaybackCheckpointPolicy.completionFraction, 0.9)
         XCTAssertLessThan(PlaybackCheckpointPolicy.completionFraction, 1)
+        XCTAssertTrue(PlaybackCheckpointPolicy.isResumable(position: 30, duration: 300))
+        XCTAssertFalse(PlaybackCheckpointPolicy.isResumable(position: 0, duration: 300))
+        XCTAssertFalse(PlaybackCheckpointPolicy.isResumable(position: 30, duration: 0))
+        XCTAssertFalse(PlaybackCheckpointPolicy.isResumable(position: 299, duration: 300))
     }
 
     func testParsesStandardWatchURL() {
