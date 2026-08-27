@@ -29,6 +29,7 @@ For any non-trivial code task:
 - UI stack: SwiftUI with focused AppKit bridges for windows, WebKit surfaces, Picture in Picture, and the settings scroll container.
 - Dependency: Sparkle 2.9.5, resolved in `Package.resolved`.
 - Current baseline at this documentation setup: branch `codex/theme-center`, commit `3a096d9` (`v1.13.2`). The worktree already contains uncommitted YouGlass feature/stability/theme changes; those are not part of the documentation setup commit.
+- Source organization: keep Swift source files below 500 lines and group code by app, model, store, view, and service responsibility.
 
 ## Build, test, and run
 
@@ -46,17 +47,17 @@ Do not launch the SwiftPM GUI executable directly for normal UI validation. Use 
 ## Source layout
 
 - `Package.swift`: package, target, platform, resource, test, and Sparkle dependency definitions.
-- `Sources/YouTubeMac/YouTubeMacApp.swift`: app entry point, main `WindowGroup`, `Settings` scene, commands, and window sizing.
-- `Sources/YouTubeMac/YouGlassSettingsView.swift`: native settings pages, sidebar, theme controls/cards, and the AppKit-backed settings scroll bridge.
-- `Sources/YouTubeMac/YouTubeStore.swift`: main-actor observable state, persistence, account/feed orchestration, playback state, and app-wide settings.
-- `Sources/YouTubeMac/Models.swift`: value models and policies for videos, subscriptions, themes, playback, and API errors.
+- `Sources/YouTubeMac/App/`: app entry point, root composition, commands, and window sizing.
+- `Sources/YouTubeMac/Models/`: value models, policies, and model fixtures for videos, subscriptions, themes, playback, and API responses.
+- `Sources/YouTubeMac/Stores/`: the main-actor store declaration plus focused extensions for initialization, settings, playback, feed loading/ranking/navigation, search, account, community, persistence, and presentation.
+- `Sources/YouTubeMac/Views/Home/`: main window layout, navigation/sidebar content, recommendation surfaces, cards, playlists, and shared home states.
+- `Sources/YouTubeMac/Views/Settings/`: settings state, sidebar/detail pages, theme controls, layout components, window configuration, and the AppKit-backed scroll container.
+- `Sources/YouTubeMac/Views/Player/`: player overlay, native watch screen, native transport controls, inline WebKit host/coordinator, playback controller, JavaScript bridge, ambient palette sampling, and player support views.
+- `Sources/YouTubeMac/Services/`: YouTube Data API client slices/response models/errors, WebKit feed/comments bridge slices, and debug-engine slices/models/utilities.
 - `Sources/YouTubeMac/YouGlassVisualTheme.swift` and `YouGlassThemeCatalog.swift`: palettes, ambient backdrop, theme families, and theme previews.
-- `Sources/YouTubeMac/YouTubeHomeView.swift`: home layout, navigation/sidebar content, recommendation surfaces, and settings entry points.
-- `Sources/YouTubeMac/YouTubePlayerView.swift` and `YouTubeInlinePlayerView.swift`: native player chrome plus the visible WebKit playback surface.
-- `Sources/YouTubeMac/YouTubeAPIClient.swift`: YouTube Data API client and response mapping.
 - `Sources/YouTubeMac/YouTubeOAuthClient.swift` and `YouTubeBrowserWindow.swift`: OAuth credentials and visible browser sign-in flow.
-- `Sources/YouTubeMac/*Bridge.swift`: channel, subscription, comments, live-chat, and web-feed compatibility bridges.
-- `Sources/YouTubeMac/YouGlassDiagnostics.swift`, `YouGlassDebugEngine.swift`, and `YouGlassRequestSupport.swift`: redacted diagnostics, runtime breadcrumbs, crash support, and WebKit request helpers.
+- `Sources/YouTubeMac/YouTubeChannelBridge.swift`, `YouTubeSubscriptionBridge.swift`, and `YouTubeLiveChatBridge.swift`: remaining focused WebKit compatibility bridges.
+- `Sources/YouTubeMac/YouGlassDiagnostics.swift` and `YouGlassRequestSupport.swift`: redacted diagnostics facade and WebKit request helpers.
 - `Sources/YouTubeMac/Resources/`: Icon Composer source, fallback icon resources, and packaged assets.
 - `Tests/YouTubeMacTests/`: XCTest coverage for models, policies, diagnostics, and persistence-adjacent behavior.
 - `script/`: local build, test, release packaging, diagnostics export, and optional remote-development helpers.

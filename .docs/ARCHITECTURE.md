@@ -11,14 +11,19 @@
 
 The settings scene also receives the store's persisted color scheme via the SwiftUI environment and preferred color scheme. `YouGlassWindowSizingView` is a small AppKit bridge that keeps the main window inside the active screen's visible frame.
 
+## Source organization
+
+The source tree is organized by responsibility rather than by one-file-per-feature monolith. App composition lives in `App/`, value types in `Models/`, the main-actor state machine in focused `Stores/` extensions, SwiftUI surfaces in `Views/Home/`, `Views/Settings/`, and `Views/Player/`, and network/WebKit/diagnostic code in `Services/`. Keep each Swift source file below 500 lines. Large JavaScript payloads are split into ordered script-part files and joined by a small Swift facade.
+
 ## State ownership and data flow
 
 - `YouTubeStore` is `@MainActor` and `ObservableObject`. It owns published UI state, account/feed orchestration, local preference writes, saved videos, playback checkpoints, and calls into API/OAuth/browser/bridge services.
-- `Models.swift` contains plain value types and policies. Keep parsing, validation, and policy decisions there when they do not require UI state.
-- `YouGlassSettingsView` owns only settings-window-local state such as selected page, sidebar visibility, text-field drafts, alerts, and authorization progress. Shared settings are read/written through `YouTubeStore` and `@AppStorage`.
+- `Models/` contains plain value types and policies. Keep parsing, validation, and policy decisions there when they do not require UI state.
+- `YouTubeStore` is declared in `Stores/YouTubeStore.swift`; focused extensions keep initialization, settings, playback, feed, account, persistence, community, search, and presentation responsibilities independently editable.
+- `YouGlassSettingsView` owns only settings-window-local state such as selected page, sidebar visibility, text-field drafts, alerts, and authorization progress. Its pages, components, theme cards, window configuration, and scroll bridge live in separate `Views/Settings/` files. Shared settings are read/written through `YouTubeStore` and `@AppStorage`.
 - `YouGlassVisualTheme.swift` provides the shared `Palette`/ambient background layer. `YouGlassThemeCatalog.swift` provides the 12 selectable theme families and their light/dark colors.
-- `YouTubeHomeView` renders the main navigation and feed surfaces from the store.
-- `YouTubePlayerView` renders native controls and coordinates player state. `YouTubeInlinePlayerView` owns the visible WebKit media surface and its JavaScript command bridge.
+- `Views/Home/YouTubeHomeView` renders the main navigation and feed surfaces from the store, with sidebar, hero, card, playlist, image, background, and loading states separated into focused files.
+- `Views/Player/` renders native controls and coordinates player state. The inline player owns the visible WebKit media surface, lifecycle, coordinator, messages, and ordered JavaScript command bridge independently from the native watch screen.
 
 ## Settings layout
 
@@ -46,12 +51,12 @@ The Appearance page is deliberately taller than the default window because it co
 
 ## Service boundaries
 
-- `YouTubeAPIClient`: public/account-scoped YouTube Data API requests, decoding, quota/transient error classification.
+- `Services/YouTubeAPIClient*`: public/account-scoped YouTube Data API requests split by search, video, channel, comments, live chat, account, playlists, and transport responsibilities; response models and quota/transient error classification are separate files.
 - `YouTubeOAuthClient`: client ID/secret/token persistence and Google authorization exchange.
 - `YouTubeBrowserWindow`: visible authentication/session window and sign-out/reset behavior.
-- `YouTubeWebFeedBridge`, `YouTubeSubscriptionBridge`, `YouTubeChannelBridge`, `YouTubeCommentsBridge`, and `YouTubeLiveChatBridge`: WebKit-backed compatibility/data extraction paths. They are intentionally isolated from the main SwiftUI view tree.
+- `YouTubeWebFeedBridge*` and `YouTubeCommentsBridge*`: WebKit-backed compatibility/data extraction paths split into request, navigation, extraction, script, and payload responsibilities. `YouTubeSubscriptionBridge`, `YouTubeChannelBridge`, and `YouTubeLiveChatBridge` remain focused standalone bridges. They are intentionally isolated from the main SwiftUI view tree.
 - `YouGlassPictureInPicture` and `YouGlassDesktopPIPWindow`: desktop PIP state/window management.
-- `YouGlassDiagnostics` and `YouGlassDebugEngine`: structured redacted events, session lifecycle, crash artifacts, and exportable support data.
+- `YouGlassDiagnostics` and `YouGlassDebugEngine*`: structured redacted events, session lifecycle, crash artifacts, persistence, and exportable support data split into focused service files.
 - `YouGlassUpdater`: Sparkle update controller and stable appcast flow.
 
 ## Platform stability rules

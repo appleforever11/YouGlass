@@ -2,6 +2,14 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — comprehensive source modularization
+
+- Reorganized the app entry point, models, home window, settings window, store, native player, inline WebKit player, API client, WebKit feed/comments bridges, and debug engine into focused responsibility-based files.
+- Split the inline player JavaScript into ordered script parts and kept the existing runtime behavior through a small joining facade.
+- Removed the former 700+ line monoliths. Every Swift file under `Sources/` and `Tests/` is now below the 500-line maintainability target.
+- Preserved the AppKit scroll-container boundary for settings and the existing native/WebKit player separation.
+- Validation: `swift build --product YouGlass` passes after the complete source split.
+
 ## 2026-08-26 — project guidance setup
 
 - Repository resolved to `/Users/kevinhowe/Codex Projects Restored/YouGlass` from the iCloud-visible workspace path.
@@ -11,9 +19,9 @@ This file records durable project context, not every line edit. The local Git hi
 - Added root `AGENTS.md` and the `.docs/` project knowledge base. The setup commit must contain only those documentation files.
 - Existing dirty application work was intentionally preserved. Before the setup commit, the worktree already included settings/theme catalog work, visual/theme changes, player/feed/stability changes, and model tests. Inspect `git status` before staging anything.
 
-## Active investigation at setup
+## Historical settings investigation at setup
 
-The live settings window reproduced an Appearance-page geometry bug: the detail scroll bar reported value `0`, but the Appearance content began several hundred points below the viewport. Scrolling downward worked, so the primary defect was document/root alignment rather than a missing scroll range. The current source includes an uncommitted AppKit `NSScrollView` bridge and is the subject of the paused fix task. Rebuild and inspect the actual settings window after each geometry change.
+The live settings window reproduced an Appearance-page geometry bug: the detail scroll bar reported value `0`, but the Appearance content began several hundred points below the viewport. Scrolling downward worked, so the primary defect was document/root alignment rather than a missing scroll range. The corrected AppKit `NSScrollView` bridge now lives under `Views/Settings/` and should be validated against the rebuilt app bundle after future geometry changes.
 
 ## How to recall a prior change
 
