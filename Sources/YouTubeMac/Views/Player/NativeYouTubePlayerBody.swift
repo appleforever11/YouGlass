@@ -100,7 +100,10 @@ extension NativeYouTubePlayer {
             // Avoid applying a second SwiftUI mask to a remote WebKit layer while
             // AppKit is receiving a layer-tree transaction.
             .overlay {
-                RoundedRectangle(cornerRadius: 24)
+                RoundedRectangle(
+                    cornerRadius: PlayerMediaMetrics.cornerRadius,
+                    style: .continuous
+                )
                     .stroke(.white.opacity(0.12), lineWidth: 1)
                     .allowsHitTesting(false)
             }

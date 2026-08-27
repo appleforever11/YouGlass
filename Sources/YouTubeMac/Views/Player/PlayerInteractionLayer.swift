@@ -98,13 +98,6 @@ enum PlayerTransportLayout {
         palette.theme == .arcticGlass ? -12 : -28
     }
 
-    // Five buttons, a fixed status label, and the PiP button. Keeping this
-    // width fixed makes the SwiftUI visuals and AppKit hit regions use the
-    // same x coordinates even when the status text changes.
-    static var normalGroupWidth: CGFloat {
-        (normalButtonSize * 6) + (normalSpacing * 6) + normalStatusWidth
-    }
-
     static func compactButtonSize(for width: CGFloat) -> CGFloat {
         min(34, max(22, (width - 15) / 6))
     }

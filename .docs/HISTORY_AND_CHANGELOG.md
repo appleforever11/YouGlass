@@ -2,6 +2,14 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — repair full-player edge flow, controls, and scrolling
+
+- Made the watch header part of the shared ambient surface by masking its material and fading the lower edge instead of drawing a hard divider. The media receives matching top breathing room, a shared 24-point media/WebKit/native radius, and centered ambient/neutral perimeter shadows.
+- Centered the five primary playback controls against the media frame itself. Status text and PIP remain trailing secondary chrome, so their width no longer shifts the Play cluster to the left.
+- Reduced the wide watch page to one vertical scroll owner. Comments and the ten-item Up Next rail render as intrinsic-height stacks; the comments panel has a small bounded minimum so its fallback/API states participate in the page document instead of disappearing below a short scroll range.
+- Expanded the recommendation fallback to merge sparse API results with the loaded local/history/saved catalog, preventing Up Next from collapsing to a single card.
+- Runtime evidence after rebuilding `dist/YouGlass.app`: the rebuilt player shows centered transport controls, a seamless header-to-page transition, a populated ten-item Up Next rail, and a bottom scroll position with the comments heading/message reachable. `git diff --check`, `./script/test.sh` (32 tests), and `./script/build_and_run.sh --verify` passed.
+
 ## 2026-08-27 — product foundation milestone: eight app improvements
 
 - Added a local-first Continue Watching flow with bounded playback durations, a persistent queue with autoplay, and a Library for Watch Later, local likes, named collections, and timestamped notes.

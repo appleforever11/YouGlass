@@ -28,7 +28,7 @@ final class YouTubeInlinePlayerHostView: NSView {
         clipsToBounds = true
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
-        layer?.cornerRadius = 24
+        layer?.cornerRadius = PlayerMediaMetrics.cornerRadius
         layer?.masksToBounds = true
 
         webView.translatesAutoresizingMaskIntoConstraints = true
@@ -36,7 +36,7 @@ final class YouTubeInlinePlayerHostView: NSView {
         webView.clipsToBounds = true
         webView.wantsLayer = true
         webView.layer?.masksToBounds = true
-        webView.layer?.cornerRadius = 24
+        webView.layer?.cornerRadius = PlayerMediaMetrics.cornerRadius
         addSubview(webView)
     }
 

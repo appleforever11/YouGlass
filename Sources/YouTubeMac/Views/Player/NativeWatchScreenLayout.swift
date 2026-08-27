@@ -13,7 +13,7 @@ extension NativeWatchScreen {
 
             let documentWidth = max(1, availableSize.width - (horizontalPadding * 2))
 
-            return ScrollView(showsIndicators: true) {
+            return ScrollView(.vertical, showsIndicators: true) {
                 HStack(alignment: .top, spacing: columnSpacing) {
                     VStack(alignment: .leading, spacing: 0) {
                         watchDetailsContent(playerWidth: playerWidth)
@@ -31,20 +31,24 @@ extension NativeWatchScreen {
                     .frame(width: playerWidth, alignment: .topLeading)
 
                     // Keep the side rail mounted while its width collapses at the
-                    // narrow breakpoint. Its own recommendation list stays bounded
-                    // so the parent watch document remains the only page scrollbar.
+                    // narrow breakpoint. It stays intrinsic-height so the parent
+                    // watch document remains the only vertical scroll owner.
                     watchSideColumn
-                        .frame(width: sideColumnWidth, height: availableSize.height, alignment: .top)
+                        .frame(width: sideColumnWidth, alignment: .topLeading)
                         .opacity(isWide ? 1 : 0)
                         .clipped()
                         .allowsHitTesting(isWide)
                 }
-                // Measure the document as one rectangle. The player, metadata, and
-                // Up Next rail now share one scroll viewport, so no indicator or
-                // overflow strip can be inserted between the two columns.
+                // Measure the document as one intrinsic-height rectangle. The
+                // player, metadata, comments, and Up Next rail now share one
+                // scroll viewport; none of the columns is allowed to manufacture
+                // a viewport-sized height that can swallow the page's scroll range.
                 .frame(width: documentWidth, alignment: .topLeading)
-                .frame(minHeight: availableSize.height, alignment: .topLeading)
                 .padding(.horizontal, horizontalPadding)
+                // Leave the media halo room above the fixed watch header. The
+                // scroll viewport clips at its bounds; without this breathing
+                // room a centered shadow is still cut off along the top edge.
+                .padding(.top, 16)
                 // This is intentionally translucent. PlayerAmbientSurface is
                 // mounted behind the watch screen; an opaque content fill made
                 // each theme stop abruptly at the player/page boundary.
@@ -79,7 +83,12 @@ extension NativeWatchScreen {
                 // an unconstrained transparent gesture surface can otherwise
                 // intercept clicks intended for Like, Dislike, Share, or Save.
                 .clipped()
-                .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .contentShape(
+                    RoundedRectangle(
+                        cornerRadius: PlayerMediaMetrics.cornerRadius,
+                        style: .continuous
+                    )
+                )
                 .modifier(
                     BlendedPlayerSurfaceModifier(
                         palette: palette,
@@ -89,7 +98,12 @@ extension NativeWatchScreen {
                 // BlendedPlayerSurfaceModifier clips the media content while
                 // preserving its ambient glow and shadow outside the rounded
                 // edge. A second final clip here would cut that flow off again.
-                .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .contentShape(
+                    RoundedRectangle(
+                        cornerRadius: PlayerMediaMetrics.cornerRadius,
+                        style: .continuous
+                    )
+                )
 
                 YouGlassVideoTitleBlock(
                     title: video.title,
@@ -106,6 +120,11 @@ extension NativeWatchScreen {
                 commentComposer
                 commentsList
             }
+            // The surrounding HStack is measured by the outer vertical
+            // ScrollView. Keep the detail column's stacked sections intrinsic
+            // instead of allowing an infinite-height proposal to collapse the
+            // comments section into the viewport-sized row.
+            .fixedSize(horizontal: false, vertical: true)
         }
 
         var watchSideColumn: some View {
@@ -127,8 +146,7 @@ extension NativeWatchScreen {
 
                 relatedRail
             }
-            .frame(width: 280, alignment: .top)
-            .frame(maxHeight: .infinity, alignment: .top)
+            .frame(width: 280, alignment: .topLeading)
         }
 
         var compactRelatedRail: some View {
@@ -136,14 +154,14 @@ extension NativeWatchScreen {
                 Text("Up Next")
                     .font(.system(size: 16, weight: .bold))
 
-                if recommendations.isEmpty {
+                if playerRecommendations.isEmpty {
                     Text("Recommendations will appear here when YouTube returns them.")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(palette.secondaryText)
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
                         LazyHStack(spacing: 10) {
-                            ForEach(recommendations) { related in
+                            ForEach(playerRecommendations) { related in
                                 Button {
                                     store.openFromUserInteraction(related)
                                 } label: {
@@ -249,11 +267,38 @@ extension NativeWatchScreen {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(.thinMaterial)
-            .overlay(alignment: .bottom) {
+            // Fade the fixed header into the ambient watch surface instead of
+            // ending it as a separate opaque rectangle. The mask keeps the
+            // controls legible while the lower edge reveals the same backdrop
+            // that continues behind the player and Up Next rail.
+            .background {
                 Rectangle()
-                    .fill(palette.stroke.opacity(0.65))
-                    .frame(height: 1)
+                    .fill(.thinMaterial)
+                    .opacity(0.84)
+                    .mask {
+                        LinearGradient(
+                            stops: [
+                                .init(color: .white, location: 0),
+                                .init(color: .white, location: 0.76),
+                                .init(color: .clear, location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    }
+            }
+            .overlay(alignment: .bottom) {
+                LinearGradient(
+                    colors: [
+                        palette.stroke.opacity(0.22),
+                        palette.content.opacity(0.10),
+                        .clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                    .frame(height: 24)
+                    .offset(y: 12)
                     .allowsHitTesting(false)
             }
             .zIndex(4)

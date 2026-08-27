@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum PlayerMediaMetrics {
+    static let cornerRadius: CGFloat = 24
+}
+
 struct PlayerAmbientSurface: View {
     let palette: Palette
     let ambientPalette: VideoAmbientPalette
@@ -78,10 +82,14 @@ struct BlendedPlayerSurfaceModifier: ViewModifier {
     let ambientPalette: VideoAmbientPalette
 
     func body(content: Content) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+        let shape = RoundedRectangle(
+            cornerRadius: PlayerMediaMetrics.cornerRadius,
+            style: .continuous
+        )
         let primaryGlow = ambientPalette.primary.color.opacity(palette.isDark ? 0.18 : 0.10)
         let secondaryGlow = ambientPalette.secondary.color.opacity(palette.isDark ? 0.12 : 0.07)
         let focusGlow = palette.accent.opacity(palette.isDark ? 0.16 : 0.09)
+        let neutralEdgeGlow = Color.white.opacity(palette.isDark ? 0.11 : 0.17)
 
         return content
             .compositingGroup()
@@ -121,12 +129,20 @@ struct BlendedPlayerSurfaceModifier: ViewModifier {
             .shadow(
                 color: focusGlow,
                 radius: 24,
-                y: 8
+                x: 0,
+                y: 0
+            )
+            .shadow(
+                color: neutralEdgeGlow,
+                radius: 8,
+                x: 0,
+                y: 0
             )
             .shadow(
                 color: ambientPalette.primary.color.opacity(palette.isDark ? 0.16 : 0.08),
                 radius: 18,
-                y: 4
+                x: 0,
+                y: 0
             )
     }
 }

@@ -66,45 +66,56 @@ extension NativeYouTubePlayer {
             VStack(spacing: 8) {
                 playbackScrubber
 
-                HStack(spacing: PlayerTransportLayout.normalSpacing) {
-                    PlayerControlButton(
-                        symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
-                        help: playbackController.isPlaying ? "Pause" : "Play",
-                        controlSize: PlayerTransportLayout.normalButtonSize,
-                        action: playbackController.togglePlayback
-                    )
-                    PlayerControlButton(symbol: "gobackward.15", help: "Back 15 seconds") {
-                        playbackController.seek(by: -15)
+                ZStack {
+                    // Center the primary playback cluster against the media
+                    // frame itself. Status text and PIP are secondary chrome;
+                    // including them in this HStack made the visible Play
+                    // button sit noticeably left of the video's center.
+                    HStack(spacing: PlayerTransportLayout.normalSpacing) {
+                        PlayerControlButton(
+                            symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
+                            help: playbackController.isPlaying ? "Pause" : "Play",
+                            controlSize: PlayerTransportLayout.normalButtonSize,
+                            action: playbackController.togglePlayback
+                        )
+                        PlayerControlButton(symbol: "gobackward.15", help: "Back 15 seconds") {
+                            playbackController.seek(by: -15)
+                        }
+                        PlayerControlButton(symbol: "goforward.15", help: "Forward 15 seconds") {
+                            playbackController.seek(by: 15)
+                        }
+                        PlayerControlButton(
+                            symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                            help: playbackController.isMuted ? "Unmute" : "Mute",
+                            action: playbackController.toggleMute
+                        )
+                        PlayerControlButton(
+                            symbol: playbackController.isCaptionsEnabled ? "captions.bubble.fill" : "captions.bubble",
+                            help: playbackController.isCaptionsEnabled ? "Turn off closed captions" : "Turn on closed captions",
+                            action: playbackController.toggleCaptions
+                        )
+                        .accessibilityIdentifier("captions-button")
                     }
-                    PlayerControlButton(symbol: "goforward.15", help: "Forward 15 seconds") {
-                        playbackController.seek(by: 15)
+
+                    HStack(spacing: PlayerTransportLayout.normalSpacing) {
+                        Text(playbackController.isMuted ? "Click to unmute" : playbackController.status)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.88))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                            .frame(width: PlayerTransportLayout.normalStatusWidth, alignment: .leading)
+
+                        PlayerControlButton(
+                            symbol: "pip.enter",
+                            help: "Picture in Picture",
+                            action: { store.presentDesktopPIP() }
+                        )
                     }
-                    PlayerControlButton(
-                        symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                        help: playbackController.isMuted ? "Unmute" : "Mute",
-                        action: playbackController.toggleMute
-                    )
-                    PlayerControlButton(
-                        symbol: playbackController.isCaptionsEnabled ? "captions.bubble.fill" : "captions.bubble",
-                        help: playbackController.isCaptionsEnabled ? "Turn off closed captions" : "Turn on closed captions",
-                        action: playbackController.toggleCaptions
-                    )
-                    .accessibilityIdentifier("captions-button")
-
-                    Text(playbackController.isMuted ? "Click to unmute" : playbackController.status)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.88))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                        .frame(width: PlayerTransportLayout.normalStatusWidth, alignment: .leading)
-
-                    PlayerControlButton(
-                        symbol: "pip.enter",
-                        help: "Picture in Picture",
-                        action: { store.presentDesktopPIP() }
-                    )
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 18)
                 }
-                .frame(width: PlayerTransportLayout.normalGroupWidth, height: 46)
+                .frame(maxWidth: .infinity)
+                .frame(height: 46)
                 .offset(y: PlayerTransportLayout.normalControlLift(for: palette))
             }
             .frame(maxWidth: 820)
