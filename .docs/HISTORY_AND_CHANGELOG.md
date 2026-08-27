@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — let long player titles use the full header width
+
+- Removed the artificial 640-point title cap and redundant spacer from the expanded-player header. The title now uses the flexible area between the close button and the fixed action shelf, preventing premature wrapping and left-side compression while preserving the title-first themed hierarchy.
+- Rebuilt and opened `dist/YouGlass.app`; the native smoke check confirmed a long title expands across the header without colliding with the control shelf, while the player rail remains populated. `./script/test.sh` passed all 32 tests.
+
 ## 2026-08-27 — strengthen the expanded-player title hierarchy
 
 - Reworked the shared player header title block so the video title is the primary visual anchor: it is larger, heavy-weight, and filled with a gradient derived from the active theme. `NOW PLAYING` now sits immediately below the title in the theme accent, while the channel remains subdued; the detail title below the media is unchanged.

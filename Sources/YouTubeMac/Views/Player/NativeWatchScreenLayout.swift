@@ -189,10 +189,11 @@ extension NativeWatchScreen {
                     palette: palette,
                     placement: .header
                 )
-                .frame(maxWidth: 640, alignment: .leading)
+                // Give the title every flexible point between the close button
+                // and the fixed control shelf so long titles do not wrap early
+                // into a narrow, left-compressed column.
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(1)
-
-                Spacer()
 
                 headerControlGroup
             }
