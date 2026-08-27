@@ -71,6 +71,11 @@ extension YouTubeStore {
                 }
             }
 
+            if !isNetworkAvailable {
+                connectionMessage = "Offline — showing saved recommendations"
+                return
+            }
+
             connectionMessage = "Loading YouTube homepage recommendations..."
             let hasOAuthSession = (try? await oauth.validAccessToken()) != nil
             if hasOAuthSession && !isSignedIn {

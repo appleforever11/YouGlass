@@ -37,9 +37,14 @@ final class YouTubeStore: ObservableObject {
     @Published var recentlyWatched: [VideoItem] = []
     @Published var savedVideos: [VideoItem] = []
     @Published var locallyLikedVideos: [VideoItem] = []
+    @Published var customCollections: [YouGlassLibraryCollection] = []
+    @Published var videoNotes: [YouGlassVideoNote] = []
     @Published var searchResults: [VideoItem] = []
     var playbackPositions: [String: Double] = [:]
+    var playbackDurations: [String: Double] = [:]
     var playbackPositionUpdatedAt: [String: Date] = [:]
+    @Published var playbackQueue: [VideoItem] = []
+    @Published var queueAutoplay = true
     @Published var playlists: [YouTubePlaylist] = []
     @Published var selectedPlaylist: YouTubePlaylist?
     @Published var playlistItems: [VideoItem] = []
@@ -51,6 +56,12 @@ final class YouTubeStore: ObservableObject {
     @Published var isDesktopPIPActive = false
     @Published var pipTransitionState: PIPTransitionState = .idle
     @Published var compactPlayerCorner: CompactPlayerCorner = .topTrailing
+    @Published var showContinueWatching = true
+    @Published var hideShortsFromHome = true
+    @Published var commandPalettePresented = false
+    @Published var themeCustomization = YouGlassThemeCustomization.empty
+    @Published var isNetworkAvailable = true
+    @Published var networkStatus = "Checking connection..."
     @Published var ambientPalette = VideoAmbientPalette.neutral
     @Published var lastAccountSyncDate: Date?
     @Published var feedLastRefreshedDate: Date?
@@ -87,6 +98,7 @@ final class YouTubeStore: ObservableObject {
     var playbackCommandHandler: ((YouGlassPlaybackCommand) -> Void)?
     var playbackCommandHandlerToken: UUID?
     var pipTransitionTask: Task<Void, Never>?
+    var networkMonitor: YouGlassNetworkMonitor?
     let defaults = UserDefaults.standard
     let playbackLogger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")
 
@@ -106,6 +118,9 @@ final class YouTubeStore: ObservableObject {
         }
         backgroundGlow = defaults.object(forKey: DefaultsKey.backgroundGlow) as? Double ?? 0.78
         glassIntensity = defaults.object(forKey: DefaultsKey.glassIntensity) as? Double ?? 0.72
+        showContinueWatching = defaults.object(forKey: DefaultsKey.showContinueWatching) as? Bool ?? true
+        hideShortsFromHome = defaults.object(forKey: DefaultsKey.hideShortsFromHome) as? Bool ?? true
+        themeCustomization = decodeThemeCustomization()
         lastAccountSyncDate = defaults.object(forKey: DefaultsKey.lastAccountSyncDate) as? Date
         cachedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedFeedDate) as? Date
         cachedPersonalizedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedPersonalizedFeedDate) as? Date
@@ -126,6 +141,13 @@ final class YouTubeStore: ObservableObject {
         recentlyWatched = decodeVideos(forKey: DefaultsKey.recentlyWatched)
         savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
         locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
+        customCollections = decodeCollections()
+        videoNotes = decodeVideoNotes()
+        if let data = defaults.data(forKey: DefaultsKey.playbackQueue),
+           let state = try? JSONDecoder().decode(YouGlassPlaybackQueueState.self, from: data) {
+            playbackQueue = state.videos
+            queueAutoplay = state.autoplay
+        }
         if let data = defaults.data(forKey: DefaultsKey.cachedPersonalizedFeed),
            let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
            !cachedVideos.isEmpty {
@@ -140,7 +162,18 @@ final class YouTubeStore: ObservableObject {
             _ = applyPrimaryHomeVideos(cachedVideos, message: "Saved YouTube recommendations", cacheFeed: false)
         }
         playbackPositions = decodePlaybackPositions()
+        playbackDurations = decodePlaybackDurations()
         playbackPositionUpdatedAt = decodePlaybackPositionDates()
+
+        networkMonitor = YouGlassNetworkMonitor { [weak self] isAvailable in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.isNetworkAvailable = isAvailable
+                self.networkStatus = isAvailable ? "Online" : "Offline — using saved data"
+            }
+        }
+        networkMonitor?.start()
+        YouGlassDockMenuController.shared.store = self
 
         authObservers = [
             NotificationCenter.default.addObserver(
@@ -208,7 +241,11 @@ final class YouTubeStore: ObservableObject {
         static let savedVideos = "YouGlass.savedVideos"
         static let locallyLikedVideos = "YouGlass.locallyLikedVideos"
         static let playbackPositions = "YouGlass.playbackPositions"
+        static let playbackDurations = "YouGlass.playbackDurations"
         static let playbackPositionUpdatedAt = "YouGlass.playbackPositionUpdatedAt"
+        static let playbackQueue = "YouGlass.playbackQueue"
+        static let customCollections = "YouGlass.customCollections"
+        static let videoNotes = "YouGlass.videoNotes"
         static let cachedSubscriptions = "YouGlass.cachedSubscriptions"
         static let cachedSubscriptionsDate = "YouGlass.cachedSubscriptionsDate"
         static let theme = "YouGlass.theme"
@@ -216,5 +253,8 @@ final class YouTubeStore: ObservableObject {
         static let backgroundGlow = YouGlassVisualDefaults.backgroundGlow
         static let glassIntensity = YouGlassVisualDefaults.glassIntensity
         static let lastAccountSyncDate = "YouGlass.lastAccountSyncDate"
+        static let showContinueWatching = "YouGlass.showContinueWatching"
+        static let hideShortsFromHome = "YouGlass.hideShortsFromHome"
+        static let themeCustomization = "YouGlass.themeCustomization"
     }
 }

@@ -99,8 +99,7 @@ extension NativeWatchScreen {
                         }
                     }
                     WatchActionButton(symbol: "square.and.arrow.up", title: "Share", palette: palette) {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(video.playbackURL.absoluteString, forType: .string)
+                        store.shareVideo(video)
                     }
                     WatchActionButton(symbol: saved ? "bookmark.fill" : "bookmark", title: saved ? "Saved" : "Save", palette: palette) {
                         saved.toggle()

@@ -196,6 +196,47 @@ extension NativeWatchScreen {
                 .help("Picture in Picture")
 
                 Button {
+                    queuePresented.toggle()
+                } label: {
+                    Image(systemName: queuePresented ? "list.bullet.rectangle.portrait.fill" : "list.bullet.rectangle.portrait")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .buttonStyle(GlassIconButtonStyle(palette: palette))
+                .accessibilityLabel(queuePresented ? "Hide playback queue" : "Show playback queue")
+                .help("Playback queue")
+
+                Menu {
+                    ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in
+                        Button(rate == 1 ? "Normal" : "\(rate)x") {
+                            store.sendPlaybackCommand(.setPlaybackRate(rate))
+                        }
+                    }
+                } label: {
+                    Image(systemName: "speedometer")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 34, height: 34)
+                .foregroundStyle(palette.text)
+                .help("Playback speed")
+
+                Button(action: store.minimizePlayer) {
+                    Image(systemName: "minus")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .buttonStyle(GlassIconButtonStyle(palette: palette))
+                .accessibilityLabel("Minimize player")
+                .help("Mini-player")
+
+                Button(action: store.toggleMainWindowFullScreen) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 15, weight: .semibold))
+                }
+                .buttonStyle(GlassIconButtonStyle(palette: palette))
+                .accessibilityLabel("Toggle full screen")
+                .help("Full screen")
+
+                Button {
                     saved.toggle()
                     store.toggleSaved(video)
                 } label: {

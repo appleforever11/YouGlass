@@ -11,6 +11,20 @@ extension YouGlassSettingsView {
                     settingsValueRow("Watched on this Mac", value: "\(store.recentlyWatched.count)", systemName: "clock")
                     settingsValueRow("Saved in YouGlass", value: "\(store.savedVideos.count)", systemName: "bookmark")
                     settingsValueRow("Liked locally", value: "\(store.locallyLikedVideos.count)", systemName: "hand.thumbsup")
+                    Toggle(
+                        "Show Continue Watching on Home",
+                        isOn: Binding(
+                            get: { store.showContinueWatching },
+                            set: { store.setShowContinueWatching($0) }
+                        )
+                    )
+                    Toggle(
+                        "Hide Shorts from Home recommendations",
+                        isOn: Binding(
+                            get: { store.hideShortsFromHome },
+                            set: { store.setHideShortsFromHome($0) }
+                        )
+                    )
                 }
 
                 settingsGroup("Refresh", footer: "Refreshing asks the signed-in session and the official API for new candidates, then reranks them with your local signals.") {

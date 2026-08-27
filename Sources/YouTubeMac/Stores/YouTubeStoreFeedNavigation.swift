@@ -86,12 +86,8 @@ extension YouTubeStore {
             case "Liked Videos":
                 await loadLikedVideos()
             case "Library":
-                let library = mergeVideos(savedVideos + locallyLikedVideos + recentlyWatched)
-                if library.isEmpty {
-                    showEmptySection("Save or like a video to build your library")
-                } else {
-                    applyHomeVideos(library, message: "Your YouGlass library")
-                }
+                sectionEmptyMessage = nil
+                connectionMessage = "Your local YouGlass library"
             case "Playlists":
                 await loadPlaylists()
             case "Subscriptions":

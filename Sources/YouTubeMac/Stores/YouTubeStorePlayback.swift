@@ -8,6 +8,27 @@ extension YouTubeStore {
             return position.isFinite ? max(0, position) : 0
         }
 
+        func playbackDuration(for videoID: String) -> Double {
+            let duration = playbackDurations[videoID] ?? 0
+            return duration.isFinite ? max(0, duration) : 0
+        }
+
+        func playbackProgress(for video: VideoItem) -> Double {
+            let duration = playbackDuration(for: video.id)
+            guard duration > 0 else { return 0 }
+            return min(max(playbackPosition(for: video.id) / duration, 0), 1)
+        }
+
+        var continueWatching: [VideoItem] {
+            recentlyWatched.filter { video in
+                let position = playbackPosition(for: video.id)
+                let duration = playbackDuration(for: video.id)
+                guard position > 1 else { return false }
+                guard duration > 0 else { return true }
+                return position / duration < PlaybackCheckpointPolicy.completionFraction
+            }
+        }
+
         func savePlaybackPosition(for video: VideoItem, at seconds: Double, duration: Double) {
             guard seconds.isFinite, seconds > 1 else { return }
 
@@ -20,11 +41,15 @@ extension YouTubeStore {
 
             if isNearCompletion {
                 playbackPositions.removeValue(forKey: video.id)
+                playbackDurations.removeValue(forKey: video.id)
                 playbackPositionUpdatedAt.removeValue(forKey: video.id)
             } else {
                 playbackPositions[video.id] = hasFiniteDuration
                     ? min(safePosition, duration)
                     : safePosition
+                if hasFiniteDuration {
+                    playbackDurations[video.id] = duration
+                }
                 playbackPositionUpdatedAt[video.id] = Date()
             }
 
@@ -40,9 +65,17 @@ extension YouTubeStore {
                 }.prefix(excessCount)
                 excessIDs.forEach {
                     playbackPositions.removeValue(forKey: $0)
+                    playbackDurations.removeValue(forKey: $0)
                     playbackPositionUpdatedAt.removeValue(forKey: $0)
                 }
             }
+            persistPlaybackPositions()
+        }
+
+        func clearPlaybackPosition(for video: VideoItem) {
+            playbackPositions.removeValue(forKey: video.id)
+            playbackDurations.removeValue(forKey: video.id)
+            playbackPositionUpdatedAt.removeValue(forKey: video.id)
             persistPlaybackPositions()
         }
 

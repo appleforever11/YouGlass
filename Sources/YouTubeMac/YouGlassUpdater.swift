@@ -86,6 +86,10 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
         Self.shared = nil
     }
 
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        YouGlassDockMenuController.shared.menu()
+    }
+
     nonisolated private static func discardMouseMovedEvent(_ event: NSEvent) -> NSEvent? {
         nil
     }

@@ -144,6 +144,35 @@ struct VideoCard: View {
         }
         .scaleEffect(isHovered ? 1.012 : 1)
         .animation(.easeOut(duration: 0.16), value: isHovered)
+        .accessibilityLabel("\(video.title), by \(video.channel)")
+        .contextMenu {
+            Button(store.isSaved(video) ? "Remove from Watch Later" : "Save to Watch Later") {
+                store.toggleSaved(video)
+            }
+            Button("Play Next") {
+                store.enqueue(video)
+            }
+            if store.customCollections.isEmpty {
+                Button("Create a collection in Library") {
+                    store.showSection("Library")
+                }
+            } else {
+                Menu("Add to Collection") {
+                    ForEach(store.customCollections) { collection in
+                        Button {
+                            store.add(video, toCollectionID: collection.id)
+                        } label: {
+                            Label(
+                                collection.name,
+                                systemImage: store.collectionContains(video, collectionID: collection.id)
+                                    ? "checkmark"
+                                    : "folder"
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -181,5 +210,6 @@ struct CompactVideoCard: View {
         .onHover { hovering in
             if hovering { store.prewarmPlayback(for: video) }
         }
+        .accessibilityLabel("\(video.title), by \(video.channel)")
     }
 }

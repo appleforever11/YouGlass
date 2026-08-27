@@ -5,7 +5,9 @@ struct YouTubeHomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var compactDragOffset: CGSize = .zero
 
-    private var palette: Palette { Palette(colorScheme, theme: store.visualTheme) }
+    private var palette: Palette {
+        Palette(colorScheme, theme: store.visualTheme, customization: store.themeCustomization)
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -59,10 +61,24 @@ struct YouTubeHomeView: View {
                                     onCompactDragEnded: nil
                                 )
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
                         }
                     }
                 }
+
+                if store.commandPalettePresented {
+                    Color.black.opacity(colorScheme == .dark ? 0.42 : 0.22)
+                        .ignoresSafeArea()
+                        .onTapGesture { store.commandPalettePresented = false }
+                        .zIndex(20)
+
+                    CommandPaletteView(
+                        palette: palette,
+                        dismiss: { store.commandPalettePresented = false }
+                    )
+                    .environmentObject(store)
+                    .zIndex(21)
+                }
+            }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .overlay(
@@ -256,7 +272,10 @@ struct YouTubeHomeView: View {
                         .font(.system(size: 26, weight: .bold))
                         .padding(.top, 6)
 
-                    if let message = store.sectionEmptyMessage {
+                    if store.selectedSection == "Library" {
+                        PersonalLibraryView(palette: palette, compact: compact)
+                            .environmentObject(store)
+                    } else if let message = store.sectionEmptyMessage {
                         VStack(alignment: .leading, spacing: 12) {
                             Image(systemName: "tray")
                                 .font(.system(size: 28, weight: .medium))
@@ -285,6 +304,13 @@ struct YouTubeHomeView: View {
                             }
                         } else {
                             HeroSection(palette: palette, compact: compact)
+                        }
+
+                        if store.selectedSection == "Home",
+                           store.showContinueWatching,
+                           !store.continueWatching.isEmpty {
+                            ContinueWatchingRow(palette: palette, compact: compact)
+                                .environmentObject(store)
                         }
 
                         if !store.feed.forYou.isEmpty {
@@ -400,22 +426,40 @@ struct YouTubeHomeView: View {
             )
             .layoutPriority(1)
 
+            Button(action: store.toggleCommandPalette) {
+                Image(systemName: "command")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .buttonStyle(IconButtonStyle(palette: palette))
+            .accessibilityLabel("Open command palette")
+            .help("Command palette (⌘K)")
+
             Spacer(minLength: minimal ? 4 : (compact ? 6 : 12))
 
             if minimal {
                 EmptyView()
             } else if compact {
-                Image(systemName: store.isSignedIn ? "checkmark.circle.fill" : "icloud.slash")
-                    .foregroundStyle(store.isSignedIn ? Color.green : palette.secondaryText)
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(store.isNetworkAvailable ? Color.green : Color.orange)
+                        .frame(width: 7, height: 7)
+                    Image(systemName: store.isSignedIn ? "checkmark.circle.fill" : "icloud.slash")
+                }
+                    .foregroundStyle(store.isNetworkAvailable && store.isSignedIn ? Color.green : palette.secondaryText)
                     .accessibilityLabel(store.connectionMessage)
-                    .help(store.connectionMessage)
+                    .help("\(store.networkStatus). \(store.connectionMessage)")
             } else {
-                Text(store.connectionMessage)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(store.isNetworkAvailable ? Color.green : Color.orange)
+                        .frame(width: 7, height: 7)
+                    Text(store.connectionMessage)
+                }
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(store.connectionMessage.contains("signed-in") ? Color.green : palette.secondaryText)
+                    .foregroundStyle(store.isNetworkAvailable ? palette.secondaryText : Color.orange)
                     .lineLimit(1)
                     .frame(maxWidth: 190, alignment: .trailing)
-                    .help(store.connectionMessage)
+                    .help("\(store.networkStatus). \(store.connectionMessage)")
             }
 
             Button(action: { Task { await store.loadHome(force: true) } }) {

@@ -9,6 +9,7 @@ final class YouTubePlaybackController: ObservableObject {
     @Published var isMuted = false
     @Published var isCaptionsEnabled = false
     @Published var isPlaying = false
+    @Published var didFinish = false
     @Published var isPictureInPictureAvailable = false
     @Published var isPictureInPictureActive = false
     @Published var isSurfaceReady = false
@@ -16,6 +17,7 @@ final class YouTubePlaybackController: ObservableObject {
     @Published var canRetry = false
     @Published var currentTime: Double = 0
     @Published var duration: Double = 0
+    @Published var playbackRate = 1.0
     @Published var ambientPalette = VideoAmbientPalette.neutral
 
     weak var webView: WKWebView?

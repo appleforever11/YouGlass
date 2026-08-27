@@ -16,6 +16,7 @@ struct YouGlassSettingsView: View {
     @State var authorizing = false
     @State var showingResetConfirmation = false
     @State var showingCacheResetConfirmation = false
+    @State var accentHexDraft = ""
     @State var debugStatus: String?
     @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) var reduceAmbientMotion = false
     @AppStorage("YouGlass.preferTechnicalErrorAlerts") var preferTechnicalErrorAlerts = false
@@ -31,6 +32,10 @@ struct YouGlassSettingsView: View {
     }
 
     var palette: Palette {
-        Palette(effectiveColorScheme, theme: store.visualTheme)
+        Palette(
+            effectiveColorScheme,
+            theme: store.visualTheme,
+            customization: store.themeCustomization
+        )
     }
 }

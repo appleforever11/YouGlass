@@ -6,6 +6,7 @@ struct YouGlassAppRoot: View {
 
     var body: some View {
         YouTubeHomeView()
+            .onAppear { store.configureNativeMediaControls() }
             .onChange(of: scenePhase) { _, phase in
                 store.handleScenePhaseChange(phase)
             }

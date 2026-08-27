@@ -53,6 +53,14 @@ extension NativeWatchScreen {
             // at an opaque rectangle around the video.
             .background(Color.clear)
             .clipShape(Rectangle())
+            .overlay(alignment: .topTrailing) {
+                if !isCompact, queuePresented {
+                    PlayerQueuePanel(store: store, palette: palette)
+                        .padding(.top, 60)
+                        .padding(.trailing, 14)
+                        .zIndex(40)
+                }
+            }
             .focusable()
             .focusEffectDisabled()
             .onKeyPress(.space) {
@@ -164,9 +172,12 @@ extension NativeWatchScreen {
                     case .seek(let seconds): controller.seek(by: seconds)
                     case .toggleMute: controller.toggleMute()
                     case .toggleCaptions: controller.toggleCaptions()
+                    case .setPlaybackRate(let rate): controller.setPlaybackRate(rate)
                     case .retry: controller.retryPlayback()
                     }
                 }
+                store.configureNativeMediaControls()
+                syncNativeNowPlaying()
                 playbackController.restorePlaybackPosition(
                     store.playbackPosition(for: video.id),
                     for: video.id
@@ -175,6 +186,27 @@ extension NativeWatchScreen {
             }
             .onChange(of: playbackController.ambientPalette) { _, nextPalette in
                 store.setAmbientPalette(nextPalette)
+            }
+            .onChange(of: playbackController.currentTime) { _, _ in
+                syncNativeNowPlaying()
+            }
+            .onChange(of: playbackController.duration) { _, _ in
+                syncNativeNowPlaying()
+            }
+            .onChange(of: playbackController.isPlaying) { _, _ in
+                syncNativeNowPlaying()
+            }
+            .onChange(of: playbackController.playbackRate) { _, _ in
+                syncNativeNowPlaying()
+            }
+            .onChange(of: playbackController.didFinish) { _, didFinish in
+                guard didFinish else { return }
+                playbackController.didFinish = false
+                guard store.queueAutoplay else {
+                    syncNativeNowPlaying()
+                    return
+                }
+                store.playNextInQueue()
             }
             .onChange(of: store.subscriptions) { _, _ in
                 guard subscriptionStatusResolved else { return }

@@ -33,6 +33,13 @@ struct YouTubeMacApp: App {
             }
 
             CommandMenu("YouGlass") {
+                Button("Command Palette") {
+                    store.toggleCommandPalette()
+                }
+                .keyboardShortcut("k", modifiers: [.command])
+
+                Divider()
+
                 Button("Refresh YouTube Account") {
                     store.refreshAccount()
                 }
@@ -58,6 +65,18 @@ struct YouTubeMacApp: App {
                 }
                 .disabled(store.selectedVideo == nil)
 
+                Button("Play Next in Queue") {
+                    store.playNextInQueue()
+                }
+                .keyboardShortcut("n")
+                .disabled(store.nextQueuedVideo == nil)
+
+                Button("Play Previous in Queue") {
+                    store.playPreviousInQueue()
+                }
+                .keyboardShortcut("p")
+                .disabled(store.previousQueuedVideo == nil)
+
                 Button("Mute or Unmute") {
                     store.sendPlaybackCommand(.toggleMute)
                 }
@@ -72,6 +91,26 @@ struct YouTubeMacApp: App {
 
                 Button("Open Picture in Picture") {
                     store.presentDesktopPIP()
+                }
+                .disabled(store.selectedVideo == nil)
+
+                Button("Minimize Player") {
+                    store.minimizePlayer()
+                }
+                .keyboardShortcut("m", modifiers: [.command, .option])
+                .disabled(store.selectedVideo == nil)
+
+                Button("Toggle Full Screen") {
+                    store.toggleMainWindowFullScreen()
+                }
+                .keyboardShortcut("f", modifiers: [.command, .control])
+
+                Menu("Playback Speed") {
+                    ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in
+                        Button(rate == 1 ? "Normal" : "\(rate)x") {
+                            store.sendPlaybackCommand(.setPlaybackRate(rate))
+                        }
+                    }
                 }
                 .disabled(store.selectedVideo == nil)
 

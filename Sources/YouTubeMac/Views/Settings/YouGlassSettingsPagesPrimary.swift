@@ -81,6 +81,34 @@ extension YouGlassSettingsView {
                     Toggle("Reduce ambient motion", isOn: $reduceAmbientMotion)
                 }
 
+                settingsGroup("Accent editor", footer: "Use a six-digit hex color to tune the selection, accent, and highlight treatment across the app. Leave it blank to use the environment default.") {
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(store.themeCustomization.accentColor ?? store.visualTheme.colors(isDark: effectiveColorScheme == .dark).accent)
+                            .frame(width: 24, height: 24)
+                            .overlay(Circle().stroke(.quaternary, lineWidth: 1))
+
+                        TextField("#4C8DFF", text: $accentHexDraft)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 120)
+                            .onSubmit { store.setThemeAccentHex(accentHexDraft) }
+
+                        Button("Apply") {
+                            store.setThemeAccentHex(accentHexDraft)
+                            accentHexDraft = store.themeCustomization.normalizedAccentHex ?? ""
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(YouGlassThemeCustomization.normalizeHex(accentHexDraft) == nil)
+
+                        Button("Reset") {
+                            store.resetThemeCustomization()
+                            accentHexDraft = ""
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(store.themeCustomization.normalizedAccentHex == nil)
+                    }
+                }
+
                 HStack(alignment: .firstTextBaseline, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Theme Center")
@@ -112,6 +140,9 @@ extension YouGlassSettingsView {
                         )
                     }
                 }
+            }
+            .onAppear {
+                accentHexDraft = store.themeCustomization.normalizedAccentHex ?? ""
             }
         }
 

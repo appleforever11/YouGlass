@@ -27,8 +27,10 @@ extension YouTubeStore {
                        let resolved = matches.first {
                         rememberRecommendationSeed(resolved)
                         rememberHistory(resolved)
+                        preparePlaybackQueue(for: resolved)
                         selectedVideo = resolved
                         isPlayerCompact = false
+                        syncNowPlaying(video: resolved)
                         connectionMessage = "Playing a YouTube result in the native player"
                         return
                     }
@@ -46,7 +48,9 @@ extension YouTubeStore {
                             imageURL: fallback.imageURL,
                             verified: true
                         )
+                        preparePlaybackQueue(for: selectedVideo!)
                         isPlayerCompact = false
+                        syncNowPlaying(video: selectedVideo)
                         connectionMessage = "Playing the offline YouTube player sample"
                         return
                     }
@@ -58,8 +62,10 @@ extension YouTubeStore {
 
             rememberRecommendationSeed(video)
             rememberHistory(video)
+            preparePlaybackQueue(for: video)
             isPlayerCompact = false
             selectedVideo = video
+            syncNowPlaying(video: video)
         }
 
         func openURL(_ url: URL, title: String = "YouTube") {
@@ -86,6 +92,7 @@ extension YouTubeStore {
             closeDesktopPIPWindow()
             selectedVideo = nil
             isPlayerCompact = false
+            syncNowPlaying(video: nil)
         }
 
         /// Called by AppKit when the user closes the floating PIP window directly
@@ -100,6 +107,7 @@ extension YouTubeStore {
             selectedVideo = nil
             isPlayerCompact = false
             connectionMessage = "Picture in Picture closed"
+            syncNowPlaying(video: nil)
             YouGlassDesktopPIPWindowController.shared.close()
         }
 

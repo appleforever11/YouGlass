@@ -34,6 +34,7 @@ enum YouGlassPlaybackCommand: Sendable {
     case seek(Double)
     case toggleMute
     case toggleCaptions
+    case setPlaybackRate(Double)
     case retry
 }
 

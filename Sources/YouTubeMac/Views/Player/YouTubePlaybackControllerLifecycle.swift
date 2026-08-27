@@ -43,12 +43,14 @@ extension YouTubePlaybackController {
             isMuted = true
             isCaptionsEnabled = false
             isPlaying = false
+            didFinish = false
             isPictureInPictureAvailable = false
             isPictureInPictureActive = false
             isSurfaceReady = false
             canRetry = false
             currentTime = 0
             duration = 0
+            playbackRate = 1
             pendingResumeVideoID = nil
             pendingResumePosition = nil
             status = "Playback stopped"
@@ -96,12 +98,14 @@ extension YouTubePlaybackController {
             isMuted = false
             isCaptionsEnabled = false
             isPlaying = false
+            didFinish = false
             isPictureInPictureAvailable = false
             isPictureInPictureActive = false
             isSurfaceReady = false
             canRetry = false
             currentTime = 0
             duration = 0
+            playbackRate = 1
             status = "Loading player..."
         }
 
@@ -117,6 +121,8 @@ extension YouTubePlaybackController {
             isSurfaceReady = false
             currentTime = 0
             duration = 0
+            playbackRate = 1
+            didFinish = false
             isCaptionsEnabled = false
             isPlaying = false
             status = "Loading player..."

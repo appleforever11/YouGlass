@@ -24,6 +24,7 @@ struct NativeWatchScreen: View {
     @State var commentChannelID: String?
     @State var playbackStopHandlerToken: UUID?
     @State var playbackCommandHandlerToken: UUID?
+    @State var queuePresented = false
     @StateObject var playbackController = YouTubePlaybackController()
     @FocusState var commentFieldFocused: Bool
     let video: VideoItem
@@ -32,4 +33,16 @@ struct NativeWatchScreen: View {
     let onCompactDragChanged: ((CGSize) -> Void)?
     let onCompactDragEnded: ((CGSize) -> Void)?
     let onPlayerHoverChanged: ((Bool) -> Void)?
+}
+
+extension NativeWatchScreen {
+    func syncNativeNowPlaying() {
+        store.syncNowPlaying(
+            video: video,
+            currentTime: playbackController.currentTime,
+            duration: playbackController.duration,
+            isPlaying: playbackController.isPlaying,
+            playbackRate: playbackController.playbackRate
+        )
+    }
 }

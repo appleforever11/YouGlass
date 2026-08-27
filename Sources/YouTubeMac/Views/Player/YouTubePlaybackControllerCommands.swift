@@ -35,6 +35,12 @@ extension YouTubePlaybackController {
             run("window.__youglassControls?.seekTo(\(target))")
         }
 
+        func setPlaybackRate(_ rate: Double) {
+            let boundedRate = min(max(rate, 0.25), 2.0)
+            playbackRate = boundedRate
+            run("window.__youglassControls?.setPlaybackRate(\(boundedRate))")
+        }
+
         func togglePictureInPicture() {
             logger.notice("toggle picture in picture requested")
             run("window.__youglassControls?.togglePictureInPicture()")
@@ -92,6 +98,9 @@ extension YouTubePlaybackController {
             if let value = payload["muted"] as? Bool { isMuted = value }
             if let value = payload["captionsEnabled"] as? Bool { isCaptionsEnabled = value }
             if let value = payload["playing"] as? Bool { isPlaying = value }
+            if let value = payload["ended"] as? Bool {
+                didFinish = value
+            }
             if let value = payload["pipAvailable"] as? Bool { isPictureInPictureAvailable = value }
             if let value = payload["pipActive"] as? Bool {
                 isPictureInPictureActive = value
@@ -125,6 +134,11 @@ extension YouTubePlaybackController {
             }
             if let value = payload["currentTime"] as? NSNumber { currentTime = max(0, value.doubleValue) }
             if let value = payload["duration"] as? NSNumber { duration = max(0, value.doubleValue) }
+            if let value = payload["playbackRate"] as? NSNumber,
+               value.doubleValue.isFinite,
+               value.doubleValue > 0 {
+                playbackRate = value.doubleValue
+            }
             if let frameReady {
                 isSurfaceReady = frameReady
                 if frameReady {

@@ -10,8 +10,10 @@ extension YouTubeInlinePlayerView {
           muted: Boolean(media.muted || media.volume === 0),
           captionsEnabled: readCaptionsState(),
           playing: !media.paused && !media.ended,
+          ended: Boolean(media.ended),
           currentTime: Number.isFinite(media.currentTime) ? media.currentTime : 0,
           duration: Number.isFinite(media.duration) ? media.duration : 0,
+          playbackRate: Number.isFinite(media.playbackRate) ? media.playbackRate : 1,
           frameReady,
           pipAvailable: supportsWebKitPiP || Boolean(document.pictureInPictureEnabled && media.requestPictureInPicture),
           pipActive: media.webkitPresentationMode === 'picture-in-picture' || document.pictureInPictureElement === media,
@@ -167,6 +169,13 @@ extension YouTubeInlinePlayerView {
           if (!Number.isFinite(target)) return;
           media.currentTime = Math.max(0, Math.min(media.duration, target));
           emitState('Seeking');
+        },
+        setPlaybackRate(rate) {
+          const media = findMediaElement();
+          if (!media) return emitState('Video is not ready');
+          const boundedRate = Math.max(0.25, Math.min(2, Number(rate) || 1));
+          media.playbackRate = boundedRate;
+          emitState(`${boundedRate}x playback`);
         },
         async togglePictureInPicture() {
           const media = findMediaElement();

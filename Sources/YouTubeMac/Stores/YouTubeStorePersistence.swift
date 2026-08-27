@@ -38,6 +38,14 @@ extension YouTubeStore {
             return positions.filter { $0.value.isFinite && $0.value > 0 }
         }
 
+        func decodePlaybackDurations() -> [String: Double] {
+            guard let data = defaults.data(forKey: DefaultsKey.playbackDurations),
+                  let durations = try? JSONDecoder().decode([String: Double].self, from: data) else {
+                return [:]
+            }
+            return durations.filter { $0.value.isFinite && $0.value > 0 && playbackPositions[$0.key] != nil }
+        }
+
         func decodePlaybackPositionDates() -> [String: Date] {
             guard let data = defaults.data(forKey: DefaultsKey.playbackPositionUpdatedAt),
                   let dates = try? JSONDecoder().decode([String: Date].self, from: data) else {
@@ -56,9 +64,52 @@ extension YouTubeStore {
 
         func persistPlaybackPositions() {
             guard let positionsData = try? JSONEncoder().encode(playbackPositions),
+                  let durationsData = try? JSONEncoder().encode(playbackDurations),
                   let datesData = try? JSONEncoder().encode(playbackPositionUpdatedAt) else { return }
             defaults.set(positionsData, forKey: DefaultsKey.playbackPositions)
+            defaults.set(durationsData, forKey: DefaultsKey.playbackDurations)
             defaults.set(datesData, forKey: DefaultsKey.playbackPositionUpdatedAt)
+        }
+
+        func decodeCollections() -> [YouGlassLibraryCollection] {
+            guard let data = defaults.data(forKey: DefaultsKey.customCollections),
+                  let collections = try? JSONDecoder().decode([YouGlassLibraryCollection].self, from: data) else {
+                return []
+            }
+            return Array(collections.prefix(40))
+        }
+
+        func decodeVideoNotes() -> [YouGlassVideoNote] {
+            guard let data = defaults.data(forKey: DefaultsKey.videoNotes),
+                  let notes = try? JSONDecoder().decode([YouGlassVideoNote].self, from: data) else {
+                return []
+            }
+            return Array(notes.prefix(200))
+        }
+
+        func decodeThemeCustomization() -> YouGlassThemeCustomization {
+            guard let data = defaults.data(forKey: DefaultsKey.themeCustomization),
+                  let customization = try? JSONDecoder().decode(YouGlassThemeCustomization.self, from: data),
+                  customization.normalizedAccentHex != nil else {
+                return .empty
+            }
+            return YouGlassThemeCustomization(accentHex: customization.normalizedAccentHex)
+        }
+
+        func persistLibrary() {
+            if let collectionsData = try? JSONEncoder().encode(customCollections) {
+                defaults.set(collectionsData, forKey: DefaultsKey.customCollections)
+            }
+            if let notesData = try? JSONEncoder().encode(videoNotes) {
+                defaults.set(notesData, forKey: DefaultsKey.videoNotes)
+            }
+        }
+
+        func persistPlaybackQueue() {
+            let state = YouGlassPlaybackQueueState(videos: playbackQueue, autoplay: queueAutoplay)
+            if let data = try? JSONEncoder().encode(state) {
+                defaults.set(data, forKey: DefaultsKey.playbackQueue)
+            }
         }
 
         func persistSubscriptions(_ items: [SubscriptionItem]) {
@@ -135,7 +186,7 @@ extension YouTubeStore {
                 seeds: recommendationSeeds,
                 saved: savedVideos,
                 limit: 40,
-                excludeShortForm: true
+                excludeShortForm: hideShortsFromHome
             )
             guard !ranked.isEmpty else { return false }
             applyHomeVideos(ranked, message: message, cacheFeed: cacheFeed)
