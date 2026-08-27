@@ -10,6 +10,11 @@ This file records durable project context, not every line edit. The local Git hi
 - Preserved the AppKit scroll-container boundary for settings and the existing native/WebKit player separation.
 - Validation: `swift build --product YouGlass` passes after the complete source split.
 
+## 2026-08-27 — settings document alignment
+
+- Kept the settings detail root explicitly top-leading inside its AppKit-hosted document view.
+- Reset the detail scroll position using the clip view's actual coordinate direction so Appearance and other pages reopen at their visual top without removing scrolling.
+
 ## 2026-08-26 — project guidance setup
 
 - Repository resolved to `/Users/kevinhowe/Codex Projects Restored/YouGlass` from the iCloud-visible workspace path.

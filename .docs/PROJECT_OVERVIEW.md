@@ -30,7 +30,7 @@ The Appearance page contains:
 - a 12-family theme catalog with paired light/dark previews;
 - an AppKit-backed scroll view because the private SwiftUI hosting scroll path has been unstable on the current macOS 27 beta/runtime.
 
-The active development issue at setup time is the Appearance page's vertical document alignment: the scroll bar reports the top position while the page content can appear far below the viewport. The fix must preserve real scrolling and must be validated in the rebuilt settings window.
+The settings scroll bridge keeps the Appearance document top-aligned while preserving real scrolling. Its AppKit boundary resolves the visual top against the clip view's coordinate system, and the SwiftUI document root is explicitly top-leading aligned.
 
 ## Current Git state at documentation setup
 

@@ -18,14 +18,17 @@ extension YouGlassSettingsView {
                         }
 
                         YouGlassSettingsScrollView(resetID: selection ?? .general) {
-                            settingsDetail
-                                .frame(
-                                    maxWidth: selection == .appearance ? 1_120 : 820,
-                                    alignment: .topLeading
-                                )
-                                .padding(.horizontal, 30)
-                                .padding(.top, 24)
-                                .padding(.bottom, 40)
+                            VStack(alignment: .leading, spacing: 0) {
+                                settingsDetail
+                                    .frame(
+                                        maxWidth: selection == .appearance ? 1_120 : 820,
+                                        alignment: .topLeading
+                                    )
+                                    .padding(.horizontal, 30)
+                                    .padding(.top, 24)
+                                    .padding(.bottom, 40)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         .background(palette.content)

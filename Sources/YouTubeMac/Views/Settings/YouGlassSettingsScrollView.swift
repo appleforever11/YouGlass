@@ -193,8 +193,18 @@ struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
         }
 
         private func scrollToTop(in scrollView: NSScrollView) {
-            // The document view is explicitly flipped, so its top is y=0.
-            scrollView.contentView.scroll(to: .zero)
+            guard let documentView = scrollView.documentView else { return }
+
+            // The document is flipped for SwiftUI, while the enclosing
+            // NSClipView can remain unflipped on different macOS releases.
+            // Resolve the visual top against the clip view's coordinate
+            // system so page changes never reopen at the last visible row.
+            let documentHeight = documentView.bounds.height
+            let viewportHeight = scrollView.contentView.bounds.height
+            let topY = scrollView.contentView.isFlipped
+                ? documentView.bounds.minY
+                : max(documentHeight - viewportHeight, documentView.bounds.minY)
+            scrollView.contentView.scroll(to: NSPoint(x: documentView.bounds.minX, y: topY))
         }
     }
 }
