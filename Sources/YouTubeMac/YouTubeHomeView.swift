@@ -5,7 +5,7 @@ struct YouTubeHomeView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var compactDragOffset: CGSize = .zero
 
-    private var palette: Palette { Palette(colorScheme) }
+    private var palette: Palette { Palette(colorScheme, theme: store.visualTheme) }
 
     var body: some View {
         GeometryReader { geometry in
@@ -1494,28 +1494,32 @@ struct IconButtonStyle: ButtonStyle {
 
 struct Palette {
     let isDark: Bool
+    let theme: YouGlassThemeFamily
+    private let colors: YouGlassThemeColors
 
-    init(_ scheme: ColorScheme) {
+    init(_ scheme: ColorScheme, theme: YouGlassThemeFamily = .neoCitrus) {
         isDark = scheme == .dark
+        self.theme = theme
+        colors = theme.colors(isDark: scheme == .dark)
     }
 
-    var window: Color { isDark ? Color(red: 0.008, green: 0.006, blue: 0.016) : Color(red: 0.95, green: 0.93, blue: 0.96) }
-    var sidebar: Color { isDark ? Color(red: 0.018, green: 0.012, blue: 0.038) : Color(red: 0.975, green: 0.95, blue: 0.98) }
-    var content: Color { isDark ? Color(red: 0.014, green: 0.008, blue: 0.028) : Color(red: 0.99, green: 0.97, blue: 0.99) }
-    var card: Color { isDark ? Color(red: 0.035, green: 0.018, blue: 0.060) : Color(red: 0.96, green: 0.94, blue: 0.98) }
+    var window: Color { colors.window }
+    var sidebar: Color { colors.sidebar }
+    var content: Color { colors.content }
+    var card: Color { colors.card }
     var queueCard: Color { isDark ? Color.white.opacity(0.034) : .white.opacity(0.60) }
     var search: Color { isDark ? Color.white.opacity(0.055) : Color.black.opacity(0.028) }
-    var selected: Color { isDark ? Color(red: 0.28, green: 0.08, blue: 0.25).opacity(0.52) : Color(red: 0.90, green: 0.75, blue: 0.91).opacity(0.48) }
+    var selected: Color { colors.selected }
     var pill: Color { isDark ? Color.white.opacity(0.042) : .white.opacity(0.64) }
-    var stroke: Color { isDark ? Color(red: 0.96, green: 0.26, blue: 0.72).opacity(0.20) : Color(red: 0.58, green: 0.20, blue: 0.58).opacity(0.16) }
+    var stroke: Color { colors.stroke }
     var hairline: Color { isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.07) }
-    var text: Color { isDark ? .white : .black }
-    var secondaryText: Color { isDark ? Color.white.opacity(0.62) : Color.black.opacity(0.58) }
-    var tertiaryText: Color { isDark ? Color.white.opacity(0.38) : Color.black.opacity(0.36) }
-    var pink: Color { isDark ? Color(red: 0.98, green: 0.16, blue: 0.64) : Color(red: 0.80, green: 0.06, blue: 0.44) }
-    var purple: Color { isDark ? Color(red: 0.62, green: 0.24, blue: 1.0) : Color(red: 0.44, green: 0.12, blue: 0.78) }
-    var violet: Color { isDark ? Color(red: 0.30, green: 0.18, blue: 0.98) : Color(red: 0.24, green: 0.10, blue: 0.64) }
-    var accent: Color { isDark ? Color(red: 0.50, green: 0.56, blue: 1.0) : Color(red: 0.20, green: 0.30, blue: 0.82) }
+    var text: Color { colors.text }
+    var secondaryText: Color { colors.secondaryText }
+    var tertiaryText: Color { colors.tertiaryText }
+    var pink: Color { colors.primary }
+    var purple: Color { colors.secondary }
+    var violet: Color { colors.tertiary }
+    var accent: Color { colors.accent }
     var playButton: Color { isDark ? .white : .white }
     var playText: Color { .black }
 }

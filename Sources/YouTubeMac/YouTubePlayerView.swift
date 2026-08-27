@@ -175,6 +175,85 @@ struct YouTubePlayerOverlay: View {
     }
 }
 
+private enum YouGlassVideoTitlePlacement {
+    case header
+    case detail
+
+    var titleSize: CGFloat {
+        switch self {
+        case .header: 17
+        case .detail: 25
+        }
+    }
+
+    var titleWeight: Font.Weight {
+        switch self {
+        case .header: .semibold
+        case .detail: .semibold
+        }
+    }
+
+    var titleLineLimit: Int {
+        switch self {
+        case .header: 2
+        case .detail: 3
+        }
+    }
+
+    var eyebrowSize: CGFloat {
+        switch self {
+        case .header: 11
+        case .detail: 12
+        }
+    }
+
+    var channelSize: CGFloat {
+        switch self {
+        case .header: 12
+        case .detail: 14
+        }
+    }
+}
+
+/// Shared title hierarchy for the fixed watch header and the detail title.
+/// Keeping the foregrounds in the active palette avoids the default macOS
+/// label color fighting a custom light/dark theme.
+private struct YouGlassVideoTitleBlock: View {
+    let title: String
+    let channel: String
+    let eyebrow: String?
+    let palette: Palette
+    let placement: YouGlassVideoTitlePlacement
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: placement == .header ? 3 : 7) {
+            if let eyebrow {
+                Text(eyebrow.uppercased())
+                    .font(.system(size: placement.eyebrowSize, weight: .semibold, design: .rounded))
+                    .foregroundStyle(palette.secondaryText)
+                    .tracking(0)
+            }
+
+            Text(title)
+                .font(.system(size: placement.titleSize, weight: placement.titleWeight, design: .rounded))
+                .foregroundStyle(palette.text)
+                .lineLimit(placement.titleLineLimit)
+                .lineSpacing(placement == .header ? 1 : 2)
+                .minimumScaleFactor(placement == .header ? 0.82 : 0.76)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
+
+            Text(channel)
+                .font(.system(size: placement.channelSize, weight: .medium, design: .rounded))
+                .foregroundStyle(palette.secondaryText.opacity(0.86))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct NativeWatchScreen: View {
     @EnvironmentObject private var store: YouTubeStore
     @State private var commentPage = CommentPage(comments: [], totalCount: 0, isAvailable: false, message: nil)
@@ -254,6 +333,8 @@ private struct NativeWatchScreen: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(isCompact ? Color.clear : palette.window)
+        .clipShape(Rectangle())
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.space) {
@@ -415,34 +496,47 @@ private struct NativeWatchScreen: View {
             availableSize.width - (horizontalPadding * 2) - columnSpacing - sideColumnWidth
         )
 
-        return HStack(alignment: .top, spacing: columnSpacing) {
-            ScrollView(showsIndicators: true) {
-                watchDetailsContent(playerWidth: playerWidth)
-                    .padding(.bottom, 24)
+        let documentWidth = max(1, availableSize.width - (horizontalPadding * 2))
 
-                // Keep the compact rail in the same scroll hierarchy. It is
-                // hidden in the wide layout but remains mounted, avoiding a
-                // second structural transition around the WebKit player.
-                compactRelatedRail
-                    .opacity(isWide ? 0 : 1)
-                    .frame(height: isWide ? 0 : 88)
+        return ScrollView(showsIndicators: true) {
+            HStack(alignment: .top, spacing: columnSpacing) {
+                VStack(alignment: .leading, spacing: 0) {
+                    watchDetailsContent(playerWidth: playerWidth)
+                        .padding(.bottom, 24)
+
+                    // Keep the compact rail in the same scroll hierarchy. It is
+                    // hidden in the wide layout but remains mounted, avoiding a
+                    // second structural transition around the WebKit player.
+                    compactRelatedRail
+                        .opacity(isWide ? 0 : 1)
+                        .frame(height: isWide ? 0 : 88)
+                        .clipped()
+                        .allowsHitTesting(!isWide)
+                }
+                .frame(width: playerWidth, alignment: .topLeading)
+
+                // Keep the side rail mounted while its width collapses at the
+                // narrow breakpoint. Its own recommendation list stays bounded
+                // so the parent watch document remains the only page scrollbar.
+                watchSideColumn
+                    .frame(width: sideColumnWidth, height: availableSize.height, alignment: .top)
+                    .opacity(isWide ? 1 : 0)
                     .clipped()
-                    .allowsHitTesting(!isWide)
+                    .allowsHitTesting(isWide)
             }
-            .frame(width: playerWidth, height: availableSize.height, alignment: .top)
-            .accessibilityIdentifier("player-main-scroll")
-
-            // Keep the side rail mounted while its width collapses at the
-            // narrow breakpoint. This preserves the main player’s identity
-            // and prevents a WebKit view from being removed during resize.
-            watchSideColumn
-                .frame(width: sideColumnWidth, alignment: .top)
-                .opacity(isWide ? 1 : 0)
-                .clipped()
-                .allowsHitTesting(isWide)
+            // Measure the document as one rectangle. The player, metadata, and
+            // Up Next rail now share one scroll viewport, so no indicator or
+            // overflow strip can be inserted between the two columns.
+            .frame(width: documentWidth, alignment: .topLeading)
+            .frame(minHeight: availableSize.height, alignment: .topLeading)
+            .padding(.horizontal, horizontalPadding)
+            .background(palette.content)
         }
-        .padding(.horizontal, horizontalPadding)
-        .padding(.bottom, 18)
+        .frame(width: availableSize.width, height: availableSize.height, alignment: .top)
+        .background(palette.window)
+        .clipShape(Rectangle())
+        .clipped()
+        .accessibilityIdentifier("player-main-scroll")
     }
 
     private func watchDetailsContent(playerWidth: CGFloat? = nil) -> some View {
@@ -474,12 +568,23 @@ private struct NativeWatchScreen: View {
                     ambientPalette: store.ambientPalette
                 )
             )
+            // The remote WebKit surface, transport shelf, and ambient glass
+            // are one visual media surface. Apply the final clip after every
+            // modifier so scrolling cannot expose a stale layer or shadow
+            // below the video's document frame.
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             // Re-assert the hit-test boundary after the visual surface modifier.
             .contentShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
-            Text(video.title)
-                .font(.system(size: 24, weight: .bold))
-                .lineLimit(2)
+            YouGlassVideoTitleBlock(
+                title: video.title,
+                channel: video.channel,
+                eyebrow: nil,
+                palette: palette,
+                placement: .detail
+            )
+            .padding(.leading, 14)
+            .padding(.trailing, 2)
 
             channelAndActions
             description
@@ -549,20 +654,15 @@ private struct NativeWatchScreen: View {
             }
             .buttonStyle(GlassIconButtonStyle(palette: palette))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Now Playing")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(palette.secondaryText)
-                Text(video.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .lineLimit(2)
-                    .truncationMode(.tail)
-                Text(video.channel)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(palette.secondaryText.opacity(0.78))
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: 520, alignment: .leading)
+            YouGlassVideoTitleBlock(
+                title: video.title,
+                channel: video.channel,
+                eyebrow: "Now Playing",
+                palette: palette,
+                placement: .header
+            )
+            .frame(maxWidth: 640, alignment: .leading)
+            .layoutPriority(1)
 
             Spacer()
 
@@ -591,7 +691,15 @@ private struct NativeWatchScreen: View {
             .accessibilityLabel(saved ? "Remove from Watch Later" : "Save to Watch Later")
             .help(saved ? "Remove from Watch Later" : "Save to Watch Later")
         }
-        .padding(14)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.thinMaterial)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(palette.stroke.opacity(0.65))
+                .frame(height: 1)
+                .allowsHitTesting(false)
+        }
         .zIndex(4)
     }
 
@@ -1143,7 +1251,7 @@ private struct NativeYouTubePlayer: View {
             PlayerInteractionLayer(
                 isCompact: isCompact,
                 reservedTop: isCompact ? 104 : 0,
-                reservedBottom: isCompact ? 142 : 168,
+                reservedBottom: isCompact ? 142 : 132,
                 onTap: {
                     revealControls()
                     playbackController.togglePlayback()
@@ -1193,7 +1301,11 @@ private struct NativeYouTubePlayer: View {
         // SwiftUI buttons the first responder path and prevents the media
         // gesture surface from swallowing clicks during WebKit resizes.
         .overlay(alignment: .bottom) {
-            transportControls
+            if isCompact {
+                compactTransportControls
+            } else {
+                normalTransportControls
+            }
         }
         .background(.black)
         // YouTubeInlinePlayerHostView owns the WebKit layer’s rounded clip.
@@ -1229,161 +1341,138 @@ private struct NativeYouTubePlayer: View {
         .animation(.easeOut(duration: 0.18), value: controlsVisible)
     }
 
-    @ViewBuilder
-    private var transportControls: some View {
+    private var compactTransportControls: some View {
         VStack(spacing: 6) {
-                PlaybackScrubber(
-                    value: scrubberBinding,
-                    duration: durationForScrubber,
-                    elapsedLabel: formatPlaybackTime(displayedScrubTime),
-                    durationLabel: formatPlaybackTime(playbackController.duration),
-                    onEditingChanged: handleScrubbing
-                )
+            playbackScrubber
 
-                if isCompact {
-                    // The compact player can be as narrow as the in-app mini
-                    // player. Size the six controls from the actual proposal
-                    // instead of letting a fixed-width row clip at either
-                    // edge of a desktop PIP window.
-                    GeometryReader { geometry in
-                        let buttonSize = min(34, max(22, (geometry.size.width - 15) / 6))
+            // Preserve the proven compact/PIP geometry independently from the
+            // full-player shelf below.
+            GeometryReader { geometry in
+                let buttonSize = min(34, max(22, (geometry.size.width - 15) / 6))
 
-                        HStack(spacing: 3) {
-                            Spacer(minLength: 0)
-                            PlayerControlButton(
-                                symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
-                                help: playbackController.isPlaying ? "Pause" : "Play",
-                                controlSize: buttonSize,
-                                action: playbackController.togglePlayback
-                            )
-                            PlayerControlButton(symbol: "gobackward.15", help: "Back 15 seconds", controlSize: buttonSize) {
-                                playbackController.seek(by: -15)
-                            }
-                            PlayerControlButton(symbol: "goforward.15", help: "Forward 15 seconds", controlSize: buttonSize) {
-                                playbackController.seek(by: 15)
-                            }
-                            PlayerControlButton(
-                                symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                                help: playbackController.isMuted ? "Unmute" : "Mute",
-                                controlSize: buttonSize,
-                                action: playbackController.toggleMute
-                            )
-                            PlayerControlButton(
-                                symbol: playbackController.isCaptionsEnabled
-                                    ? "captions.bubble.fill"
-                                    : "captions.bubble",
-                                help: playbackController.isCaptionsEnabled
-                                    ? "Turn off closed captions"
-                                    : "Turn on closed captions",
-                                controlSize: buttonSize,
-                                action: playbackController.toggleCaptions
-                            )
-                            .accessibilityIdentifier("captions-button")
-                            PlayerControlButton(
-                                symbol: playbackController.isPictureInPictureActive ? "pip.exit" : "pip.enter",
-                                help: playbackController.isPictureInPictureActive
-                                    ? "Exit Picture in Picture"
-                                    : "Picture in Picture",
-                                controlSize: buttonSize,
-                                action: {
-                                    playbackController.togglePictureInPicture {
-                                        // WebKit can reject a system PiP request
-                                        // for a YouTube media element. Keep the
-                                        // YouGlass floating player available as
-                                        // the deterministic fallback.
-                                        store.expandPlayer()
-                                    }
-                                }
-                            )
-                            Spacer(minLength: 0)
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                HStack(spacing: 3) {
+                    Spacer(minLength: 0)
+                    PlayerControlButton(
+                        symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
+                        help: playbackController.isPlaying ? "Pause" : "Play",
+                        controlSize: buttonSize,
+                        action: playbackController.togglePlayback
+                    )
+                    PlayerControlButton(symbol: "gobackward.15", help: "Back 15 seconds", controlSize: buttonSize) {
+                        playbackController.seek(by: -15)
                     }
-                    .frame(height: 38)
-                } else {
-                    HStack(spacing: PlayerTransportLayout.normalSpacing) {
-                        PlayerControlButton(
-                            symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
-                            help: playbackController.isPlaying ? "Pause" : "Play",
-                            controlSize: PlayerTransportLayout.normalButtonSize,
-                            action: playbackController.togglePlayback
-                        )
-                        PlayerControlButton(
-                            symbol: "gobackward.15",
-                            help: "Back 15 seconds",
-                            controlSize: PlayerTransportLayout.normalButtonSize
-                        ) {
-                            playbackController.seek(by: -15)
-                        }
-                        PlayerControlButton(
-                            symbol: "goforward.15",
-                            help: "Forward 15 seconds",
-                            controlSize: PlayerTransportLayout.normalButtonSize
-                        ) {
-                            playbackController.seek(by: 15)
-                        }
-                        PlayerControlButton(
-                            symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
-                            help: playbackController.isMuted ? "Unmute" : "Mute",
-                            controlSize: PlayerTransportLayout.normalButtonSize,
-                            action: playbackController.toggleMute
-                        )
-                        PlayerControlButton(
-                            symbol: playbackController.isCaptionsEnabled
-                                ? "captions.bubble.fill"
-                                : "captions.bubble",
-                            help: playbackController.isCaptionsEnabled
-                                ? "Turn off closed captions"
-                                : "Turn on closed captions",
-                            controlSize: PlayerTransportLayout.normalButtonSize,
-                            action: playbackController.toggleCaptions
-                        )
-                        .accessibilityIdentifier("captions-button")
-
-                        Text(playbackController.isMuted ? "Click to unmute" : playbackController.status)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.88))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                            .frame(width: PlayerTransportLayout.normalStatusWidth, alignment: .leading)
-
-                        PlayerControlButton(
-                            symbol: playbackController.isPictureInPictureActive ? "pip.exit" : "pip.enter",
-                            help: playbackController.isPictureInPictureActive
-                                ? "Exit Picture in Picture"
-                                : "Picture in Picture",
-                            controlSize: PlayerTransportLayout.normalButtonSize,
-                            action: { store.presentDesktopPIP() }
-                        )
+                    PlayerControlButton(symbol: "goforward.15", help: "Forward 15 seconds", controlSize: buttonSize) {
+                        playbackController.seek(by: 15)
                     }
-                    .frame(width: PlayerTransportLayout.normalGroupWidth)
-                    .frame(height: 46)
-                    // Lift only the full-player control row so its circular
-                    // hit targets stay above the title boundary.
-                    .offset(y: PlayerTransportLayout.normalControlLift)
+                    PlayerControlButton(
+                        symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                        help: playbackController.isMuted ? "Unmute" : "Mute",
+                        controlSize: buttonSize,
+                        action: playbackController.toggleMute
+                    )
+                    PlayerControlButton(
+                        symbol: playbackController.isCaptionsEnabled ? "captions.bubble.fill" : "captions.bubble",
+                        help: playbackController.isCaptionsEnabled ? "Turn off closed captions" : "Turn on closed captions",
+                        controlSize: buttonSize,
+                        action: playbackController.toggleCaptions
+                    )
+                    .accessibilityIdentifier("captions-button")
+                    PlayerControlButton(
+                        symbol: playbackController.isPictureInPictureActive ? "pip.exit" : "pip.enter",
+                        help: playbackController.isPictureInPictureActive ? "Exit Picture in Picture" : "Picture in Picture",
+                        controlSize: buttonSize,
+                        action: {
+                            playbackController.togglePictureInPicture {
+                                store.expandPlayer()
+                            }
+                        }
+                    )
+                    Spacer(minLength: 0)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            // The overlay gets the player's proposal, so this cap is
-            // responsive: it shrinks with narrow windows and remains centered
-            // at the same width on large displays.
-            .frame(maxWidth: isCompact ? .infinity : 820)
-            .padding(.horizontal, isCompact ? 6 : 18)
-            // Leave room for the circular glass treatment itself. The
-            // button's visual radius can extend beyond its nominal row
-            // height, so a small inset is required to keep the lower arc
-            // inside the clipped player surface.
-            .padding(.bottom, isCompact ? 22 : 72)
-            .frame(maxWidth: .infinity, alignment: .center)
-            // The compact player reserves a small bottom band for its chrome;
-            // lift the row into that band so its circular hit targets stay
-            // completely inside the clipped PIP content rect.
-            .offset(y: isCompact ? -22 : 0)
-            .opacity(playbackController.canRetry ? 0 : 1)
-            // Keep the visible SwiftUI controls as the only hit-testable views
-            // in the transport area. PlayerInteractionLayer is bounded above
-            // this band, so no transparent sibling can win these clicks.
-            .allowsHitTesting(!playbackController.canRetry)
-            .zIndex(isCompact ? 22 : 10)
+            .frame(height: 38)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 6)
+        .padding(.bottom, 22)
+        .offset(y: -22)
+        .opacity(playbackController.canRetry ? 0 : 1)
+        .allowsHitTesting(!playbackController.canRetry)
+        .zIndex(22)
+    }
+
+    private var normalTransportControls: some View {
+        VStack(spacing: 8) {
+            playbackScrubber
+
+            HStack(spacing: PlayerTransportLayout.normalSpacing) {
+                PlayerControlButton(
+                    symbol: playbackController.isPlaying ? "pause.fill" : "play.fill",
+                    help: playbackController.isPlaying ? "Pause" : "Play",
+                    controlSize: PlayerTransportLayout.normalButtonSize,
+                    action: playbackController.togglePlayback
+                )
+                PlayerControlButton(symbol: "gobackward.15", help: "Back 15 seconds") {
+                    playbackController.seek(by: -15)
+                }
+                PlayerControlButton(symbol: "goforward.15", help: "Forward 15 seconds") {
+                    playbackController.seek(by: 15)
+                }
+                PlayerControlButton(
+                    symbol: playbackController.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                    help: playbackController.isMuted ? "Unmute" : "Mute",
+                    action: playbackController.toggleMute
+                )
+                PlayerControlButton(
+                    symbol: playbackController.isCaptionsEnabled ? "captions.bubble.fill" : "captions.bubble",
+                    help: playbackController.isCaptionsEnabled ? "Turn off closed captions" : "Turn on closed captions",
+                    action: playbackController.toggleCaptions
+                )
+                .accessibilityIdentifier("captions-button")
+
+                Text(playbackController.isMuted ? "Click to unmute" : playbackController.status)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .frame(width: PlayerTransportLayout.normalStatusWidth, alignment: .leading)
+
+                PlayerControlButton(
+                    symbol: "pip.enter",
+                    help: "Picture in Picture",
+                    action: { store.presentDesktopPIP() }
+                )
+            }
+            .frame(width: PlayerTransportLayout.normalGroupWidth, height: 46)
+            .offset(y: PlayerTransportLayout.normalControlLift(for: palette))
+        }
+        .frame(maxWidth: 820)
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+        .padding(.bottom, 72)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .background {
+            LinearGradient(
+                colors: [.clear, .black.opacity(0.72)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .allowsHitTesting(false)
+        }
+        .opacity(playbackController.canRetry ? 0 : 1)
+        .allowsHitTesting(!playbackController.canRetry)
+        .zIndex(10)
+    }
+
+    private var playbackScrubber: some View {
+        PlaybackScrubber(
+            value: scrubberBinding,
+            duration: durationForScrubber,
+            elapsedLabel: formatPlaybackTime(displayedScrubTime),
+            durationLabel: formatPlaybackTime(playbackController.duration),
+            onEditingChanged: handleScrubbing
+        )
     }
 
     private var durationForScrubber: Double {
@@ -1476,17 +1565,15 @@ private struct PlayerInteractionLayer: View {
             let bands = interactiveBands(for: geometry.size.height)
             let centerHeight = max(24, geometry.size.height - bands.top - bands.bottom)
 
-            Color.clear
-                .contentShape(Rectangle())
-                .frame(width: geometry.size.width, height: centerHeight)
-                .position(
-                    x: geometry.size.width / 2,
-                    y: bands.top + centerHeight / 2
+            if isCompact {
+                interactionRegion(
+                    width: geometry.size.width,
+                    height: centerHeight,
+                    top: bands.top
                 )
                 .gesture(
                     DragGesture(minimumDistance: 0)
                         .onChanged { value in
-                            guard isCompact else { return }
                             let distance = hypot(value.translation.width, value.translation.height)
                             guard didDrag || distance >= 6 else { return }
                             didDrag = true
@@ -1494,14 +1581,36 @@ private struct PlayerInteractionLayer: View {
                         }
                         .onEnded { value in
                             defer { didDrag = false }
-                            if isCompact, didDrag {
+                            if didDrag {
                                 onCompactDragEnded?(value.translation)
                             } else {
                                 onTap()
                             }
                         }
                 )
+            } else {
+                // A zero-distance drag gesture prevents the enclosing watch
+                // screen from receiving trackpad and mouse-wheel scrolling.
+                // The full player only needs a tap target; compact PIP keeps
+                // the drag recognizer above for window movement.
+                interactionRegion(
+                    width: geometry.size.width,
+                    height: centerHeight,
+                    top: bands.top
+                )
+                .onTapGesture(perform: onTap)
+            }
         }
+    }
+
+    private func interactionRegion(width: CGFloat, height: CGFloat, top: CGFloat) -> some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .frame(width: width, height: height)
+            .position(
+                x: width / 2,
+                y: top + height / 2
+            )
     }
 
     private func interactiveBands(for height: CGFloat) -> (top: CGFloat, bottom: CGFloat) {
@@ -1527,7 +1636,14 @@ private enum PlayerTransportLayout {
     static let normalButtonSize: CGFloat = 38
     static let normalSpacing: CGFloat = 10
     static let normalStatusWidth: CGFloat = 120
-    static let normalControlLift: CGFloat = -12
+    // Keep the full-player row inside the clipped media surface. The
+    // scrubber remains at the media edge while the circular controls sit
+    // one visual shelf above it. Arctic Glass has a lighter, taller-looking
+    // media surface, so its row needs a smaller lift to avoid floating too
+    // far above the title boundary.
+    static func normalControlLift(for palette: Palette) -> CGFloat {
+        palette.theme == .arcticGlass ? -12 : -28
+    }
 
     // Five buttons, a fixed status label, and the PiP button. Keeping this
     // width fixed makes the SwiftUI visuals and AppKit hit regions use the
@@ -1622,6 +1738,7 @@ private struct BlendedPlayerSurfaceModifier: ViewModifier {
         let shape = RoundedRectangle(cornerRadius: 20, style: .continuous)
         let primaryGlow = ambientPalette.primary.color.opacity(palette.isDark ? 0.18 : 0.10)
         let secondaryGlow = ambientPalette.secondary.color.opacity(palette.isDark ? 0.12 : 0.07)
+        let focusGlow = palette.accent.opacity(palette.isDark ? 0.16 : 0.09)
 
         return content
             .compositingGroup()
@@ -1645,7 +1762,8 @@ private struct BlendedPlayerSurfaceModifier: ViewModifier {
                         LinearGradient(
                             colors: [
                                 ambientPalette.primary.color.opacity(0.34),
-                                .white.opacity(0.16),
+                                palette.stroke.opacity(0.82),
+                                palette.accent.opacity(palette.isDark ? 0.42 : 0.30),
                                 ambientPalette.secondary.color.opacity(0.26)
                             ],
                             startPoint: .topLeading,
@@ -1656,9 +1774,14 @@ private struct BlendedPlayerSurfaceModifier: ViewModifier {
                     .allowsHitTesting(false)
             }
             .shadow(
-                color: ambientPalette.primary.color.opacity(palette.isDark ? 0.16 : 0.08),
+                color: focusGlow,
                 radius: 24,
                 y: 8
+            )
+            .shadow(
+                color: ambientPalette.primary.color.opacity(palette.isDark ? 0.16 : 0.08),
+                radius: 18,
+                y: 4
             )
     }
 }

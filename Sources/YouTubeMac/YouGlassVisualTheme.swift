@@ -2,6 +2,9 @@ import SwiftUI
 
 enum YouGlassVisualDefaults {
     static let reduceAmbientMotion = "YouGlass.reduceAmbientMotion"
+    static let themeFamily = "YouGlass.visualThemeFamily"
+    static let backgroundGlow = "YouGlass.backgroundGlow"
+    static let glassIntensity = "YouGlass.glassIntensity"
 }
 
 /// Shared animated ambience for the home shell and player. The motion is
@@ -11,13 +14,15 @@ struct YouGlassAmbientBackdrop: View {
     let palette: Palette
     let ambientPalette: VideoAmbientPalette
     var intensity: Double = 1.0
+    var animated: Bool = true
 
     @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) private var reduceAmbientMotion = false
+    @AppStorage(YouGlassVisualDefaults.backgroundGlow) private var backgroundGlow = 0.78
     @State private var animationPhase = 0.0
 
     private var motionPaused: Bool {
-        accessibilityReduceMotion || reduceAmbientMotion
+        !animated || accessibilityReduceMotion || reduceAmbientMotion
     }
 
     var body: some View {
@@ -46,15 +51,25 @@ struct YouGlassAmbientBackdrop: View {
                 let purple = palette.purple
                 let violet = palette.violet
                 let baseOpacity = palette.isDark ? 1.0 : 0.72
+                let glowScale = min(max(backgroundGlow, 0.35), 1.0)
 
                 ZStack {
                     (palette.isDark ? Color.black : palette.window)
                         .opacity(baseOpacity)
 
+                    if palette.theme == .neoCitrus {
+                        NeoCitrusBackdropOrnaments(
+                            palette: palette,
+                            phase: time,
+                            motionPaused: motionPaused
+                        )
+                        .opacity((palette.isDark ? 0.24 : 0.34) * glowScale)
+                    }
+
                     RadialGradient(
                         colors: [
-                            pink.opacity((palette.isDark ? 0.22 : 0.14) * breathing * intensity),
-                            pink.opacity((palette.isDark ? 0.055 : 0.032) * intensity),
+                            pink.opacity((palette.isDark ? 0.22 : 0.14) * breathing * intensity * glowScale),
+                            pink.opacity((palette.isDark ? 0.055 : 0.032) * intensity * glowScale),
                             .clear
                         ],
                         center: primaryCenter,
@@ -64,8 +79,8 @@ struct YouGlassAmbientBackdrop: View {
 
                     RadialGradient(
                         colors: [
-                            purple.opacity((palette.isDark ? 0.24 : 0.15) * counterBreathing * intensity),
-                            purple.opacity((palette.isDark ? 0.060 : 0.036) * intensity),
+                            purple.opacity((palette.isDark ? 0.24 : 0.15) * counterBreathing * intensity * glowScale),
+                            purple.opacity((palette.isDark ? 0.060 : 0.036) * intensity * glowScale),
                             .clear
                         ],
                         center: secondaryCenter,
@@ -75,7 +90,7 @@ struct YouGlassAmbientBackdrop: View {
 
                     RadialGradient(
                         colors: [
-                            violet.opacity((palette.isDark ? 0.16 : 0.10) * (0.82 + energy * 0.18) * intensity),
+                            violet.opacity((palette.isDark ? 0.16 : 0.10) * (0.82 + energy * 0.18) * intensity * glowScale),
                             .clear
                         ],
                         center: accentCenter,
@@ -85,10 +100,10 @@ struct YouGlassAmbientBackdrop: View {
 
                     AngularGradient(
                         colors: [
-                            pink.opacity(0.022 * intensity),
-                            purple.opacity(0.040 * intensity),
-                            violet.opacity(0.032 * intensity),
-                            pink.opacity(0.022 * intensity)
+                            pink.opacity(0.022 * intensity * glowScale),
+                            purple.opacity(0.040 * intensity * glowScale),
+                            violet.opacity(0.032 * intensity * glowScale),
+                            pink.opacity(0.022 * intensity * glowScale)
                         ],
                         center: .center,
                         angle: .degrees(time * 2.5)
@@ -108,5 +123,41 @@ struct YouGlassAmbientBackdrop: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+private struct NeoCitrusBackdropOrnaments: View {
+    let palette: Palette
+    let phase: Double
+    let motionPaused: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = max(geometry.size.width, 1)
+            let height = max(geometry.size.height, 1)
+            let drift = motionPaused ? 0 : CGFloat(sin(phase * 0.11)) * min(width, height) * 0.018
+
+            ZStack {
+                citrusCapsule(width: width * 0.16, height: height * 0.72, colors: [palette.pink, palette.purple])
+                    .position(x: width * 0.10 + drift, y: height * 0.42)
+                citrusCapsule(width: width * 0.13, height: height * 0.48, colors: [palette.pink, palette.violet])
+                    .position(x: width * 0.32 - drift * 0.6, y: height * 0.16)
+                citrusCapsule(width: width * 0.18, height: height * 0.78, colors: [palette.purple, palette.violet])
+                    .position(x: width * 0.61 + drift * 0.5, y: height * 0.64)
+                citrusCapsule(width: width * 0.14, height: height * 0.54, colors: [palette.pink, palette.purple])
+                    .position(x: width * 0.91 - drift, y: height * 0.26)
+            }
+            .blur(radius: max(18, min(width, height) * 0.035))
+        }
+    }
+
+    private func citrusCapsule(width: CGFloat, height: CGFloat, colors: [Color]) -> some View {
+        Capsule(style: .continuous)
+            .fill(LinearGradient(colors: colors, startPoint: .top, endPoint: .bottom))
+            .frame(width: max(width, 70), height: max(height, 150))
+            .overlay {
+                Capsule(style: .continuous)
+                    .stroke(Color.white.opacity(palette.isDark ? 0.12 : 0.48), lineWidth: 1)
+            }
     }
 }

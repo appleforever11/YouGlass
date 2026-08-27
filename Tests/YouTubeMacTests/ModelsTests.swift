@@ -2,6 +2,23 @@ import XCTest
 @testable import YouTubeMac
 
 final class ModelsTests: XCTestCase {
+    func testThemeCatalogProvidesPairedLightAndDarkFamilies() throws {
+        let themes = YouGlassThemeFamily.allCases
+
+        XCTAssertEqual(themes.count, 12)
+        XCTAssertEqual(Set(themes.map(\.id)).count, themes.count)
+        XCTAssertEqual(themes.filter(\.isFeatured), [.neoCitrus])
+        XCTAssertTrue(themes.allSatisfy { !$0.title.isEmpty && !$0.subtitle.isEmpty })
+
+        for theme in themes {
+            _ = theme.colors(isDark: false)
+            _ = theme.colors(isDark: true)
+
+            let encoded = try JSONEncoder().encode(theme)
+            XCTAssertEqual(try JSONDecoder().decode(YouGlassThemeFamily.self, from: encoded), theme)
+        }
+    }
+
     func testPIPTransitionOnlyMatchesItsCurrentVideo() {
         let presenting = PIPTransitionState.presenting(videoID: "video-a")
         XCTAssertTrue(presenting.isTransitioning)

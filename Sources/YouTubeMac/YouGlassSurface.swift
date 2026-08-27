@@ -7,15 +7,17 @@ struct YouGlassSurfaceModifier: ViewModifier {
     let palette: Palette
     let cornerRadius: CGFloat
     let interactive: Bool
+    @AppStorage(YouGlassVisualDefaults.glassIntensity) private var glassIntensity = 0.72
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let glassScale = 0.45 + min(max(glassIntensity, 0.25), 1.0) * 0.75
         let tintOpacity = interactive
-            ? (palette.isDark ? 0.090 : 0.050)
-            : (palette.isDark ? 0.070 : 0.035)
+            ? (palette.isDark ? 0.090 : 0.050) * glassScale
+            : (palette.isDark ? 0.070 : 0.035) * glassScale
         let pinkOpacity = interactive
-            ? (palette.isDark ? 0.055 : 0.030)
-            : (palette.isDark ? 0.038 : 0.020)
+            ? (palette.isDark ? 0.055 : 0.030) * glassScale
+            : (palette.isDark ? 0.038 : 0.020) * glassScale
 
         // Keep the glass treatment available to every supported SDK. The
         // material and layered tint provide the same translucent visual

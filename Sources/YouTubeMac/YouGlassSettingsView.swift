@@ -24,28 +24,55 @@ struct YouGlassSettingsView: View {
     @AppStorage(YouGlassDebugEngine.webKitBreadcrumbsKey) private var captureWebKitBreadcrumbs = false
     @AppStorage(YouGlassHiddenWebKitPolicy.enabledKey) private var hiddenWebKitCompatibility = false
 
+    // Use the persisted app choice directly so Settings does not wait for the
+    // window's system appearance to resolve before choosing its palette.
+    private var effectiveColorScheme: ColorScheme {
+        store.colorScheme
+    }
+
+    private var palette: Palette {
+        Palette(effectiveColorScheme, theme: store.visualTheme)
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
-            settingsChrome
+        ZStack {
+            palette.window
+                .ignoresSafeArea()
 
-            HStack(spacing: 0) {
-                if sidebarVisible {
-                    settingsSidebar
-                        .frame(minWidth: 238, idealWidth: 270, maxWidth: 310)
+            VStack(spacing: 0) {
+                settingsChrome
 
-                    Divider()
+                HStack(spacing: 0) {
+                    if sidebarVisible {
+                        settingsSidebar
+                            .frame(minWidth: 238, idealWidth: 270, maxWidth: 310)
+
+                        Divider()
+                    }
+
+                    YouGlassSettingsScrollView(resetID: selection ?? .general) {
+                        settingsDetail
+                            .frame(
+                                maxWidth: selection == .appearance ? 1_120 : 820,
+                                alignment: .topLeading
+                            )
+                            .padding(.horizontal, 30)
+                            .padding(.top, 24)
+                            .padding(.bottom, 40)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .background(palette.content)
                 }
-
-                YouGlassSettingsScrollView {
-                    settingsDetail
-                        .frame(maxWidth: 820, alignment: .topLeading)
-                        .padding(.horizontal, 30)
-                        .padding(.vertical, 24)
-                }
-                .background(.regularMaterial)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(minWidth: 920, minHeight: 620)
+        .background(
+            YouGlassSettingsWindowConfigurator(
+                isDark: effectiveColorScheme == .dark
+            )
+        )
         .alert("Reset YouTube connection?", isPresented: $showingResetConfirmation) {
             Button("Reset", role: .destructive) {
                 store.resetYouTubeCredentials()
@@ -89,7 +116,7 @@ struct YouGlassSettingsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(.bar)
+        .background(palette.window)
         .overlay(alignment: .bottom) {
             Divider()
         }
@@ -120,6 +147,8 @@ struct YouGlassSettingsView: View {
             settingsSidebarSection("System", pages: [.privacy, .advanced, .about])
         }
         .listStyle(.sidebar)
+        .scrollContentBackground(.hidden)
+        .background(palette.sidebar)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             HStack(spacing: 8) {
                 Circle()
@@ -133,7 +162,7 @@ struct YouGlassSettingsView: View {
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 12)
-            .background(.bar)
+            .background(palette.sidebar)
         }
     }
 
@@ -223,8 +252,10 @@ struct YouGlassSettingsView: View {
         VStack(alignment: .leading, spacing: 24) {
             settingsHeader(.appearance)
 
-            settingsGroup("Color mode", footer: "The selected appearance is saved and restored the next time YouGlass opens.") {
-                Picker("Theme", selection: Binding(
+            selectedThemeSummary
+
+            settingsGroup("Theme controls", footer: "Every environment includes a coordinated light and dark palette. Changes apply throughout Home, channels, the player, compact windows, and Settings.") {
+                Picker("Appearance", selection: Binding(
                     get: { store.theme },
                     set: { store.setTheme($0) }
                 )) {
@@ -233,11 +264,103 @@ struct YouGlassSettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-            }
 
-            settingsGroup("Ambient glass", footer: "Reduce motion keeps the glass styling but pauses the breathing pink and purple background animation.") {
+                Divider()
+
+                HStack(alignment: .top, spacing: 24) {
+                    ThemeControlSlider(
+                        title: "Background glow",
+                        systemImage: "sun.max",
+                        value: Binding(
+                            get: { store.backgroundGlow },
+                            set: { store.setBackgroundGlow($0) }
+                        ),
+                        range: 0.35...1.0
+                    )
+
+                    ThemeControlSlider(
+                        title: "Glass tint",
+                        systemImage: "circle.lefthalf.filled",
+                        value: Binding(
+                            get: { store.glassIntensity },
+                            set: { store.setGlassIntensity($0) }
+                        ),
+                        range: 0.25...1.0
+                    )
+                }
+
                 Toggle("Reduce ambient motion", isOn: $reduceAmbientMotion)
             }
+
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Theme Center")
+                        .font(.title3.weight(.bold))
+                    Text("Choose an environment. Each preview shows its light and dark treatments together.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                Text("\(YouGlassThemeFamily.allCases.count) environments")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 2)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 240, maximum: 360), spacing: 16)],
+                alignment: .leading,
+                spacing: 16
+            ) {
+                ForEach(YouGlassThemeFamily.allCases) { theme in
+                    YouGlassThemeCard(
+                        theme: theme,
+                        isSelected: store.visualTheme == theme,
+                        action: { store.setVisualTheme(theme) }
+                    )
+                }
+            }
+        }
+    }
+
+    private var selectedThemeSummary: some View {
+        let colors = store.visualTheme.colors(isDark: effectiveColorScheme == .dark)
+
+        return HStack(spacing: 12) {
+            SettingsIconBadge(
+                systemName: store.visualTheme.systemImage,
+                tint: colors.accent,
+                size: 42
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Current environment")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(store.visualTheme.title)
+                    .font(.headline)
+                Text(store.visualTheme.subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 12)
+
+            Label(
+                effectiveColorScheme == .dark ? "Dark" : "Light",
+                systemImage: effectiveColorScheme == .dark ? "moon.fill" : "sun.max.fill"
+            )
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(colors.accent)
+        }
+        .padding(14)
+        .background(palette.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(.quaternary, lineWidth: 1)
         }
     }
 
@@ -675,7 +798,7 @@ struct YouGlassSettingsView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(palette.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(.quaternary, lineWidth: 1)
@@ -687,7 +810,7 @@ struct YouGlassSettingsView: View {
         footer: String? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
-        YouGlassSettingsGroup(title: title, footer: footer, content: content)
+        YouGlassSettingsGroup(title: title, footer: footer, background: palette.card, content: content)
     }
 
     private func settingsValueRow(_ title: String, value: String, systemName: String) -> some View {
@@ -799,69 +922,216 @@ struct YouGlassSettingsView: View {
     }
 }
 
+/// Prevents the Settings scene from briefly resolving through a transparent
+/// AppKit window while SwiftUI installs the selected theme.
+@MainActor
+private struct YouGlassSettingsWindowConfigurator: NSViewRepresentable {
+    let isDark: Bool
+
+    func makeNSView(context: Context) -> NSView {
+        NSView(frame: .zero)
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        configure(window: view.window)
+
+        DispatchQueue.main.async { [weak view] in
+            configure(window: view?.window)
+        }
+    }
+
+    private func configure(window: NSWindow?) {
+        guard let window else { return }
+        window.isOpaque = true
+        window.backgroundColor = NSColor(
+            calibratedWhite: isDark ? 0.075 : 0.965,
+            alpha: 1
+        )
+        window.hasShadow = true
+    }
+}
+
 /// SwiftUI's private HostingScrollView crashes in its hit-test responder path
 /// on the macOS 27 beta. Keep settings scrollable while routing the container
 /// through AppKit's mature NSScrollView implementation.
 @MainActor
+private final class YouGlassSettingsScrollViewHost: NSScrollView {
+    var layoutHandler: (() -> Void)?
+
+    override func layout() {
+        super.layout()
+        layoutHandler?()
+    }
+}
+
+@MainActor
+private final class YouGlassSettingsDocumentView<Content: View>: NSView {
+    let hostingView: NSHostingView<Content>
+    private var contentHeight: CGFloat = 1
+
+    override var isFlipped: Bool { true }
+
+    init(rootView: Content) {
+        hostingView = NSHostingView(rootView: rootView)
+        super.init(frame: .zero)
+
+        // The scroll view owns the document size. Letting the hosting view
+        // publish an intrinsic height makes SwiftUI negotiate against the
+        // viewport and can place the first page below the document origin.
+        hostingView.sizingOptions = []
+        hostingView.translatesAutoresizingMaskIntoConstraints = true
+        hostingView.autoresizingMask = []
+        addSubview(hostingView)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    func update(rootView: Content) {
+        hostingView.rootView = rootView
+        hostingView.invalidateIntrinsicContentSize()
+        invalidateIntrinsicContentSize()
+        needsLayout = true
+    }
+
+    func resize(to width: CGFloat, minimumHeight: CGFloat) {
+        guard width > 0 else { return }
+
+        // Give SwiftUI the real viewport width before asking for its natural
+        // height. The document itself is at least as tall as the viewport;
+        // the hosting view remains only as tall as the page content and is
+        // pinned to the document's top edge.
+        let probeHeight = max(contentHeight, minimumHeight, 1)
+        hostingView.frame = NSRect(x: 0, y: 0, width: width, height: probeHeight)
+        hostingView.needsLayout = true
+        hostingView.layoutSubtreeIfNeeded()
+
+        let measuredHeight = max(hostingView.fittingSize.height, 1)
+        contentHeight = measuredHeight
+        frame = NSRect(
+            x: 0,
+            y: 0,
+            width: width,
+            height: max(measuredHeight, minimumHeight, 1)
+        )
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+    }
+
+    override func layout() {
+        super.layout()
+        hostingView.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: bounds.width,
+            height: contentHeight
+        )
+        hostingView.layoutSubtreeIfNeeded()
+    }
+}
+
+@MainActor
 private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
     let content: Content
+    let resetID: AnyHashable
 
-    init(@ViewBuilder content: () -> Content) {
+    init<ID: Hashable>(resetID: ID, @ViewBuilder content: () -> Content) {
+        self.resetID = AnyHashable(resetID)
         self.content = content()
     }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(content: content)
+        Coordinator(content: content, resetID: resetID)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
+        let scrollView = YouGlassSettingsScrollViewHost()
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
+        scrollView.verticalScrollElasticity = .none
+        scrollView.horizontalScrollElasticity = .none
         scrollView.autohidesScrollers = true
-        scrollView.documentView = context.coordinator.hostingView
+        scrollView.documentView = context.coordinator.documentView
+        scrollView.layoutHandler = { [weak scrollView, weak coordinator = context.coordinator] in
+            guard let scrollView, let coordinator else { return }
+            coordinator.resizeDocument(in: scrollView)
+        }
+        context.coordinator.resizeDocument(in: scrollView)
         context.coordinator.scheduleInitialScrollToTop(in: scrollView)
         return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        context.coordinator.hostingView.rootView = content
-        context.coordinator.hostingView.needsLayout = true
-        context.coordinator.resizeDocument(to: scrollView.contentSize.width)
-        context.coordinator.scheduleInitialScrollToTop(in: scrollView)
+        let pageChanged = context.coordinator.resetID != resetID
+        context.coordinator.resetID = resetID
+        context.coordinator.documentView.update(rootView: content)
+        context.coordinator.resizeDocument(in: scrollView)
+
+        if pageChanged {
+            context.coordinator.resetForNewPage(in: scrollView)
+        } else {
+            context.coordinator.scheduleInitialScrollToTop(in: scrollView)
+        }
     }
 
     @MainActor
     final class Coordinator {
-        let hostingView: NSHostingView<Content>
+        let documentView: YouGlassSettingsDocumentView<Content>
+        var resetID: AnyHashable
+
+        var hostingView: NSHostingView<Content> {
+            documentView.hostingView
+        }
+
         // The settings window can receive several layout updates while it is
         // becoming visible. Keep the first presentation at the top until the
         // document height has settled, then leave scrolling entirely to the user.
-        private var initialScrollPassesRemaining = 6
+        private var initialScrollPassesRemaining = 3
         private var initialScrollScheduled = false
+        private var layoutGeneration = 0
+        private var isResizing = false
 
-        init(content: Content) {
-            hostingView = NSHostingView(rootView: content)
-            hostingView.autoresizingMask = [.width]
+        init(content: Content, resetID: AnyHashable) {
+            self.resetID = resetID
+            documentView = YouGlassSettingsDocumentView(rootView: content)
         }
 
-        func resizeDocument(to width: CGFloat) {
-            guard width > 0 else { return }
-            hostingView.frame.size.width = width
-            hostingView.layoutSubtreeIfNeeded()
-            hostingView.frame.size.height = max(hostingView.fittingSize.height, 1)
+        func resetForNewPage(in scrollView: NSScrollView) {
+            layoutGeneration += 1
+            initialScrollPassesRemaining = 3
+            initialScrollScheduled = false
+
+            resizeDocument(in: scrollView)
+            scrollToTop(in: scrollView)
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+            scheduleInitialScrollToTop(in: scrollView)
+        }
+
+        func resizeDocument(in scrollView: NSScrollView) {
+            guard !isResizing else { return }
+
+            let width = scrollView.contentView.bounds.width
+            let viewportHeight = scrollView.contentView.bounds.height
+            guard width > 0, viewportHeight > 0 else { return }
+
+            isResizing = true
+            documentView.resize(to: width, minimumHeight: viewportHeight)
+            isResizing = false
         }
 
         func scheduleInitialScrollToTop(in scrollView: NSScrollView) {
             guard initialScrollPassesRemaining > 0, !initialScrollScheduled else { return }
             initialScrollScheduled = true
+            let generation = layoutGeneration
 
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) { [weak self, weak scrollView] in
-                guard let self, let scrollView else { return }
+                guard let self, let scrollView, self.layoutGeneration == generation else { return }
                 self.initialScrollScheduled = false
+                self.documentView.needsLayout = true
                 self.hostingView.layoutSubtreeIfNeeded()
-                self.resizeDocument(to: scrollView.contentSize.width)
+                self.resizeDocument(in: scrollView)
                 self.scrollToTop(in: scrollView)
                 scrollView.reflectScrolledClipView(scrollView.contentView)
 
@@ -873,17 +1143,8 @@ private struct YouGlassSettingsScrollView<Content: View>: NSViewRepresentable {
         }
 
         private func scrollToTop(in scrollView: NSScrollView) {
-            let documentView = scrollView.documentView
-            let topY: CGFloat
-
-            if documentView?.isFlipped ?? true {
-                topY = 0
-            } else {
-                let documentHeight = documentView?.bounds.height ?? 0
-                topY = max(0, documentHeight - scrollView.contentView.bounds.height)
-            }
-
-            scrollView.contentView.scroll(to: NSPoint(x: 0, y: topY))
+            // The document view is explicitly flipped, so its top is y=0.
+            scrollView.contentView.scroll(to: .zero)
         }
     }
 }
@@ -963,6 +1224,169 @@ private enum YouGlassSettingsPage: String, CaseIterable, Identifiable, Hashable 
     }
 }
 
+private struct ThemeControlSlider: View {
+    let title: String
+    let systemImage: String
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+            Slider(value: $value, in: range)
+                .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct YouGlassThemeCard: View {
+    @EnvironmentObject private var store: YouTubeStore
+
+    let theme: YouGlassThemeFamily
+    let isSelected: Bool
+    let action: () -> Void
+
+    private var cardColor: Color {
+        theme.colors(isDark: store.colorScheme == .dark).card
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 11) {
+                HStack(spacing: 6) {
+                    YouGlassThemePreview(theme: theme, isDark: false)
+                    YouGlassThemePreview(theme: theme, isDark: true)
+                }
+                .frame(height: 92)
+
+                HStack(alignment: .top, spacing: 10) {
+                    Image(systemName: theme.systemImage)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(theme.colors(isDark: false).accent)
+                        .frame(width: 24, height: 24)
+                        .background(theme.colors(isDark: false).accent.opacity(0.13), in: Circle())
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(theme.title)
+                                .font(.system(size: 14, weight: .bold))
+                                .lineLimit(1)
+                            if theme.isFeatured {
+                                Text("FEATURED")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(theme.colors(isDark: false).secondary.opacity(0.20), in: Capsule())
+                            }
+                        }
+                        Text(theme.subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 4)
+
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(isSelected ? theme.colors(isDark: false).accent : Color.secondary.opacity(0.50))
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 154, alignment: .topLeading)
+            .background(cardColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(
+                        isSelected ? theme.colors(isDark: false).accent.opacity(0.78) : Color.secondary.opacity(0.18),
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            }
+            .shadow(
+                color: isSelected ? theme.colors(isDark: false).accent.opacity(0.16) : .clear,
+                radius: 12,
+                y: 4
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(theme.title), light and dark theme")
+        .accessibilityValue(isSelected ? "Selected" : "Not selected")
+    }
+}
+
+private struct YouGlassThemePreview: View {
+    let theme: YouGlassThemeFamily
+    let isDark: Bool
+
+    private var colors: YouGlassThemeColors { theme.colors(isDark: isDark) }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                colors.window
+
+                RadialGradient(
+                    colors: [colors.primary.opacity(0.74), .clear],
+                    center: .topLeading,
+                    startRadius: 0,
+                    endRadius: max(geometry.size.width, geometry.size.height) * 0.90
+                )
+                RadialGradient(
+                    colors: [colors.secondary.opacity(0.62), .clear],
+                    center: .bottomTrailing,
+                    startRadius: 0,
+                    endRadius: max(geometry.size.width, geometry.size.height) * 0.82
+                )
+
+                if theme == .neoCitrus {
+                    HStack(spacing: 4) {
+                        ForEach(0..<5, id: \.self) { index in
+                            Capsule(style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: index.isMultiple(of: 2)
+                                            ? [colors.primary, colors.secondary]
+                                            : [colors.secondary, colors.tertiary],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .frame(
+                                    height: index == 1 || index == 4
+                                        ? geometry.size.height * 0.68
+                                        : geometry.size.height * 0.88
+                                )
+                        }
+                    }
+                    .padding(7)
+                    .opacity(isDark ? 0.70 : 0.82)
+                }
+
+                VStack {
+                    HStack {
+                        Spacer()
+                        Text(isDark ? "DARK" : "LIGHT")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(colors.text)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(colors.card.opacity(0.88), in: Capsule())
+                    }
+                    Spacer()
+                }
+                .padding(7)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .stroke(colors.stroke, lineWidth: 1)
+            }
+        }
+    }
+}
+
 private struct SettingsIconBadge: View {
     let systemName: String
     let tint: Color
@@ -981,11 +1405,13 @@ private struct SettingsIconBadge: View {
 private struct YouGlassSettingsGroup<Content: View>: View {
     let title: String
     let footer: String?
+    let background: Color
     let content: () -> Content
 
-    init(title: String, footer: String?, @ViewBuilder content: @escaping () -> Content) {
+    init(title: String, footer: String?, background: Color, @ViewBuilder content: @escaping () -> Content) {
         self.title = title
         self.footer = footer
+        self.background = background
         self.content = content
     }
 
@@ -999,7 +1425,7 @@ private struct YouGlassSettingsGroup<Content: View>: View {
                 content()
             }
             .padding(16)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(.quaternary, lineWidth: 1)

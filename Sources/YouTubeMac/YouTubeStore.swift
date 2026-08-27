@@ -12,7 +12,10 @@ final class YouTubeStore: ObservableObject {
     nonisolated(unsafe) private(set) var sidebarSubscriptionsSnapshot: [SubscriptionItem] = []
     nonisolated(unsafe) private(set) var sidebarIsSignedInSnapshot = false
 
-    @Published var theme: AppTheme = .dark
+    @Published var theme: AppTheme = .light
+    @Published var visualTheme: YouGlassThemeFamily = .neoCitrus
+    @Published var backgroundGlow = 0.78
+    @Published var glassIntensity = 0.72
     @Published var query = ""
     @Published var feed = VideoItem.loadingFeed
     @Published var isLoading = false
@@ -109,6 +112,9 @@ final class YouTubeStore: ObservableObject {
         static let cachedSubscriptions = "YouGlass.cachedSubscriptions"
         static let cachedSubscriptionsDate = "YouGlass.cachedSubscriptionsDate"
         static let theme = "YouGlass.theme"
+        static let visualTheme = YouGlassVisualDefaults.themeFamily
+        static let backgroundGlow = YouGlassVisualDefaults.backgroundGlow
+        static let glassIntensity = YouGlassVisualDefaults.glassIntensity
         static let lastAccountSyncDate = "YouGlass.lastAccountSyncDate"
     }
 
@@ -118,6 +124,12 @@ final class YouTubeStore: ObservableObject {
            let savedTheme = AppTheme(rawValue: rawTheme) {
             theme = savedTheme
         }
+        if let rawVisualTheme = defaults.string(forKey: DefaultsKey.visualTheme),
+           let savedVisualTheme = YouGlassThemeFamily(rawValue: rawVisualTheme) {
+            visualTheme = savedVisualTheme
+        }
+        backgroundGlow = defaults.object(forKey: DefaultsKey.backgroundGlow) as? Double ?? 0.78
+        glassIntensity = defaults.object(forKey: DefaultsKey.glassIntensity) as? Double ?? 0.72
         lastAccountSyncDate = defaults.object(forKey: DefaultsKey.lastAccountSyncDate) as? Date
         cachedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedFeedDate) as? Date
         cachedPersonalizedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedPersonalizedFeedDate) as? Date
@@ -213,6 +225,21 @@ final class YouTubeStore: ObservableObject {
     func setTheme(_ theme: AppTheme) {
         self.theme = theme
         defaults.set(theme.rawValue, forKey: DefaultsKey.theme)
+    }
+
+    func setVisualTheme(_ visualTheme: YouGlassThemeFamily) {
+        self.visualTheme = visualTheme
+        defaults.set(visualTheme.rawValue, forKey: DefaultsKey.visualTheme)
+    }
+
+    func setBackgroundGlow(_ value: Double) {
+        backgroundGlow = min(max(value, 0.35), 1.0)
+        defaults.set(backgroundGlow, forKey: DefaultsKey.backgroundGlow)
+    }
+
+    func setGlassIntensity(_ value: Double) {
+        glassIntensity = min(max(value, 0.25), 1.0)
+        defaults.set(glassIntensity, forKey: DefaultsKey.glassIntensity)
     }
 
     func setAmbientPalette(_ palette: VideoAmbientPalette) {

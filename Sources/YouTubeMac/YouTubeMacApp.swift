@@ -91,6 +91,7 @@ struct YouTubeMacApp: App {
         Settings {
             YouGlassSettingsView()
                 .environmentObject(store)
+                .environment(\.colorScheme, store.colorScheme)
                 .preferredColorScheme(store.colorScheme)
         }
         .defaultSize(width: 1040, height: 700)

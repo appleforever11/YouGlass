@@ -401,7 +401,7 @@ private struct DesktopPIPContent: View {
     var body: some View {
         YouTubePlayerOverlay(
             video: video,
-            palette: Palette(colorScheme),
+            palette: Palette(colorScheme, theme: store.visualTheme),
             isCompact: true,
             onCompactDragChanged: { [weak controller] translation in
                 controller?.handleDragChanged(translation)

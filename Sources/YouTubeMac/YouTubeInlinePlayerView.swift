@@ -633,6 +633,10 @@ final class YouTubeInlinePlayerHostView: NSView {
         self.webView = webView
         super.init(frame: .zero)
 
+        // WKWebView owns a remote layer tree. A SwiftUI clip higher in the
+        // hierarchy does not always constrain that tree while an enclosing
+        // ScrollView is moving, so keep the AppKit host itself clipped too.
+        clipsToBounds = true
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
         layer?.cornerRadius = 24
@@ -640,6 +644,10 @@ final class YouTubeInlinePlayerHostView: NSView {
 
         webView.translatesAutoresizingMaskIntoConstraints = true
         webView.autoresizingMask = [.width, .height]
+        webView.clipsToBounds = true
+        webView.wantsLayer = true
+        webView.layer?.masksToBounds = true
+        webView.layer?.cornerRadius = 24
         addSubview(webView)
     }
 
@@ -649,7 +657,11 @@ final class YouTubeInlinePlayerHostView: NSView {
 
     override func layout() {
         super.layout()
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         webView.frame = bounds
+        webView.layer?.frame = webView.bounds
+        CATransaction.commit()
     }
 
     // The WebKit surface is playback-only. Native YouGlass controls sit above
