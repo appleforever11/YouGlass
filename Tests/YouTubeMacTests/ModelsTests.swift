@@ -207,6 +207,53 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(decoded, state)
     }
 
+    func testRecommendationRankerCanExcludeShortFormWithoutDroppingLongForm() {
+        let longForm = VideoItem(
+            id: "long-form-1",
+            title: "A thoughtful long-form interview",
+            channel: "Example Channel",
+            views: "1K views",
+            age: "1 day ago",
+            duration: "24:00",
+            imageURL: nil,
+            verified: false
+        )
+        let shortForm = VideoItem(
+            id: "short-form-1",
+            title: "Quick tips #shorts",
+            channel: "Example Channel",
+            views: "1K views",
+            age: "1 day ago",
+            duration: "0:30",
+            imageURL: nil,
+            verified: false
+        )
+
+        XCTAssertTrue(shortForm.isShortForm)
+        XCTAssertEqual(
+            RecommendationRanker.rank(
+                [shortForm, longForm],
+                subscriptions: [],
+                history: [],
+                liked: [],
+                seeds: [],
+                excludeShortForm: true
+            ).map(\.id),
+            [longForm.id]
+        )
+        XCTAssertEqual(
+            RecommendationRanker.rank(
+                [shortForm, longForm],
+                subscriptions: [],
+                history: [],
+                liked: [],
+                seeds: [],
+                excludeShortForm: false
+            ).count,
+            2
+        )
+    }
+
     func testCachePolicyReportsFreshAndStaleEntries() {
         let now = Date(timeIntervalSince1970: 10_000)
 

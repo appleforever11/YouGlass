@@ -194,8 +194,10 @@ extension YouTubeStore {
         }
 
         func cachePersonalizedFeed(_ videos: [VideoItem]) {
-            let longForm = mergeVideos(videos).filter { !$0.isShortForm }
-            guard let data = try? JSONEncoder().encode(Array(longForm.prefix(40))) else { return }
+            let cacheCandidates = mergeVideos(videos).filter { video in
+                !hideShortsFromHome || !video.isShortForm
+            }
+            guard let data = try? JSONEncoder().encode(Array(cacheCandidates.prefix(40))) else { return }
             defaults.set(data, forKey: DefaultsKey.cachedPersonalizedFeed)
             cachedPersonalizedFeedUpdatedAt = Date()
             defaults.set(cachedPersonalizedFeedUpdatedAt, forKey: DefaultsKey.cachedPersonalizedFeedDate)

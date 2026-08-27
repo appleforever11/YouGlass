@@ -38,7 +38,7 @@ extension YouTubeStore {
                     // Keep the offline catalog interactive when no API key/feed is
                     // available. This is the official IFrame API sample video.
                     if let fallback = VideoItem.fromYouTubeInput("M7lc1UVf-VE") {
-                        selectedVideo = VideoItem(
+                        let playableFallback = VideoItem(
                             id: fallback.id,
                             title: "YouTube player test video",
                             channel: "YouTube",
@@ -48,9 +48,10 @@ extension YouTubeStore {
                             imageURL: fallback.imageURL,
                             verified: true
                         )
-                        preparePlaybackQueue(for: selectedVideo!)
+                        preparePlaybackQueue(for: playableFallback)
                         isPlayerCompact = false
-                        syncNowPlaying(video: selectedVideo)
+                        selectedVideo = playableFallback
+                        syncNowPlaying(video: playableFallback)
                         connectionMessage = "Playing the offline YouTube player sample"
                         return
                     }

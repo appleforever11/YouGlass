@@ -28,7 +28,7 @@ For any non-trivial code task:
 - Minimum platform: macOS 14.0. The current development host is Apple Silicon, macOS 26.6.2, Swift 6.4, and Xcode 27.0.
 - UI stack: SwiftUI with focused AppKit bridges for windows, WebKit surfaces, Picture in Picture, and the settings scroll container.
 - Dependency: Sparkle 2.9.5, resolved in `Package.resolved`.
-- Current development branch: `codex/theme-center`. The last documented source baseline before the active settings milestone is commit `102c506` (`fix(settings): align detail document to visual top`); the current settings fix and its documentation are being recorded as the next local milestone.
+- Current development branch: `codex/theme-center`. The current local feature baseline includes the settings-scroll repair, smooth player ambience, and the eight-product-improvement milestone; inspect `git log --oneline --decorate` for the exact local commits.
 - Source organization: keep Swift source files below 500 lines and group code by app, model, store, view, and service responsibility.
 
 ## Build, test, and run
@@ -65,6 +65,13 @@ Do not launch the SwiftPM GUI executable directly for normal UI validation. Use 
 - `.docs/`: this internal, tracked project knowledge base.
 - `.codex/`: local Codex recovery/configuration metadata; it is ignored and is not the source of truth for application code.
 - `backups/`, `dist/`, `.build/`, `tmp/`: local artifacts and recovery/build output; do not treat them as newer source than Git without an explicit comparison.
+
+## Product foundation rules
+
+- Home is local-first: Continue Watching is derived from bounded playback checkpoints, the Library owns local collections and timestamped notes, and the persisted queue is capped before it reaches UserDefaults.
+- Player workspace behavior belongs in the store/player boundary: queue navigation, autoplay, speed, compact/PIP/full-screen actions, sharing, Now Playing, and media-key commands must remain safe when the feed or network is unavailable.
+- `YouGlassThemeCustomization` is an optional accent override layered through `Palette`; preserve the selected theme family's light/dark colors and keep the blank/reset state equivalent to the environment default.
+- Network recovery uses `NWPathMonitor`, cached feed data, and the bounded `RemoteImage` cache. Offline states must remain usable and must not erase local library or playback data.
 
 ## Durable documentation rule
 

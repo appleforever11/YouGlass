@@ -25,6 +25,18 @@ The source tree is organized by responsibility rather than by one-file-per-featu
 - `Views/Home/YouTubeHomeView` renders the main navigation and feed surfaces from the store, with sidebar, hero, card, playlist, image, background, and loading states separated into focused files.
 - `Views/Player/` renders native controls and coordinates player state. The inline player owns the visible WebKit media surface, lifecycle, coordinator, messages, and ordered JavaScript command bridge independently from the native watch screen.
 
+## Product foundation flows
+
+The current product layer is deliberately local-first and is composed from small store extensions rather than a second persistence system:
+
+- `YouTubeStorePlayback` records bounded per-video positions and durations. `continueWatching` filters completed items and feeds both the Home row and Library.
+- `YouTubeStoreLibrary` stores up to 40 named `YouGlassLibraryCollection` values and 200 `YouGlassVideoNote` values in UserDefaults. Collections retain IDs while the store resolves the newest known `VideoItem` metadata from the local catalog.
+- `YouTubeStoreQueue` stores a bounded `YouGlassPlaybackQueueState` with the current queue and autoplay preference. The player exposes queue navigation, remove/clear actions, and rate selection without requiring a YouTube account.
+- `YouTubeStoreExperience` is the bridge for the command palette, theme accent override, mini-player/full-screen/share actions, and native media controls. `YouGlassNativeIntegration` owns Now Playing, remote commands, Dock actions, and the native sharing picker.
+- `RecommendationRanker` handles local feed signals and the optional Shorts filter. `YouGlassNetworkMonitor`, the feed cache, and `YouGlassImageCache` keep the shell useful during transient network failures and prevent repeated thumbnail downloads.
+
+The main Home surface has one vertical scroll owner. Library, Continue Watching, and recommendation rows are rendered in that owner so the lower content remains reachable at compact window sizes. Cards use context menus for save, queue, and collection actions; the command palette is available from the toolbar, `⌘K`, the app menu, and the Dock menu.
+
 ## Full-player ambient surface and interaction safety
 
 `YouTubePlayerOverlay` mounts `PlayerAmbientSurface` behind `NativeWatchScreen`. The full watch page must preserve that layer as the visual source of truth: `NativeWatchScreenBody` stays transparent, `NativeWatchScreenLayout` uses translucent page/window fills, and `BlendedPlayerSurfaceModifier` clips the WebKit media content without applying a second outer clip to its ambient glow. This keeps the theme flowing around the video, metadata, and recommendation rail while retaining the media's rounded boundary. The relevant implementation lives in `Views/Player/NativeWatchScreenBody.swift`, `NativeWatchScreenLayout.swift`, and `PlayerAmbientViews.swift`.

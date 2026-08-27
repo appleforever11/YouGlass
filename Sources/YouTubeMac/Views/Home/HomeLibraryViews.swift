@@ -60,12 +60,15 @@ struct ContinueWatchingCard: View {
                         endPoint: .bottom
                     )
 
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.white.opacity(0.25))
-                            Capsule()
-                                .fill(palette.accent)
-                                .frame(width: geometry.size.width * store.playbackProgress(for: video))
+                    if store.playbackPosition(for: video.id) > 1 {
+                        GeometryReader { geometry in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(.white.opacity(0.25))
+                                Capsule()
+                                    .fill(palette.accent)
+                                    .frame(width: geometry.size.width * store.playbackProgress(for: video))
+                            }
+                            .frame(height: 5)
                         }
                         .frame(height: 5)
                         .padding(8)
@@ -89,7 +92,7 @@ struct ContinueWatchingCard: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Resume (video.title) from (resumeLabel)")
+        .accessibilityLabel("Resume \(video.title) from \(resumeLabel)")
         .contextMenu {
             Button("Remove from Continue Watching") {
                 store.clearPlaybackPosition(for: video)

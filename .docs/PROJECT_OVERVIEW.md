@@ -35,7 +35,7 @@ The settings scroll bridge keeps every detail page top-aligned while preserving 
 ## Current Git state and local baseline
 
 - Branch: `codex/theme-center`
-- The modular source baseline before the current settings-scroll milestone is `102c506` (`fix(settings): align detail document to visual top`). The settings-scroll milestone is recorded in the local Git history with the application changes and its durable documentation together.
+- The current local baseline includes the settings-scroll repair, smooth player ambience, local-first library/player workspace, cached/offline feed improvements, and command/theme foundations. Use `git log --oneline --decorate` for the exact milestone hashes; remote state remains separate.
 - Remote state is separate from local history. Inspect `git status --short` and `git log --oneline --decorate` before making a new change; never assume a local commit has been pushed.
 - The iCloud-visible project path and the resolved Git path are equivalent on this machine. Prefer the resolved Git root for diagnostics and file links.
 

@@ -2,6 +2,20 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — product foundation milestone: eight app improvements
+
+- Added a local-first Continue Watching flow with bounded playback durations, a persistent queue with autoplay, and a Library for Watch Later, local likes, named collections, and timestamped notes.
+- Added a stronger player workspace: queue panel, next/previous navigation, playback-rate menu, mini-player/full-screen actions, native Share, macOS Now Playing/media-key commands, and Dock actions.
+- Added a `⌘K` command palette plus app-menu and keyboard shortcuts for navigation, refresh, playback, queue actions, themes, and window controls.
+- Added Home recommendation controls for Continue Watching visibility and Shorts filtering, with cached/offline feed behavior, cached thumbnails, and a network status indicator.
+- Added an Appearance accent editor that persists a validated hex accent through the shared `Palette` without replacing the selected theme family.
+- Validation before documentation cleanup: `./script/test.sh` passed with 32 tests and the source-size check remained clean. The final rebuilt-bundle smoke pass is recorded with the milestone commit below.
+
+### Follow-up visual correction
+
+- Moved the Continue Watching progress track to the bottom of each thumbnail and made it conditional on a real playback checkpoint. The measuring `GeometryReader` had been constrained on its child instead of on the reader itself, which caused a translucent track to render at the top of every card; unwatched cards now render no resume track at all.
+- Rebuilt `dist/YouGlass.app` and verified Home, Library, Settings General, Settings Appearance top alignment, Appearance bottom scrolling, and the native player workspace with Computer Use. The corrected Home capture shows no top bars.
+
 ## 2026-08-27 — smooth player theme flow and safe video opening
 
 - Removed the opaque watch-page fills and duplicate outer media clip that made the player ambience stop abruptly at the video/page boundary. The shared `PlayerAmbientSurface` now flows through the player header, page margins, metadata, and recommendation rail while only the media content is clipped.
