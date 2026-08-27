@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.3] - 2026-08-27
+
+Fixed the Settings detail layout and Appearance scrolling, and shipped the coordinated Theme Center with 12 light/dark environment themes. See [the complete end-user release notes](RELEASE_NOTES/1.13.3.md).
+
 ## [1.13.2] - 2026-08-23
 
 Completes the 1.13 distribution repair by applying the Developer ID signature and secure timestamp to the final DMG container before notarization and stapling. See [the complete end-user release notes](RELEASE_NOTES/1.13.2.md).
