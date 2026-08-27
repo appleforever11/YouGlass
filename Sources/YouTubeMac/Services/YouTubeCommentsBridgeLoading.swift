@@ -1,6 +1,45 @@
 import Foundation
 
 extension YouTubeCommentsBridge {
+    nonisolated static func stagedLoadingScript(offset: Int, maxResults: Int) -> String {
+        """
+        (() => {
+          const scrolling = document.scrollingElement || document.documentElement;
+          const commentsHost = document.querySelector('ytd-comments#comments')
+            || document.querySelector('ytd-comments')
+            || document.querySelector('ytd-comment-thread-renderer');
+          if (commentsHost) commentsHost.scrollIntoView({ block: 'center', behavior: 'instant' });
+          const target = Math.max(900, \(offset + maxResults) * 110);
+          const bottom = Math.max(scrolling.scrollHeight, document.body ? document.body.scrollHeight : 0);
+          scrolling.scrollTop = Math.min(bottom, Math.max(scrolling.scrollTop + target, bottom - target));
+          window.scrollTo(0, scrolling.scrollTop);
+          const continuation = Array.from(document.querySelectorAll('ytd-continuation-item-renderer'))
+            .find(node => String(node.className || '').includes('ytd-item-section-renderer'))
+            || (commentsHost
+              ? commentsHost.querySelector('ytd-continuation-item-renderer')
+              : document.querySelector('ytd-comments ytd-continuation-item-renderer'));
+          const nestedScrollTarget = commentsHost
+            ? commentsHost.querySelector('#contents, #content, ytd-item-section-renderer')
+            : null;
+          for (const node of [commentsHost, nestedScrollTarget, continuation].filter(Boolean)) {
+            if (node.scrollHeight > node.clientHeight + 80) node.scrollTop = node.scrollHeight;
+          }
+          const continuationButton = continuation
+            ? (continuation.querySelector('#button, button') || continuation)
+            : null;
+          if (continuation) {
+            continuation.scrollIntoView({ block: 'center', behavior: 'instant' });
+            continuation.dispatchEvent(new Event('yt-interaction', { bubbles: true }));
+          }
+          if (continuationButton && typeof continuationButton.click === 'function') {
+            continuationButton.click();
+          }
+          document.dispatchEvent(new Event('scroll', { bubbles: true }));
+          return true;
+        })();
+        """
+    }
+
     func load(videoID: String, maxResults: Int = 50, offset: Int = 0) async -> CommentPage {
         guard YouGlassHiddenWebKitPolicy.isEnabled() else {
             YouGlassDiagnostics.record(
@@ -60,39 +99,7 @@ extension YouTubeCommentsBridge {
         for attempt in 0..<12 {
             if attempt == 1 || attempt == 4 || attempt == 7 {
                 _ = try? await webView?.youGlassEvaluateJavaScript(
-                    """
-                    (() => {
-                      const scrolling = document.scrollingElement || document.documentElement;
-                      const host = document.querySelector('ytd-comments') || document.querySelector('ytd-comment-thread-renderer');
-                      if (host) host.scrollIntoView({ block: 'center', behavior: 'instant' });
-                      const target = Math.max(900, \(self.commentOffset + self.maxResults) * 110);
-                      const bottom = Math.max(scrolling.scrollHeight, document.body ? document.body.scrollHeight : 0);
-                      scrolling.scrollTop = Math.min(bottom, Math.max(scrolling.scrollTop + target, bottom - target));
-                      window.scrollTo(0, scrolling.scrollTop);
-                      for (const node of Array.from(document.querySelectorAll('*'))) {
-                        if (node.scrollHeight > node.clientHeight + 80) node.scrollTop = node.scrollHeight;
-                      }
-                      const commentsHost = document.querySelector('ytd-comments#comments');
-                      const continuation = Array.from(document.querySelectorAll('ytd-continuation-item-renderer'))
-                        .find(node => String(node.className || '').includes('ytd-item-section-renderer'))
-                        || (commentsHost
-                          ? Array.from(commentsHost.querySelectorAll('ytd-continuation-item-renderer'))[0]
-                          : document.querySelector('ytd-comments ytd-continuation-item-renderer'));
-                      const continuationButton = continuation
-                        ? (continuation.querySelector('#button, button') || continuation)
-                        : null;
-                      if (continuation) {
-                        continuation.scrollIntoView({ block: 'center', behavior: 'instant' });
-                        continuation.dispatchEvent(new Event('yt-interaction', { bubbles: true }));
-                      }
-                      if (continuationButton && typeof continuationButton.click === 'function') {
-                        continuationButton.click();
-                        continuationButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
-                      }
-                      document.dispatchEvent(new Event('scroll', { bubbles: true }));
-                      return true;
-                    })();
-                    """
+                    Self.stagedLoadingScript(offset: self.commentOffset, maxResults: self.maxResults)
                 )
             }
 

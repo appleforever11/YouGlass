@@ -2,55 +2,102 @@ import Foundation
 @preconcurrency import WebKit
 
 extension YouTubeCommentsBridge {
-    func extractCurrentPage() async -> CommentPage {
-        guard let webView else {
-            return CommentPage(comments: [], totalCount: 0, isAvailable: false, message: "Comments are unavailable.")
-        }
-
-        extractedNextContinuationToken = nil
+    nonisolated static func extractionScript(
+        maxResults: Int,
+        offset: Int,
+        continuationToken: String?
+    ) -> String {
         let continuationTokenLiteral: String
-        if let data = try? JSONSerialization.data(withJSONObject: activeContinuationToken ?? ""),
+        if let data = try? JSONEncoder().encode(continuationToken ?? ""),
            let value = String(data: data, encoding: .utf8) {
             continuationTokenLiteral = value
         } else {
             continuationTokenLiteral = "\"\""
         }
 
-        let script = """
+        return """
         (() => {
           const limit = \(maxResults);
-          const offset = \(commentOffset);
+          const offset = \(offset);
           const requestedContinuationToken = \(continuationTokenLiteral);
           const clean = value => String(value || '').replace(/\\s+/g, ' ').trim();
+          const channelID = clean(
+            window.ytInitialPlayerResponse && window.ytInitialPlayerResponse.videoDetails
+              ? window.ytInitialPlayerResponse.videoDetails.channelId
+              : ''
+          );
+          if (offset > 0 && requestedContinuationToken) {
+            const requestKey = `${offset}:${requestedContinuationToken}`;
+            const requestState = window.__youglassCommentContinuation;
+            if (requestState && requestState.key === requestKey && requestState.status !== 'done') {
+              return JSON.stringify({
+                comments: [],
+                totalCount: 0,
+                isAvailable: false,
+                message: requestState.error ? requestState.error : 'Loading more comments from the signed-in YouTube session...',
+                nextPageToken: `bridge-offset:${offset}`,
+                nextContinuationToken: null,
+                channelID
+              });
+            }
+          }
           const roots = [document];
           for (const frame of Array.from(document.querySelectorAll('iframe'))) {
             try { if (frame.contentDocument) roots.push(frame.contentDocument); } catch (_) {}
           }
-          const queryDeep = (root, selector) => {
+          const searchRoots = [...roots];
+          const seenRoots = new Set(searchRoots);
+          const addSearchRoot = root => {
+            if (!root || seenRoots.has(root)) return;
+            seenRoots.add(root);
+            searchRoots.push(root);
+          };
+          for (let index = 0; index < searchRoots.length; index += 1) {
+            const current = searchRoots[index];
+            if (!current || typeof current.querySelectorAll !== 'function') continue;
+            for (const element of Array.from(current.querySelectorAll('*'))) {
+              if (element.shadowRoot) addSearchRoot(element.shadowRoot);
+            }
+          }
+          const queryDirect = (root, selector) => {
+            if (!root || typeof root.querySelectorAll !== 'function') return [];
             const found = [];
-            const seen = new Set();
-            const walk = current => {
+            if (typeof root.matches === 'function' && root.matches(selector)) found.push(root);
+            return found.concat(Array.from(root.querySelectorAll(selector)));
+          };
+          const queryAll = selector => searchRoots.flatMap(root => queryDirect(root, selector));
+          const nestedRootsCache = new WeakMap();
+          const nestedRootsFor = root => {
+            if (!root || typeof root !== 'object') return [];
+            const cached = nestedRootsCache.get(root);
+            if (cached) return cached;
+
+            const nestedRoots = [];
+            const nestedSeen = new Set();
+            const collect = current => {
               if (!current || typeof current.querySelectorAll !== 'function') return;
-              if (typeof current.matches === 'function' && current.matches(selector) && !seen.has(current)) {
-                seen.add(current);
-                found.push(current);
+              if (current.shadowRoot && !nestedSeen.has(current.shadowRoot)) {
+                nestedSeen.add(current.shadowRoot);
+                nestedRoots.push(current.shadowRoot);
+                collect(current.shadowRoot);
               }
-              for (const node of Array.from(current.querySelectorAll(selector))) {
-                if (!seen.has(node)) {
-                  seen.add(node);
-                  found.push(node);
+              for (const element of Array.from(current.querySelectorAll('*'))) {
+                if (element.shadowRoot && !nestedSeen.has(element.shadowRoot)) {
+                  nestedSeen.add(element.shadowRoot);
+                  nestedRoots.push(element.shadowRoot);
+                  collect(element.shadowRoot);
                 }
               }
-              if (current.shadowRoot) walk(current.shadowRoot);
-              for (const element of Array.from(current.querySelectorAll('*'))) {
-                if (element.shadowRoot) walk(element.shadowRoot);
-              }
             };
-            walk(root);
-            return found;
+            collect(root);
+            nestedRootsCache.set(root, nestedRoots);
+            return nestedRoots;
           };
-          const queryAll = selector => roots.flatMap(root => queryDeep(root, selector));
-          const queryWithin = (root, selector) => queryDeep(root, selector);
+          const queryWithin = (root, selector) => {
+            const direct = queryDirect(root, selector);
+            if (direct.length > 0) return direct;
+            return nestedRootsFor(root).flatMap(nestedRoot => queryDirect(nestedRoot, selector));
+          };
           const text = node => clean(node ? node.textContent : '');
           const image = node => {
             const img = node ? queryWithin(node, 'img')[0] : null;
@@ -58,12 +105,8 @@ extension YouTubeCommentsBridge {
           };
           const bodyText = roots.map(root => clean(root.body ? root.body.innerText : '')).join(' ');
           const commentsDisabled = /comments are turned off|comments are disabled|comments have been disabled/i.test(bodyText);
-          const channelID = clean(
-            window.ytInitialPlayerResponse && window.ytInitialPlayerResponse.videoDetails
-              ? window.ytInitialPlayerResponse.videoDetails.channelId
-              : ''
-          );
           const threadNodes = queryAll('ytd-comment-thread-renderer');
+          const headerNodes = queryAll('ytd-comments-header-renderer');
           const valueText = value => {
             if (!value) return '';
             if (typeof value === 'string') return clean(value);
@@ -230,9 +273,9 @@ extension YouTubeCommentsBridge {
           // The outer ytd-comments host exists before its lazy content is
           // ready. Treat the header/threads as the loaded surface so the
           // SwiftUI view keeps retrying during that initial render window.
-          const commentsSurface = queryAll('ytd-comment-thread-renderer, ytd-comments-header-renderer').length > 0;
-          const continuationCount = queryAll('ytd-continuation-item-renderer').length;
-          const mainContinuation = queryAll('ytd-continuation-item-renderer')
+          const commentsSurface = threadNodes.length > 0 || headerNodes.length > 0;
+          const continuationNodes = queryAll('ytd-continuation-item-renderer');
+          const mainContinuation = continuationNodes
             .find(node => String(node.className || '').includes('ytd-item-section-renderer')) || null;
           const domContinuationToken = mainContinuation && mainContinuation.data && mainContinuation.data.continuationEndpoint && mainContinuation.data.continuationEndpoint.continuationCommand
             ? mainContinuation.data.continuationEndpoint.continuationCommand.token
@@ -252,12 +295,24 @@ extension YouTubeCommentsBridge {
           });
         })();
         """
+    }
+
+    func extractCurrentPage() async -> CommentPage {
+        guard let webView else {
+            return CommentPage(comments: [], totalCount: 0, isAvailable: false, message: "Comments are unavailable.")
+        }
+
+        extractedNextContinuationToken = nil
+        let script = Self.extractionScript(
+            maxResults: maxResults,
+            offset: commentOffset,
+            continuationToken: activeContinuationToken
+        )
 
         do {
             let value = try await webView.youGlassEvaluateJavaScript(script)
             guard let json = value,
-                  let data = json.data(using: .utf8),
-                  let payload = try? JSONDecoder().decode(CommentBridgePayload.self, from: data) else {
+                  let payload = Self.decodePayload(from: json) else {
                 return CommentPage(comments: [], totalCount: 0, isAvailable: false, message: "Comments are still loading.")
             }
 
@@ -265,26 +320,35 @@ extension YouTubeCommentsBridge {
 
             logger.info("Comment page offset=\(self.commentOffset) returned=\(payload.comments.count)")
 
-            return CommentPage(
-                comments: payload.comments.map { item in
-                    VideoComment(
-                        id: item.id,
-                        author: item.author,
-                        text: item.text,
-                        age: item.age,
-                        likes: item.likes,
-                        avatarURL: URL(string: item.avatarURL)
-                    )
-                },
-                totalCount: payload.totalCount,
-                isAvailable: payload.isAvailable,
-                message: payload.message,
-                nextPageToken: payload.nextPageToken,
-                channelID: payload.channelID
-            )
+            return Self.commentPage(from: payload)
         } catch {
             logger.error("Comment extraction failed: \(error.localizedDescription, privacy: .public)")
             return CommentPage(comments: [], totalCount: 0, isAvailable: false, message: "Comments are unavailable right now.")
         }
+    }
+
+    nonisolated static func decodePayload(from json: String) -> CommentBridgePayload? {
+        guard let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(CommentBridgePayload.self, from: data)
+    }
+
+    nonisolated static func commentPage(from payload: CommentBridgePayload) -> CommentPage {
+        CommentPage(
+            comments: payload.comments.map { item in
+                VideoComment(
+                    id: item.id,
+                    author: item.author,
+                    text: item.text,
+                    age: item.age,
+                    likes: item.likes,
+                    avatarURL: URL(string: item.avatarURL)
+                )
+            },
+            totalCount: payload.totalCount,
+            isAvailable: payload.isAvailable,
+            message: payload.message,
+            nextPageToken: payload.nextPageToken,
+            channelID: payload.channelID
+        )
     }
 }

@@ -4,8 +4,8 @@ import OSLog
 @preconcurrency import WebKit
 
 extension YouTubeWebFeedBridge {
-    func extractVideos(from webView: WKWebView) async -> YouTubeWebFeedResult {
-        let script = """
+    nonisolated static func extractionScript(maxResults: Int, includeShorts: Bool) -> String {
+        """
         (() => {
           const limit = \(maxResults);
           const includeShorts = \(includeShorts ? "true" : "false");
@@ -103,8 +103,11 @@ extension YouTubeWebFeedBridge {
           domCount = cards.length;
           for (const card of cards) {
             const anchors = Array.from(card.querySelectorAll('a[href]'));
-            const anchor = anchors.find(candidate => normalizeId(candidate.href));
-            const id = anchor ? normalizeId(anchor.href) : '';
+            let id = '';
+            for (const candidate of anchors) {
+              id = normalizeId(candidate.href);
+              if (id) break;
+            }
             if (!id) continue;
             const isShortCard = card.matches('ytd-reel-item-renderer')
               || anchors.some(candidate => /\\/shorts\\//i.test(candidate.href));
@@ -163,16 +166,35 @@ extension YouTubeWebFeedBridge {
           });
         })();
         """
+    }
+
+    func extractVideos(from webView: WKWebView) async -> YouTubeWebFeedResult {
+        let script = Self.extractionScript(maxResults: maxResults, includeShorts: includeShorts)
 
         do {
             let result = try await webView.youGlassEvaluateJavaScript(script)
             guard let json = result,
-                  let data = json.data(using: .utf8),
-                  let payload = try? JSONDecoder().decode(WebFeedPayload.self, from: data) else {
+                  let payload = Self.decodePayload(from: json) else {
                 return .empty
             }
 
-            let videos = payload.items.map { entry in
+            let videos = Self.videoItems(from: payload)
+            let diagnostics = "\(videos.count) cards; server data \(payload.initialCount), DOM cards \(payload.domCount)"
+            logger.info("\(self.requestLabel, privacy: .public) extraction: \(diagnostics, privacy: .public); signed in: \(payload.signedIn, privacy: .public)")
+            return YouTubeWebFeedResult(videos: videos, isSignedIn: payload.signedIn, diagnostics: diagnostics)
+        } catch {
+            logger.error("\(self.requestLabel, privacy: .public) extraction failed: \(error.localizedDescription, privacy: .public)")
+            return .empty
+        }
+    }
+
+    nonisolated static func decodePayload(from json: String) -> WebFeedPayload? {
+        guard let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(WebFeedPayload.self, from: data)
+    }
+
+    nonisolated static func videoItems(from payload: WebFeedPayload) -> [VideoItem] {
+        payload.items.map { entry in
                 VideoItem(
                     id: entry.id,
                     title: entry.title,
@@ -184,12 +206,5 @@ extension YouTubeWebFeedBridge {
                     verified: false
                 )
             }
-            let diagnostics = "\(videos.count) cards; server data \(payload.initialCount), DOM cards \(payload.domCount)"
-            logger.info("\(self.requestLabel, privacy: .public) extraction: \(diagnostics, privacy: .public); signed in: \(payload.signedIn, privacy: .public)")
-            return YouTubeWebFeedResult(videos: videos, isSignedIn: payload.signedIn, diagnostics: diagnostics)
-        } catch {
-            logger.error("\(self.requestLabel, privacy: .public) extraction failed: \(error.localizedDescription, privacy: .public)")
-            return .empty
-        }
     }
 }
