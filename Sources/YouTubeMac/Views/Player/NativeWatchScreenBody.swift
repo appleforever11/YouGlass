@@ -104,6 +104,7 @@ extension NativeWatchScreen {
                 subscriptionStatusResolved = false
                 authorizingComments = false
                 commentAuthorizationRequired = store.commentAuthorizationRequired
+                didAutoAdvance = false
                 saved = store.isSaved(video)
                 liked = store.isLocallyLiked(video)
 
@@ -200,7 +201,8 @@ extension NativeWatchScreen {
                 syncNativeNowPlaying()
             }
             .onChange(of: playbackController.didFinish) { _, didFinish in
-                guard didFinish else { return }
+                guard didFinish, !didAutoAdvance else { return }
+                didAutoAdvance = true
                 playbackController.didFinish = false
                 guard store.queueAutoplay else {
                     syncNativeNowPlaying()

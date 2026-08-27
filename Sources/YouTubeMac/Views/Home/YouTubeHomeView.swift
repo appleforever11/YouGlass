@@ -268,9 +268,11 @@ struct YouTubeHomeView: View {
             // reach the lower recommendation rows on smaller displays.
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(store.selectedSection)
-                        .font(.system(size: 26, weight: .bold))
-                        .padding(.top, 6)
+                    if store.selectedSection != "Library" {
+                        Text(store.selectedSection)
+                            .font(.system(size: 26, weight: .bold))
+                            .padding(.top, 6)
+                    }
 
                     if store.selectedSection == "Library" {
                         PersonalLibraryView(palette: palette, compact: compact)

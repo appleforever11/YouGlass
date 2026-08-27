@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SearchField: View {
@@ -39,22 +40,73 @@ struct SearchField: View {
 
 struct RemoteImage: View {
     let url: URL?
+    @State private var loadedImage: Image?
+    @State private var failed = false
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            switch phase {
-            case .success(let image):
-                image
+        Group {
+            if let loadedImage {
+                loadedImage
                     .resizable()
                     .scaledToFill()
-            case .failure:
-                LinearGradient(colors: [.gray.opacity(0.25), .gray.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing)
-            case .empty:
-                Rectangle().fill(.gray.opacity(0.15))
-            @unknown default:
+            } else if failed {
+                LinearGradient(
+                    colors: [.gray.opacity(0.25), .gray.opacity(0.08)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            } else {
                 Rectangle().fill(.gray.opacity(0.15))
             }
         }
+        .task(id: url) { await loadImage() }
+    }
+
+    @MainActor
+    private func loadImage() async {
+        loadedImage = nil
+        failed = false
+        guard let url else {
+            failed = true
+            return
+        }
+        if let cached = YouGlassImageCache.shared.image(for: url) {
+            loadedImage = Image(nsImage: cached)
+            return
+        }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard !Task.isCancelled, let image = NSImage(data: data) else {
+                failed = true
+                return
+            }
+            YouGlassImageCache.shared.insert(image, for: url)
+            loadedImage = Image(nsImage: image)
+        } catch {
+            guard !Task.isCancelled else { return }
+            failed = true
+        }
+    }
+}
+
+@MainActor
+private final class YouGlassImageCache {
+    static let shared = YouGlassImageCache()
+
+    private let cache = NSCache<NSURL, NSImage>()
+
+    private init() {
+        cache.countLimit = 180
+        cache.totalCostLimit = 80 * 1024 * 1024
+    }
+
+    func image(for url: URL) -> NSImage? {
+        cache.object(forKey: url as NSURL)
+    }
+
+    func insert(_ image: NSImage, for url: URL) {
+        let cost = max(1, Int(image.size.width * image.size.height * 4))
+        cache.setObject(image, forKey: url as NSURL, cost: cost)
     }
 }
 

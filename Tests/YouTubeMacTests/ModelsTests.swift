@@ -178,6 +178,35 @@ final class ModelsTests: XCTestCase {
         XCTAssertTrue(unauthorized.localizedDescription.localizedCaseInsensitiveContains("authorization"))
     }
 
+    func testLocalCollectionDeduplicatesAndMutatesVideoIDs() {
+        var collection = YouGlassLibraryCollection(
+            name: "Research",
+            videoIDs: ["one", "one", "two"]
+        )
+
+        XCTAssertEqual(collection.videoIDs, ["one", "two"])
+        collection.add(videoID: "three")
+        collection.add(videoID: "three")
+        collection.remove(videoID: "one")
+
+        XCTAssertEqual(collection.videoIDs, ["three", "two"])
+    }
+
+    func testThemeCustomizationNormalizesShortAndLongHexValues() {
+        XCTAssertEqual(YouGlassThemeCustomization.normalizeHex(" #abc "), "#AABBCC")
+        XCTAssertEqual(YouGlassThemeCustomization.normalizeHex("#4c8dff"), "#4C8DFF")
+        XCTAssertNil(YouGlassThemeCustomization.normalizeHex("#12"))
+        XCTAssertNil(YouGlassThemeCustomization.normalizeHex("#GGGGGG"))
+    }
+
+    func testPlaybackQueueStateRoundTripsAutoplayPreference() throws {
+        let state = YouGlassPlaybackQueueState(videos: [VideoItem.samples[0]], autoplay: false)
+        let data = try JSONEncoder().encode(state)
+        let decoded = try JSONDecoder().decode(YouGlassPlaybackQueueState.self, from: data)
+
+        XCTAssertEqual(decoded, state)
+    }
+
     func testCachePolicyReportsFreshAndStaleEntries() {
         let now = Date(timeIntervalSince1970: 10_000)
 

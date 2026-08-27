@@ -25,6 +25,7 @@ struct NativeWatchScreen: View {
     @State var playbackStopHandlerToken: UUID?
     @State var playbackCommandHandlerToken: UUID?
     @State var queuePresented = false
+    @State var didAutoAdvance = false
     @StateObject var playbackController = YouTubePlaybackController()
     @FocusState var commentFieldFocused: Bool
     let video: VideoItem
