@@ -28,7 +28,7 @@ For any non-trivial code task:
 - Minimum platform: macOS 14.0. The current development host is Apple Silicon, macOS 26.6.2, Swift 6.4, and Xcode 27.0.
 - UI stack: SwiftUI with focused AppKit bridges for windows, WebKit surfaces, Picture in Picture, and the settings scroll container.
 - Dependency: Sparkle 2.9.5, resolved in `Package.resolved`.
-- Current baseline at this documentation setup: branch `codex/theme-center`, commit `3a096d9` (`v1.13.2`). The worktree already contains uncommitted YouGlass feature/stability/theme changes; those are not part of the documentation setup commit.
+- Current development branch: `codex/theme-center`. The last documented source baseline before the active settings milestone is commit `102c506` (`fix(settings): align detail document to visual top`); the current settings fix and its documentation are being recorded as the next local milestone.
 - Source organization: keep Swift source files below 500 lines and group code by app, model, store, view, and service responsibility.
 
 ## Build, test, and run
@@ -106,7 +106,7 @@ Use the commit and current worktree together; uncommitted changes are not repres
 ## UI and runtime validation
 
 - Keep SwiftUI as the source of truth and use the smallest AppKit bridge necessary for behavior SwiftUI cannot provide reliably on this macOS release.
-- Settings uses a sidebar/detail layout. The Appearance page is intentionally taller than the default settings window and must open at the top while remaining scrollable.
+- Settings uses a sidebar/detail layout. The Appearance page is intentionally taller than the default settings window and must open at the top while remaining scrollable. Its detail viewport uses a stock `NSScrollView` with an `NSHostingController` document measured by `sizeThatFits(in:)`; keep the document top-leading, do not add a max-height fill or custom scroll-view layout callback, and reset the scroll position only when the selected page changes.
 - Changes to settings layout, scrolling, window sizing, or WebKit must be tested against a rebuilt app bundle, not only `swift build` success.
 - Use the existing diagnostics tools for runtime evidence. Avoid adding permanent logging for a one-off investigation unless it is useful and redacted.
 

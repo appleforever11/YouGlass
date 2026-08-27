@@ -47,7 +47,7 @@ Settings scene
         └── About & Help
 ```
 
-The Appearance page is deliberately taller than the default window because it contains the theme catalog. The current custom scroll bridge uses `NSScrollView` and `NSHostingView` to avoid a macOS 27 private SwiftUI hosting-scroll hit-test crash. The hosted root is explicitly top-leading aligned, and page resets resolve the visual top against the clip view's coordinate direction. Any replacement should keep AppKit as a narrow boundary, use explicit document/viewport geometry, reset only when changing pages, and leave user-driven scrolling alone after the initial layout settles.
+The Appearance page is deliberately taller than the default window because it contains the theme catalog. The scroll bridge uses a stock `NSScrollView` with an `NSHostingController` document to avoid a macOS 27 private SwiftUI hosting-scroll hit-test crash. The controller's `sizeThatFits(in:)` result supplies the document height at the real viewport width, preventing the hosted page from being centered inside an oversized document. The SwiftUI root is top-leading aligned, and page resets resolve the visual top against the document view's coordinate direction. Keep AppKit as a narrow boundary, avoid custom `NSScrollView.layout()` callbacks and max-height document fills, reset only when changing pages, and leave user-driven scrolling alone after the initial layout settles.
 
 ## Service boundaries
 

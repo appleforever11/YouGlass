@@ -28,15 +28,15 @@ The Appearance page contains:
 - color mode and ambient-glass controls;
 - the selected theme summary;
 - a 12-family theme catalog with paired light/dark previews;
-- an AppKit-backed scroll view because the private SwiftUI hosting scroll path has been unstable on the current macOS 27 beta/runtime.
+- an AppKit-backed scroll view because the private SwiftUI hosting scroll path has been unstable on the current macOS 27 beta/runtime. The bridge measures the `NSHostingController` document at the viewport width, keeps the page at the visual top, and preserves native scrolling through the entire catalog.
 
-The settings scroll bridge keeps the Appearance document top-aligned while preserving real scrolling. Its AppKit boundary resolves the visual top against the clip view's coordinate system, and the SwiftUI document root is explicitly top-leading aligned.
+The settings scroll bridge keeps every detail page top-aligned while preserving real scrolling. Its AppKit boundary uses a stock `NSScrollView` and `NSHostingController.sizeThatFits(in:)` to give the document its actual content height; it resolves the visual top from the document view's coordinate system and resets only when the selected page changes. The SwiftUI document root is explicitly top-leading aligned.
 
-## Current Git state at documentation setup
+## Current Git state and local baseline
 
 - Branch: `codex/theme-center`
-- Baseline commit: `3a096d9`, tagged `v1.13.2`
-- The worktree already contains uncommitted theme, visual, player, feed, stability, settings, and test changes, plus new theme catalog/icon resources. Those changes belong to the existing work and should not be mixed into the initial project-docs commit.
+- The modular source baseline before the current settings-scroll milestone is `102c506` (`fix(settings): align detail document to visual top`). The settings-scroll milestone is recorded in the local Git history with the application changes and its durable documentation together.
+- Remote state is separate from local history. Inspect `git status --short` and `git log --oneline --decorate` before making a new change; never assume a local commit has been pushed.
 - The iCloud-visible project path and the resolved Git path are equivalent on this machine. Prefer the resolved Git root for diagnostics and file links.
 
 ## Recovery and archive rule
