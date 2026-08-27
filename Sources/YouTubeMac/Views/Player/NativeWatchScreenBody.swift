@@ -47,11 +47,23 @@ extension NativeWatchScreen {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            // The player overlay owns the shared ambient backdrop. Keep the
-            // watch screen transparent so that backdrop can flow through the
-            // header, page margins, and recommendation rail instead of ending
-            // at an opaque rectangle around the video.
-            .background(Color.clear)
+            // The player overlay owns the shared ambient backdrop. This single
+            // low-contrast fade sits behind the header and page together, so
+            // their boundary reads as one surface instead of a hard horizontal
+            // strip where two independently painted rectangles meet.
+            .background {
+                LinearGradient(
+                    stops: [
+                        .init(color: palette.content.opacity(palette.isDark ? 0.70 : 0.52), location: 0),
+                        .init(color: palette.content.opacity(palette.isDark ? 0.52 : 0.36), location: 0.20),
+                        .init(color: palette.content.opacity(palette.isDark ? 0.24 : 0.16), location: 0.44),
+                        .init(color: .clear, location: 0.72)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .allowsHitTesting(false)
+            }
             .clipShape(Rectangle())
             .overlay(alignment: .topTrailing) {
                 if !isCompact, queuePresented {

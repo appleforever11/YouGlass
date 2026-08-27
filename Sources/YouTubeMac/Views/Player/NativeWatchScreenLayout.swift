@@ -49,13 +49,8 @@ extension NativeWatchScreen {
                 // scroll viewport clips at its bounds; without this breathing
                 // room a centered shadow is still cut off along the top edge.
                 .padding(.top, 16)
-                // This is intentionally translucent. PlayerAmbientSurface is
-                // mounted behind the watch screen; an opaque content fill made
-                // each theme stop abruptly at the player/page boundary.
-                .background(palette.content.opacity(palette.isDark ? 0.78 : 0.84))
             }
             .frame(width: availableSize.width, height: availableSize.height, alignment: .top)
-            .background(palette.window.opacity(palette.isDark ? 0.62 : 0.72))
             .clipShape(Rectangle())
             .clipped()
             .accessibilityIdentifier("player-main-scroll")
@@ -223,20 +218,8 @@ extension NativeWatchScreen {
                         )
                     }
             }
-            .overlay(alignment: .bottom) {
-                LinearGradient(
-                    colors: [
-                        palette.stroke.opacity(0.22),
-                        palette.content.opacity(0.10),
-                        .clear
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                    .frame(height: 24)
-                    .offset(y: 12)
-                    .allowsHitTesting(false)
-            }
+            // The watch screen owns the shared fade behind both header and
+            // page; do not add a divider or a second lower-edge rectangle here.
             .zIndex(4)
         }
 

@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — blend the player header into the watch page
+
+- Removed the independent page-start and header lower-edge rectangles. A single low-contrast watch-screen fade now sits behind the fixed header and scroll document, allowing the media halo to transition continuously into the header while retaining the small top inset needed to keep the perimeter glow visible.
+- Rebuilt and opened `dist/YouGlass.app`; the native smoke check confirmed the highlighted band is a soft surface transition, the header shelf remains smooth, and the ten-item Up Next rail is unchanged. `./script/test.sh` passed all 32 tests.
+
 ## 2026-08-27 — remove expanded-player title-bar cap and smooth header controls
 
 - Enabled the main SwiftUI window's full-size content region with a transparent hidden title bar and made expanded player mode use a zero top shell inset. The custom player header now reaches the window edge instead of sitting below a separate dark AppKit strip; regular feed mode keeps its original inset.
