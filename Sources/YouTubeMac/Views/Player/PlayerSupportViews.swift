@@ -134,8 +134,8 @@ struct LiveChatPanel: View {
                     .foregroundStyle(palette.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                ScrollView(showsIndicators: false) {
-                    LazyVStack(alignment: .leading, spacing: 10) {
+                YouGlassBoundedScrollView(accessibilityIdentifier: "live-chat-scroll") {
+                    VStack(alignment: .leading, spacing: 10) {
                         ForEach(messages) { message in
                             HStack(alignment: .top, spacing: 8) {
                                 AsyncAvatar(url: message.avatarURL)
@@ -157,7 +157,7 @@ struct LiveChatPanel: View {
                         }
                     }
                 }
-                .frame(maxHeight: .infinity, alignment: .top)
+                .frame(maxWidth: .infinity, minHeight: 1, maxHeight: .infinity, alignment: .top)
             }
 
             if let liveChatID, !liveChatID.isEmpty {

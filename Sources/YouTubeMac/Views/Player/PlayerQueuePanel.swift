@@ -38,14 +38,14 @@ struct PlayerQueuePanel: View {
                     .foregroundStyle(palette.secondaryText)
                     .frame(maxWidth: .infinity, minHeight: 80, alignment: .center)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 6) {
+                YouGlassBoundedScrollView(accessibilityIdentifier: "queue-scroll") {
+                    VStack(spacing: 6) {
                         ForEach(store.playbackQueue) { queuedVideo in
                             queueRow(queuedVideo)
                         }
                     }
                 }
-                .frame(maxHeight: 360)
+                .frame(height: min(max(CGFloat(store.playbackQueue.count) * 58, 80), 360))
             }
         }
         .padding(14)

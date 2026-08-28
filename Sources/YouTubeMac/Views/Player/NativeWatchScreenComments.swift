@@ -32,56 +32,64 @@ extension NativeWatchScreen {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(palette.secondaryText)
                 } else if commentPage.isAvailable {
-                    VStack(alignment: .leading, spacing: 13) {
-                        if commentPage.comments.isEmpty {
-                            Text("No comments are visible on this page yet.")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(palette.secondaryText)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(.vertical, 18)
-                        }
-
-                        ForEach(commentPage.comments) { comment in
-                            CommentRow(comment: comment, palette: palette)
-                                .onAppear {
-                                    guard comment.id == commentPage.comments.last?.id else { return }
-                                    Task { await loadMoreComments() }
-                                }
-                        }
-
-                        if commentsLoadingMore {
-                            HStack {
-                                ProgressView()
-                                    .controlSize(.small)
-                                Text("Loading more comments...")
-                                    .font(.system(size: 11, weight: .medium))
+                    YouGlassBoundedScrollView(accessibilityIdentifier: "comments-scroll") {
+                        VStack(alignment: .leading, spacing: 13) {
+                            if commentPage.comments.isEmpty {
+                                Text("No comments are visible on this page yet.")
+                                    .font(.system(size: 12, weight: .medium))
                                     .foregroundStyle(palette.secondaryText)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 18)
                             }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                        } else if commentPage.nextPageToken != nil {
-                            Button {
-                                Task { await loadMoreComments(force: true) }
-                            } label: {
-                                Label("Load more comments", systemImage: "arrow.down.circle")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .frame(maxWidth: .infinity)
+
+                            ForEach(commentPage.comments) { comment in
+                                CommentRow(comment: comment, palette: palette)
+                                    .onAppear {
+                                        guard comment.id == commentPage.comments.last?.id else { return }
+                                        Task { await loadMoreComments() }
+                                    }
                             }
-                            .buttonStyle(.bordered)
-                            .tint(.white)
-                            .padding(.vertical, 4)
-                        } else {
-                            Color.clear
-                                .frame(height: 1)
-                                .id("comments-end")
+
+                            if commentsLoadingMore {
+                                HStack {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Loading more comments...")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundStyle(palette.secondaryText)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                            } else if commentPage.nextPageToken != nil {
+                                Button {
+                                    Task { await loadMoreComments(force: true) }
+                                } label: {
+                                    Label("Load more comments", systemImage: "arrow.down.circle")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .frame(maxWidth: .infinity)
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.white)
+                                .padding(.vertical, 4)
+                            } else {
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id("comments-end")
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .accessibilityIdentifier("comments-content")
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .accessibilityIdentifier("comments-content")
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(height: 360, alignment: .top)
                     .background(.black.opacity(palette.isDark ? 0.08 : 0.03))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(palette.stroke.opacity(0.45), lineWidth: 1)
+                    }
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(commentPage.message ?? "Comments are unavailable for this video.")
@@ -107,11 +115,10 @@ extension NativeWatchScreen {
                     }
                 }
             }
-            // Keep the comments block in the outer page's intrinsic document
-            // height. This prevents an unbounded page proposal from making the
-            // section visually present but layout-zero.
+            // The outer page still owns navigation between player sections, but
+            // loaded comments use their own bounded viewport so scrolling inside
+            // this box does not move the entire watch page.
             .frame(minHeight: 180, alignment: .top)
-            .fixedSize(horizontal: false, vertical: true)
         }
 
         var relatedRail: some View {
@@ -138,9 +145,10 @@ extension NativeWatchScreen {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .topLeading)
-            // The recommendation rail is part of the same outer page document,
-            // not a second vertical scroll surface.
-            .fixedSize(horizontal: false, vertical: true)
+            // The recommendation rail remains part of the outer page document,
+            // not a second vertical scroll surface. Its cards are already
+            // intrinsically sized, so it does not need a fixed-size measurement
+            // wrapper alongside the nested comments viewport.
         }
 
         var playerRecommendations: [VideoItem] {

@@ -13,7 +13,7 @@ extension NativeWatchScreen {
 
             let documentWidth = max(1, availableSize.width - (horizontalPadding * 2))
 
-            return ScrollView(.vertical, showsIndicators: true) {
+            return YouGlassBoundedScrollView(accessibilityIdentifier: "player-main-scroll") {
                 HStack(alignment: .top, spacing: columnSpacing) {
                     VStack(alignment: .leading, spacing: 0) {
                         watchDetailsContent(playerWidth: playerWidth)
@@ -53,7 +53,6 @@ extension NativeWatchScreen {
             .frame(width: availableSize.width, height: availableSize.height, alignment: .top)
             .clipShape(Rectangle())
             .clipped()
-            .accessibilityIdentifier("player-main-scroll")
         }
 
         func watchDetailsContent(playerWidth: CGFloat? = nil) -> some View {
@@ -115,11 +114,10 @@ extension NativeWatchScreen {
                 commentComposer
                 commentsList
             }
-            // The surrounding HStack is measured by the outer vertical
-            // ScrollView. Keep the detail column's stacked sections intrinsic
-            // instead of allowing an infinite-height proposal to collapse the
-            // comments section into the viewport-sized row.
-            .fixedSize(horizontal: false, vertical: true)
+            // The comments section supplies its own finite viewport. Avoid a
+            // fixed-size measurement wrapper here: the AppKit-backed page and
+            // comments scrollers already size their hosted SwiftUI documents
+            // explicitly.
         }
 
         var watchSideColumn: some View {
@@ -154,7 +152,10 @@ extension NativeWatchScreen {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(palette.secondaryText)
                 } else {
-                    ScrollView(.horizontal, showsIndicators: false) {
+                    YouGlassBoundedScrollView(
+                        axis: .horizontal,
+                        accessibilityIdentifier: "player-related-scroll"
+                    ) {
                         LazyHStack(spacing: 10) {
                             ForEach(playerRecommendations) { related in
                                 Button {
