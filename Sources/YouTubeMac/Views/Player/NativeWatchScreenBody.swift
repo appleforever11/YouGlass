@@ -30,19 +30,18 @@ extension NativeWatchScreen {
                     .accessibilityIdentifier("player-main-scroll")
                 } else {
                     // Keep one watch-screen hierarchy mounted while the window
-                    // resizes. Rebuilding separate wide/narrow ScrollViews can
-                    // reparent the WKWebView during a remote layer-tree commit.
-                    GeometryReader { geometry in
-                        let availableSize = geometry.size
-                        if availableSize.width > 1, availableSize.height > 1 {
-                            responsiveWatchLayout(availableSize: availableSize)
-                        } else {
-                            // Avoid mounting WebKit into a zero-size first pass.
-                            // The next layout pass supplies the real watch rect,
-                            // at which point the player is created at its final
-                            // size instead of visibly growing into it.
-                            Color.black
+                    // resizes. An AppKit size reader avoids the macOS 26
+                    // GeometryReader copy crash that occurs when this page is
+                    // presented with its AppKit-backed scroll view.
+                    ZStack(alignment: .topLeading) {
+                        responsiveWatchLayout(availableSize: watchAvailableSize)
+
+                        YouGlassSizeReader { size in
+                            guard size != watchAvailableSize else { return }
+                            watchAvailableSize = size
                         }
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
                     }
                 }
             }

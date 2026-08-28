@@ -6,6 +6,7 @@ extension NativeWatchScreen {
             let horizontalPadding: CGFloat = isWide ? 18 : 12
             let columnSpacing: CGFloat = isWide ? 18 : 0
             let sideColumnWidth: CGFloat = isWide ? 280 : 0
+            let pageBottomPadding: CGFloat = isWide ? 88 : 72
             let playerWidth = max(
                 1,
                 availableSize.width - (horizontalPadding * 2) - columnSpacing - sideColumnWidth
@@ -49,6 +50,10 @@ extension NativeWatchScreen {
                 // scroll viewport clips at its bounds; without this breathing
                 // room a centered shadow is still cut off along the top edge.
                 .padding(.top, 16)
+                // Leave a small amount of document space after the comments
+                // viewport so the outer page can continue moving when the
+                // pointer is outside the inner comments scroller.
+                .padding(.bottom, pageBottomPadding)
             }
             .frame(width: availableSize.width, height: availableSize.height, alignment: .top)
             .clipShape(Rectangle())

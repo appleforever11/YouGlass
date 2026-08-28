@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — extend the outer player page beyond comments
+
+- Kept the comments panel as its own bounded 360-point AppKit scroll box and added a reachable trailing document inset after it. The outer watch-page scroll can now move a little farther when the pointer is outside the comments box, leaving the lower page content and stopping area accessible without changing inner comment scrolling.
+- Replaced the full-player SwiftUI `GeometryReader` size path with a small AppKit size reader and kept the watch hierarchy mounted during resize. This avoids the macOS 26 presentation crash observed while SwiftUI copied the geometry/scroll hierarchy. The Home indicator ranges were also made stable arrays for the same `ClosedRange` copy failure path.
+- Validation: `./script/test.sh` passed all 40 tests, `./script/build_and_run.sh --verify` passed, and the rebuilt player accepted an outer-page scroll from approximately 0.82 to 1.00 while the process remained running.
+
 ## 2026-08-27 — stop player scroll crashes and isolate comments scrolling
 
 - The supplied runtime reports showed repeated `EXC_BAD_ACCESS` failures during SwiftUI `initializeWithCopy for ScrollView` work in the player view graph, including the mounted `LiveChatPanel` path. The failure appeared after adding a nested comments scroller and was reproducible when launching the staged bundle on macOS 26.6.2.

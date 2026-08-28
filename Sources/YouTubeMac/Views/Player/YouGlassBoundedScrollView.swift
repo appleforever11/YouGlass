@@ -105,3 +105,48 @@ struct YouGlassBoundedScrollView<Content: View>: NSViewRepresentable {
         }
     }
 }
+
+/// Reports the size offered by SwiftUI without adding a GeometryReader node to
+/// the view graph. macOS 26 can crash while copying a GeometryReader child that
+/// contains an AppKit-backed scroll view during a presentation transition.
+@MainActor
+struct YouGlassSizeReader: NSViewRepresentable {
+    let onChange: (CGSize) -> Void
+
+    func makeNSView(context: Context) -> SizeReportingView {
+        let view = SizeReportingView()
+        view.onChange = onChange
+        return view
+    }
+
+    func updateNSView(_ view: SizeReportingView, context: Context) {
+        view.onChange = onChange
+        view.reportIfNeeded()
+    }
+
+    @MainActor
+    final class SizeReportingView: NSView {
+        var onChange: ((CGSize) -> Void)?
+        private var lastReportedSize: CGSize = .zero
+
+        override func layout() {
+            super.layout()
+            reportIfNeeded()
+        }
+
+        func reportIfNeeded() {
+            let size = bounds.size
+            guard size.width > 1,
+                  size.height > 1,
+                  size.width.isFinite,
+                  size.height.isFinite,
+                  size != lastReportedSize else { return }
+
+            lastReportedSize = size
+            let callback = onChange
+            DispatchQueue.main.async {
+                callback?(size)
+            }
+        }
+    }
+}

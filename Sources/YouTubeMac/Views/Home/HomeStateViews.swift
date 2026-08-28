@@ -24,7 +24,7 @@ struct HomeLoadingView: View {
                 alignment: .leading,
                 spacing: 18
             ) {
-                ForEach(0..<4, id: \.self) { _ in
+                ForEach(Array(0..<4), id: \.self) { _ in
                     VStack(alignment: .leading, spacing: 10) {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(palette.card.opacity(0.64))

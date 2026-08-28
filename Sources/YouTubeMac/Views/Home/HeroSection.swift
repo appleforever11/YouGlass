@@ -83,7 +83,7 @@ struct HeroSection: View {
                         )
 
                         HStack(spacing: 8) {
-                            ForEach(0..<4, id: \.self) { index in
+                            ForEach(Array(0..<4), id: \.self) { index in
                                 Circle()
                                     .fill(index == 0 ? .white : .white.opacity(0.35))
                                     .frame(width: 8, height: 8)

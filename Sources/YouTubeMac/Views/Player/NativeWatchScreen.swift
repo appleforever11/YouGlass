@@ -26,6 +26,7 @@ struct NativeWatchScreen: View {
     @State var playbackCommandHandlerToken: UUID?
     @State var queuePresented = false
     @State var didAutoAdvance = false
+    @State var watchAvailableSize = CGSize(width: 900, height: 680)
     @StateObject var playbackController = YouTubePlaybackController()
     @FocusState var commentFieldFocused: Bool
     let video: VideoItem
