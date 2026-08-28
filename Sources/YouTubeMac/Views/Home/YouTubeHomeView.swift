@@ -80,8 +80,17 @@ struct YouTubeHomeView: View {
                     }
                 }
 
+                } // Keep modal overlays out of the horizontal shell layout.
+
                 if store.commandPalettePresented {
-                    Color.black.opacity(colorScheme == .dark ? 0.42 : 0.22)
+                    // Keep the modal state legible on translucent themes. The
+                    // palette has its own opaque surface; this scrim only dims
+                    // the active window and leaves the normal Home glass
+                    // behavior unchanged after dismissal.
+                    palette.window.opacity(colorScheme == .dark ? 0.76 : 0.84)
+                        .overlay {
+                            Color.black.opacity(colorScheme == .dark ? 0.18 : 0.10)
+                        }
                         .ignoresSafeArea()
                         .onTapGesture { store.commandPalettePresented = false }
                         .zIndex(20)
@@ -91,6 +100,7 @@ struct YouTubeHomeView: View {
                         dismiss: { store.commandPalettePresented = false }
                     )
                     .environmentObject(store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .zIndex(21)
                 }
             }
@@ -108,7 +118,6 @@ struct YouTubeHomeView: View {
                 .padding(.horizontal, shellInset)
                 .padding(.top, shellTopInset)
                 .padding(.bottom, compactShell ? 8 : 14)
-            }
         }
         .onChange(of: store.compactPlayerCorner) { _, _ in
             compactDragOffset = .zero

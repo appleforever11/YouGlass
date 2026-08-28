@@ -17,6 +17,10 @@ struct CommandPaletteView: View {
     @State private var selectedIndex = 0
     @FocusState private var searchFocused: Bool
 
+    private var surfaceShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+    }
+
     private var commands: [YouGlassPaletteCommand] {
         var result: [YouGlassPaletteCommand] = [
             command("home", "Go to Home", "Open your personalized home feed", "house.fill") { store.showSection("Home") },
@@ -152,11 +156,33 @@ struct CommandPaletteView: View {
         }
         .padding(14)
         .frame(width: 560)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        // A modal palette should not sample the Home feed or another window
+        // through its glass. Keep the themed base opaque, then add a restrained
+        // material layer so the panel remains part of the app's glass language.
+        .background {
+            ZStack {
+                surfaceShape.fill(palette.content)
+                surfaceShape
+                    .fill(.regularMaterial)
+                    .opacity(palette.isDark ? 0.28 : 0.22)
+                surfaceShape
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                palette.purple.opacity(palette.isDark ? 0.10 : 0.06),
+                                palette.pink.opacity(palette.isDark ? 0.07 : 0.04)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+            }
+        }
         .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            surfaceShape
                 .stroke(palette.stroke, lineWidth: 1)
         }
+        .clipShape(surfaceShape)
         .shadow(color: .black.opacity(0.34), radius: 30, y: 14)
         .onAppear {
             searchFocused = true
