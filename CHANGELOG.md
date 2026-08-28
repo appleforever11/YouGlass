@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.4] - 2026-08-27
+
+Fixed native player captions and playback-surface stability, and refined the speed picker and player controls. See [the complete end-user release notes](RELEASE_NOTES/1.13.4.md).
+
 ## [1.13.3] - 2026-08-27
 
 Fixed the Settings detail layout and Appearance scrolling, and shipped the coordinated Theme Center with 12 light/dark environment themes. See [the complete end-user release notes](RELEASE_NOTES/1.13.3.md).
