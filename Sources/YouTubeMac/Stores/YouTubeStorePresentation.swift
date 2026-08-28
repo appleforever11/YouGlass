@@ -15,16 +15,27 @@ extension YouTubeStore {
         }
 
         func open(_ video: VideoItem) {
+            videoResolutionTask?.cancel()
+            videoResolutionTask = nil
+            videoResolutionGeneration &+= 1
+
             stopCurrentPlayback()
             closeDesktopPIPWindow()
             guard video.isPlayableOnYouTube else {
                 connectionMessage = "Resolving this card to a playable YouTube video..."
-                Task { @MainActor [weak self] in
+                let generation = videoResolutionGeneration
+                videoResolutionTask = Task { @MainActor [weak self] in
                     guard let self else { return }
+                    defer {
+                        if self.videoResolutionGeneration == generation {
+                            self.videoResolutionTask = nil
+                        }
+                    }
 
                     if await client.hasCredentials(),
                        let matches = try? await client.searchVideos(query: video.title, maxResults: 1),
                        let resolved = matches.first {
+                        guard !Task.isCancelled, self.videoResolutionGeneration == generation else { return }
                         rememberRecommendationSeed(resolved)
                         rememberHistory(resolved)
                         preparePlaybackQueue(for: resolved)
@@ -38,6 +49,7 @@ extension YouTubeStore {
                     // Keep the offline catalog interactive when no API key/feed is
                     // available. This is the official IFrame API sample video.
                     if let fallback = VideoItem.fromYouTubeInput("M7lc1UVf-VE") {
+                        guard !Task.isCancelled, self.videoResolutionGeneration == generation else { return }
                         let playableFallback = VideoItem(
                             id: fallback.id,
                             title: "YouTube player test video",
@@ -56,6 +68,7 @@ extension YouTubeStore {
                         return
                     }
 
+                    guard !Task.isCancelled, self.videoResolutionGeneration == generation else { return }
                     connectionMessage = "This card does not contain a valid YouTube video ID"
                 }
                 return
@@ -89,6 +102,9 @@ extension YouTubeStore {
         }
 
         func dismissPlayer() {
+            videoResolutionTask?.cancel()
+            videoResolutionTask = nil
+            videoResolutionGeneration &+= 1
             stopCurrentPlayback()
             closeDesktopPIPWindow()
             selectedVideo = nil
@@ -177,6 +193,10 @@ extension YouTubeStore {
         }
 
         func openChannel(_ item: SubscriptionItem) {
+            channelLoadTask?.cancel()
+            channelLoadGeneration &+= 1
+            let generation = channelLoadGeneration
+
             if selectedVideo != nil {
                 isPlayerCompact = true
             }
@@ -185,16 +205,17 @@ extension YouTubeStore {
             channelError = nil
             channelLoading = true
 
-            Task { @MainActor [weak self] in
+            channelLoadTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 do {
                     let page = try await client.channelPage(for: item)
-                    guard selectedChannelItem?.id == item.id else { return }
+                    guard canPublishChannelLoad(generation, channelID: item.id) else { return }
                     channelPage = page
                     selectedSection = page.channel.name
                 } catch {
-                    guard selectedChannelItem?.id == item.id else { return }
+                    guard canPublishChannelLoad(generation, channelID: item.id) else { return }
                     if let page = await safariHomeFeed.loadChannelPage(for: item) {
+                        guard canPublishChannelLoad(generation, channelID: item.id) else { return }
                         channelPage = page
                         selectedSection = page.channel.name
                         connectionMessage = "Native channel view from your YouTube subscription feed"
@@ -205,6 +226,7 @@ extension YouTubeStore {
                             metadata: ["channel": item.name]
                         )
                     } else if let page = await channelBridge.loadChannel(item) {
+                        guard canPublishChannelLoad(generation, channelID: item.id) else { return }
                         channelPage = page
                         selectedSection = page.channel.name
                         connectionMessage = "Native channel view from your signed-in YouTube session"
@@ -212,11 +234,26 @@ extension YouTubeStore {
                         channelError = error.localizedDescription
                     }
                 }
-                channelLoading = false
+                finishChannelLoad(generation)
             }
         }
 
+        private func canPublishChannelLoad(_ generation: Int, channelID: String) -> Bool {
+            !Task.isCancelled &&
+                generation == channelLoadGeneration &&
+                selectedChannelItem?.id == channelID
+        }
+
+        private func finishChannelLoad(_ generation: Int) {
+            guard generation == channelLoadGeneration else { return }
+            channelLoading = false
+            channelLoadTask = nil
+        }
+
         func closeChannel() {
+            channelLoadTask?.cancel()
+            channelLoadTask = nil
+            channelLoadGeneration &+= 1
             selectedChannelItem = nil
             channelPage = nil
             channelError = nil

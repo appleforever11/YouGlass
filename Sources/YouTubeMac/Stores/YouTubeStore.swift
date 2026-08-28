@@ -83,7 +83,16 @@ final class YouTubeStore: ObservableObject {
     var lastHomeLoadDate: Date?
     var scheduledHomeReloadTask: Task<Void, Never>?
     var homeRefreshTask: Task<Void, Never>?
+    var sectionLoadTask: Task<Void, Never>?
+    var sectionLoadGeneration = 0
     var accountSyncTask: Task<Void, Never>?
+    var accountSyncGeneration = 0
+    var channelLoadTask: Task<Void, Never>?
+    var channelLoadGeneration = 0
+    var videoResolutionTask: Task<Void, Never>?
+    var videoResolutionGeneration = 0
+    var playlistLoadTask: Task<Void, Never>?
+    var playlistLoadGeneration = 0
     var cachedFeedUpdatedAt: Date?
     var cachedPersonalizedFeedUpdatedAt: Date?
     var cachedSubscriptionsUpdatedAt: Date?

@@ -38,6 +38,57 @@ final class ModelsTests: XCTestCase {
         XCTAssertLessThan(PIPTransitionPolicy.panelFadeDuration, 0.5)
     }
 
+    func testConnectionModePrioritizesReachabilityAndAccountState() {
+        XCTAssertEqual(
+            YouGlassConnectionMode.resolve(
+                isNetworkAvailable: false,
+                isSignedIn: true,
+                isSyncing: false,
+                detailMessage: "Connected"
+            ),
+            .offline
+        )
+        XCTAssertEqual(
+            YouGlassConnectionMode.resolve(
+                isNetworkAvailable: true,
+                isSignedIn: false,
+                isSyncing: true,
+                detailMessage: "Loading recommendations"
+            ),
+            .syncing
+        )
+        XCTAssertEqual(
+            YouGlassConnectionMode.resolve(
+                isNetworkAvailable: true,
+                isSignedIn: true,
+                isSyncing: false,
+                detailMessage: "Account feed ready"
+            ),
+            .connected
+        )
+    }
+
+    func testConnectionModeSeparatesSetupFromLocalMode() {
+        XCTAssertEqual(
+            YouGlassConnectionMode.resolve(
+                isNetworkAvailable: true,
+                isSignedIn: false,
+                isSyncing: false,
+                detailMessage: "API key needed for live YouTube"
+            ),
+            .setupRequired
+        )
+        XCTAssertEqual(
+            YouGlassConnectionMode.resolve(
+                isNetworkAvailable: true,
+                isSignedIn: false,
+                isSyncing: false,
+                detailMessage: "Saved YouTube recommendations"
+            ),
+            .local
+        )
+    }
+
     func testPlaybackCheckpointPolicyHasBoundedResumeData() {
         XCTAssertEqual(PlaybackCheckpointPolicy.maxEntries, 200)
         XCTAssertGreaterThan(PlaybackCheckpointPolicy.completionGraceSeconds, 0)

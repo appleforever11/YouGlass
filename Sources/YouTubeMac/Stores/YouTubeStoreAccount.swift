@@ -5,6 +5,8 @@ import SwiftUI
 extension YouTubeStore {
         func refreshAccount() {
             accountSyncTask?.cancel()
+            accountSyncGeneration &+= 1
+            let generation = accountSyncGeneration
             subscriptionsLoaded = false
             invalidateAccountSignalCache()
             connectionMessage = "Refreshing your YouTube account..."
@@ -14,8 +16,10 @@ extension YouTubeStore {
             accountSyncTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 defer {
-                    self.accountSyncInProgress = false
-                    self.accountSyncTask = nil
+                    if self.accountSyncGeneration == generation {
+                        self.accountSyncInProgress = false
+                        self.accountSyncTask = nil
+                    }
                 }
 
                 // OAuth is authoritative for API-backed account data. Checking it
@@ -28,7 +32,9 @@ extension YouTubeStore {
                     hasOAuthSession = false
                 }
 
+                guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }
                 let browserSession = await YouTubeBrowserWindow.shared.hasAuthenticatedYouTubeSession()
+                guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }
                 let hasBrowserSession = hasOAuthSession || browserSession
                 self.isSignedIn = hasBrowserSession
                 self.defaults.set(hasBrowserSession, forKey: DefaultsKey.isSignedIn)
@@ -37,11 +43,11 @@ extension YouTubeStore {
                     self.defaults.removeObject(forKey: DefaultsKey.profileImageURL)
                 }
 
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }
                 await self.loadSubscriptions(force: true)
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }
                 await self.loadHome(force: true)
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }
 
                 self.accountSyncStatus = self.isSignedIn
                     ? "Account, subscriptions, and recommendations refreshed"

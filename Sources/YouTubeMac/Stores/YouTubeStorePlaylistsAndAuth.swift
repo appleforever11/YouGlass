@@ -4,6 +4,10 @@ import SwiftUI
 
 extension YouTubeStore {
         func openPlaylist(_ playlist: YouTubePlaylist) {
+            playlistLoadTask?.cancel()
+            playlistLoadGeneration &+= 1
+            let generation = playlistLoadGeneration
+
             if selectedVideo != nil {
                 isPlayerCompact = true
             }
@@ -18,12 +22,19 @@ extension YouTubeStore {
             sectionEmptyMessage = nil
             playlistLoading = true
 
-            Task { @MainActor [weak self] in
+            playlistLoadTask = Task { @MainActor [weak self] in
                 guard let self else { return }
-                defer { playlistLoading = false }
+                defer {
+                    if self.playlistLoadGeneration == generation {
+                        self.playlistLoading = false
+                        self.playlistLoadTask = nil
+                    }
+                }
                 do {
                     let items = try await client.playlistVideos(playlistID: playlist.id, maxResults: 100)
-                    guard selectedPlaylist?.id == playlist.id else { return }
+                    guard !Task.isCancelled,
+                          playlistLoadGeneration == generation,
+                          selectedPlaylist?.id == playlist.id else { return }
                     playlistItems = items
                     if items.isEmpty {
                         playlistError = "This playlist does not contain playable videos."
@@ -31,7 +42,9 @@ extension YouTubeStore {
                         connectionMessage = "Loaded \(items.count) videos from \(playlist.title)"
                     }
                 } catch {
-                    guard selectedPlaylist?.id == playlist.id else { return }
+                    guard !Task.isCancelled,
+                          playlistLoadGeneration == generation,
+                          selectedPlaylist?.id == playlist.id else { return }
                     playlistError = error.localizedDescription
                     connectionMessage = error.localizedDescription
                 }
@@ -39,14 +52,12 @@ extension YouTubeStore {
         }
 
         func closePlaylist() {
-            selectedPlaylist = nil
-            playlistItems = []
-            playlistError = nil
-            playlistLoading = false
-            selectedSection = "Playlists"
-            Task { @MainActor [weak self] in
-                await self?.loadPlaylists()
-            }
+            playlistLoadTask?.cancel()
+            playlistLoadTask = nil
+            playlistLoadGeneration &+= 1
+            // Return through the section loader so the refresh is owned by the
+            // same generation guard as every other sidebar navigation.
+            showSection("Playlists")
         }
 
         func login() {

@@ -3,9 +3,26 @@ import Foundation
 import SwiftUI
 
 extension YouTubeStore {
-        func search(_ term: String? = nil) async {
+        func startSearch(_ term: String? = nil) {
+            sectionLoadTask?.cancel()
+            sectionLoadGeneration &+= 1
+            let generation = sectionLoadGeneration
+            sectionLoadTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.search(term, sectionGeneration: generation)
+                self.finishSearch(generation)
+            }
+        }
+
+        private func finishSearch(_ generation: Int) {
+            guard generation == sectionLoadGeneration else { return }
+            sectionLoadTask = nil
+        }
+
+        func search(_ term: String? = nil, sectionGeneration: Int? = nil) async {
             let searchTerm = (term ?? query).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !searchTerm.isEmpty else { return }
+            guard canPublishSectionLoad(sectionGeneration) else { return }
 
             // Navigate immediately so a slow API or web-session fallback cannot
             // leave the user looking at the previous Home surface.
@@ -19,7 +36,11 @@ extension YouTubeStore {
             isLoading = true
             connectionMessage = "Searching YouTube..."
             YouGlassDiagnostics.feed.info("Search started")
-            defer { isLoading = false }
+            defer {
+                if canPublishSectionLoad(sectionGeneration) {
+                    isLoading = false
+                }
+            }
 
             if let directVideo = VideoItem.fromYouTubeInput(searchTerm) {
                 connectionMessage = "Opening YouTube video in the native player"
@@ -28,23 +49,37 @@ extension YouTubeStore {
             }
 
             let hasCredentials = await client.hasCredentials()
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             guard hasCredentials else {
-                await applySearchFallback(for: searchTerm, apiError: nil)
+                await applySearchFallback(
+                    for: searchTerm,
+                    apiError: nil,
+                    sectionGeneration: sectionGeneration
+                )
                 return
             }
 
             do {
                 let videos = try await client.searchVideos(query: searchTerm, maxResults: 12)
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 if !videos.isEmpty {
                     applySearchResults(videos, message: "Connected to YouTube")
                 } else {
-                    await applySearchFallback(for: searchTerm, apiError: nil)
+                    await applySearchFallback(
+                        for: searchTerm,
+                        apiError: nil,
+                        sectionGeneration: sectionGeneration
+                    )
                 }
             } catch {
                 // Data API search is quota-expensive and can be throttled even
                 // when the signed-in YouTube website still works. Reuse the
                 // authenticated hidden web session before showing an error.
-                await applySearchFallback(for: searchTerm, apiError: error)
+                await applySearchFallback(
+                    for: searchTerm,
+                    apiError: error,
+                    sectionGeneration: sectionGeneration
+                )
             }
         }
 
@@ -65,8 +100,13 @@ extension YouTubeStore {
             connectionMessage = message
         }
 
-        func applySearchFallback(for searchTerm: String, apiError: Error?) async {
+        func applySearchFallback(
+            for searchTerm: String,
+            apiError: Error?,
+            sectionGeneration: Int? = nil
+        ) async {
             let webResult = await YouTubeWebFeedBridge.shared.searchVideos(query: searchTerm, maxResults: 20)
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             if !webResult.videos.isEmpty {
                 applySearchResults(
                     webResult.videos,
@@ -86,6 +126,7 @@ extension YouTubeStore {
             localPoolSource += locallyLikedVideos
             localPoolSource += VideoItem.samples
             let localPool = mergeVideos(localPoolSource)
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             let matches = localPool.filter { video in
                 video.title.localizedCaseInsensitiveContains(searchTerm) ||
                 video.channel.localizedCaseInsensitiveContains(searchTerm)

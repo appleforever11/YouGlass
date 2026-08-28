@@ -43,7 +43,7 @@ extension YouTubeHomeView {
                             if store.isLoading {
                                 HomeLoadingView(palette: palette)
                             } else {
-                                HomeUnavailableView(palette: palette) {
+                                HomeUnavailableView(store: store, palette: palette) {
                                     Task { await store.loadHome(force: true) }
                                 }
                             }
@@ -164,7 +164,7 @@ extension YouTubeHomeView {
     private func topBarContent(compact: Bool, minimal: Bool) -> some View {
         HStack(spacing: minimal ? 6 : (compact ? 10 : 22)) {
             SearchField(text: $store.query, palette: palette) {
-                Task { await store.search() }
+                store.startSearch()
             }
             .frame(
                 minWidth: minimal ? 80 : (compact ? 160 : 250),
@@ -184,37 +184,29 @@ extension YouTubeHomeView {
 
             if minimal {
                 EmptyView()
-            } else if compact {
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(store.isNetworkAvailable ? Color.green : Color.orange)
-                        .frame(width: 7, height: 7)
-                    Image(systemName: store.isSignedIn ? "checkmark.circle.fill" : "icloud.slash")
-                }
-                    .foregroundStyle(store.isNetworkAvailable && store.isSignedIn ? Color.green : palette.secondaryText)
-                    .accessibilityLabel(store.connectionMessage)
-                    .help("\(store.networkStatus). \(store.connectionMessage)")
             } else {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(store.isNetworkAvailable ? Color.green : Color.orange)
-                        .frame(width: 7, height: 7)
-                    Text(store.connectionMessage)
-                }
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(store.isNetworkAvailable ? palette.secondaryText : Color.orange)
-                    .lineLimit(1)
-                    .frame(maxWidth: 190, alignment: .trailing)
-                    .help("\(store.networkStatus). \(store.connectionMessage)")
+                HomeConnectionStatusView(
+                    store: store,
+                    palette: palette,
+                    compact: compact
+                )
             }
 
-            Button(action: { Task { await store.loadHome(force: true) } }) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 14, weight: .semibold))
+            Button {
+                Task { await store.loadHome(force: true) }
+            } label: {
+                if store.isLoading {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .semibold))
+                }
             }
             .buttonStyle(IconButtonStyle(palette: palette))
             .accessibilityLabel("Refresh recommendations")
             .help("Refresh recommendations")
+            .disabled(store.isLoading)
 
             SettingsLink {
                 Image(systemName: "gearshape")

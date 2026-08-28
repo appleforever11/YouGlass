@@ -7,6 +7,8 @@ private struct YouGlassThumbnailParallax: ViewModifier {
 
     @State private var pointer: CGPoint = .zero
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+    @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) private var reduceAmbientMotion = false
 
     init(translation: CGFloat = 5, rotation: Double = 2.8) {
         self.translation = translation
@@ -15,7 +17,9 @@ private struct YouGlassThumbnailParallax: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if YouGlassRuntimeStabilityPolicy.parallaxMode == .stableHover {
+        if accessibilityReduceMotion || reduceAmbientMotion {
+            content
+        } else if YouGlassRuntimeStabilityPolicy.parallaxMode == .stableHover {
             stableHoverBody(content: content)
         } else {
             pointerParallaxBody(content: content)

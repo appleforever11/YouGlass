@@ -45,24 +45,57 @@ struct HomeLoadingView: View {
 }
 
 struct HomeUnavailableView: View {
+    @ObservedObject var store: YouTubeStore
     let palette: Palette
     let retry: () -> Void
 
+    private var connectionMode: YouGlassConnectionMode {
+        YouGlassConnectionMode.resolve(
+            isNetworkAvailable: store.isNetworkAvailable,
+            isSignedIn: store.isSignedIn,
+            isSyncing: store.accountSyncInProgress || store.isLoading,
+            detailMessage: store.connectionMessage
+        )
+    }
+
     var body: some View {
         VStack(spacing: 14) {
-            Image(systemName: "wifi.exclamationmark")
+            Image(systemName: connectionMode.systemImage)
                 .font(.system(size: 30, weight: .medium))
-                .foregroundStyle(palette.secondaryText)
+                .foregroundStyle(connectionMode == .offline ? .orange : palette.accent)
 
-            Text("Recommendations are temporarily unavailable")
+            Text(connectionMode == .offline
+                ? "YouTube is offline"
+                : connectionMode == .setupRequired
+                    ? "Connect YouTube to load recommendations"
+                    : "Recommendations are temporarily unavailable")
                 .font(.system(size: 17, weight: .semibold))
 
-            Button(action: retry) {
-                Label("Try Again", systemImage: "arrow.clockwise")
+            Text(store.connectionMessage)
+                .font(.system(size: 13))
+                .foregroundStyle(palette.secondaryText)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .frame(maxWidth: 430)
+
+            HStack(spacing: 10) {
+                Button(action: retry) {
+                    Label("Try Again", systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+
+                if connectionMode.isSetupActionRecommended {
+                    SettingsLink {
+                        Label("Open Settings", systemImage: "gearshape")
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
-            .buttonStyle(.borderedProminent)
         }
-        .frame(maxWidth: .infinity, minHeight: 280, alignment: .center)
+        .frame(maxWidth: .infinity, minHeight: 320, alignment: .center)
+        .padding(.horizontal, 24)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(connectionMode.title). \(store.connectionMessage)")
     }
 }
 

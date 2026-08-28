@@ -3,7 +3,8 @@ import Foundation
 import SwiftUI
 
 extension YouTubeStore {
-        func loadHome(force: Bool = false) async {
+        func loadHome(force: Bool = false, sectionGeneration: Int? = nil) async {
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             guard !homeLoadInProgress else {
                 homeReloadPending = true
                 homeReloadPendingForce = homeReloadPendingForce || force
@@ -49,7 +50,9 @@ extension YouTubeStore {
                 )
             }
             defer {
-                isLoading = false
+                if canPublishSectionLoad(sectionGeneration) {
+                    isLoading = false
+                }
                 homeLoadInProgress = false
                 lastHomeLoadDate = Date()
                 YouGlassDiagnostics.feed.info("Home load finished")
@@ -72,12 +75,15 @@ extension YouTubeStore {
             }
 
             if !isNetworkAvailable {
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 connectionMessage = "Offline — showing saved recommendations"
                 return
             }
 
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             connectionMessage = "Loading YouTube homepage recommendations..."
             let hasOAuthSession = (try? await oauth.validAccessToken()) != nil
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             if hasOAuthSession && !isSignedIn {
                 isSignedIn = true
                 defaults.set(true, forKey: DefaultsKey.isSignedIn)
@@ -98,6 +104,7 @@ extension YouTubeStore {
             } else {
                 webResult = await YouTubeWebFeedBridge.shared.loadHomeVideos(maxResults: 32)
             }
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             if webResult.isSignedIn && !isSignedIn {
                 isSignedIn = true
                 defaults.set(true, forKey: DefaultsKey.isSignedIn)
@@ -108,9 +115,11 @@ extension YouTubeStore {
                 // surface even when the account session is valid. Build the
                 // account feed from the user's actual subscriptions first.
                 await loadSubscriptions(force: false)
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 let personalized = await personalizedAccountFeed(
                     webHomepageVideos: webResult.isSignedIn ? webResult.videos : []
                 )
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 if !personalized.isEmpty,
                    applyPrimaryHomeVideos(
                         personalized,
@@ -130,8 +139,11 @@ extension YouTubeStore {
                 }
             }
 
-            guard await client.hasCredentials() else {
+            let hasCredentials = await client.hasCredentials()
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard hasCredentials else {
                 let safariSignals = await safariHomeFeed.loadFeed(maxResultsPerChannel: 5)
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 if !safariSignals.isEmpty,
                    applyPrimaryHomeVideos(
                         safariSignals,
@@ -148,9 +160,13 @@ extension YouTubeStore {
 
             do {
                 let personalized = await personalizedVideos(maxResults: 12)
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 let accountSignals = await accountSignalVideos(maxResults: 12)
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 let popular = try await client.mostPopularVideos(maxResults: 8)
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 let appleTech = try await client.searchVideos(query: "Apple Vision Pro technology creators", maxResults: 6, order: "relevance", videoCategoryId: "28")
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 let candidates = accountSignals + personalized + popular + appleTech
                 if !applyPrimaryHomeVideos(
                     candidates,
@@ -159,6 +175,7 @@ extension YouTubeStore {
                     _ = applyPrimaryHomeVideos(popular + appleTech, message: "Popular on YouTube")
                 }
             } catch {
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 // Keep a cached or signed-in web feed visible when the Data API
                 // project is temporarily rate-limited. Calling search again here
                 // only compounds the quota problem and can replace useful content

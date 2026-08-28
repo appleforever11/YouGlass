@@ -41,6 +41,15 @@ extension YouTubeStore {
             homeRefreshTask = nil
         }
 
+        func canPublishSectionLoad(_ generation: Int?) -> Bool {
+            !Task.isCancelled && (generation == nil || generation == sectionLoadGeneration)
+        }
+
+        private func finishSectionLoad(_ generation: Int) {
+            guard generation == sectionLoadGeneration else { return }
+            sectionLoadTask = nil
+        }
+
         func handleScenePhaseChange(_ phase: ScenePhase) {
             switch phase {
             case .active:
@@ -56,6 +65,25 @@ extension YouTubeStore {
         }
 
         func showSection(_ title: String, query: String? = nil) {
+            sectionLoadTask?.cancel()
+            sectionLoadGeneration &+= 1
+            let generation = sectionLoadGeneration
+
+            // A sidebar selection is a navigation boundary. Invalidate any
+            // channel request before replacing the channel surface so a slow
+            // API or WebKit fallback cannot reopen an older channel afterward.
+            channelLoadTask?.cancel()
+            channelLoadTask = nil
+            channelLoadGeneration &+= 1
+            selectedChannelItem = nil
+            channelPage = nil
+            channelError = nil
+            channelLoading = false
+
+            playlistLoadTask?.cancel()
+            playlistLoadTask = nil
+            playlistLoadGeneration &+= 1
+
             if selectedVideo != nil {
                 isPlayerCompact = true
             }
@@ -64,42 +92,58 @@ extension YouTubeStore {
             playlistError = nil
             selectedSection = title
             self.query = query ?? (title == "Home" ? "" : self.query)
-            Task { @MainActor [weak self] in
-                await self?.loadSection(title, query: query)
+            sectionEmptyMessage = nil
+            isLoading = false
+            playlistLoading = false
+            sectionLoadTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.loadSection(title, query: query, generation: generation)
+                self.finishSectionLoad(generation)
             }
         }
 
-        func loadSection(_ title: String, query: String?) async {
+        func loadSection(_ title: String, query: String?, generation: Int? = nil) async {
+            guard canPublishSectionLoad(generation) else { return }
+
             switch title {
             case "Home":
-                await loadHome()
+                await loadHome(sectionGeneration: generation)
             case "Shorts":
-                await loadShorts()
+                await loadShorts(sectionGeneration: generation)
             case "History":
-                await loadHistory()
+                await loadHistory(sectionGeneration: generation)
             case "Watch Later":
+                guard canPublishSectionLoad(generation) else { return }
                 if savedVideos.isEmpty {
                     showEmptySection("Your Watch Later list is empty")
                 } else {
                     applyHomeVideos(savedVideos, message: "Saved in YouGlass Watch Later")
                 }
             case "Liked Videos":
-                await loadLikedVideos()
+                await loadLikedVideos(sectionGeneration: generation)
             case "Library":
+                guard canPublishSectionLoad(generation) else { return }
                 sectionEmptyMessage = nil
                 connectionMessage = "Your local YouGlass library"
             case "Playlists":
-                await loadPlaylists()
+                await loadPlaylists(sectionGeneration: generation)
             case "Subscriptions":
-                await loadSubscriptionFeed()
+                await loadSubscriptionFeed(sectionGeneration: generation)
             default:
-                if let query, !query.isEmpty { await search(query) }
+                if let query, !query.isEmpty {
+                    await search(query, sectionGeneration: generation)
+                }
             }
         }
 
-        func loadHistory() async {
+        func loadHistory(sectionGeneration: Int? = nil) async {
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             isLoading = true
-            defer { isLoading = false }
+            defer {
+                if canPublishSectionLoad(sectionGeneration) {
+                    isLoading = false
+                }
+            }
 
             // YouTube does not expose account watch history through Data API v3.
             // Show YouGlass's durable local history immediately, then reconcile it
@@ -123,6 +167,7 @@ extension YouTubeStore {
                 message: "Loading account watch history from the signed-in YouTube session"
             )
             let webResult = await YouTubeWebFeedBridge.shared.loadHistoryVideos(maxResults: 100)
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             if webResult.isSignedIn && !isSignedIn {
                 isSignedIn = true
                 defaults.set(true, forKey: DefaultsKey.isSignedIn)
@@ -147,13 +192,20 @@ extension YouTubeStore {
             }
         }
 
-        func loadShorts() async {
-            guard await client.hasCredentials() else {
+        func loadShorts(sectionGeneration: Int? = nil) async {
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            let hasCredentials = await client.hasCredentials()
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard hasCredentials else {
                 connectionMessage = "Sign in with Google or add a YouTube API key to load Shorts"
                 return
             }
             isLoading = true
-            defer { isLoading = false }
+            defer {
+                if canPublishSectionLoad(sectionGeneration) {
+                    isLoading = false
+                }
+            }
             do {
                 let shorts = try await client.searchVideos(
                     query: "shorts",
@@ -161,25 +213,40 @@ extension YouTubeStore {
                     order: "date",
                     videoDuration: "short"
                 )
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 applyHomeVideos(shorts, message: "Latest Shorts from YouTube")
             } catch {
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 connectionMessage = "Using saved Shorts. \(error.localizedDescription)"
             }
         }
 
-        func loadLikedVideos() async {
-            if isSignedIn, await client.hasCredentials() {
+        func loadLikedVideos(sectionGeneration: Int? = nil) async {
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            isLoading = true
+            defer {
+                if canPublishSectionLoad(sectionGeneration) {
+                    isLoading = false
+                }
+            }
+
+            let hasCredentials = await client.hasCredentials()
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            if isSignedIn, hasCredentials {
                 do {
                     let liked = try await client.likedVideos(maxResults: 50)
+                    guard canPublishSectionLoad(sectionGeneration) else { return }
                     applyHomeVideos(
                         liked.isEmpty ? locallyLikedVideos : liked,
                         message: liked.isEmpty ? "No liked videos returned by YouTube" : "Liked videos from YouTube"
                     )
                     return
                 } catch {
+                    guard canPublishSectionLoad(sectionGeneration) else { return }
                     connectionMessage = "Using saved liked videos. \(error.localizedDescription)"
                 }
             }
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             if locallyLikedVideos.isEmpty {
                 showEmptySection("Like a video to build this list")
             } else {
@@ -187,15 +254,21 @@ extension YouTubeStore {
             }
         }
 
-        func loadSubscriptionFeed() async {
+        func loadSubscriptionFeed(sectionGeneration: Int? = nil) async {
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             await loadSubscriptions(force: false)
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             guard isSignedIn else {
                 connectionMessage = "Sign in with Google to load subscription uploads"
                 return
             }
 
             isLoading = true
-            defer { isLoading = false }
+            defer {
+                if canPublishSectionLoad(sectionGeneration) {
+                    isLoading = false
+                }
+            }
 
             let subscribedChannels = subscriptions.compactMap { subscription -> SafariHomeFeedClient.Channel? in
                 let source = subscription.channelURL
@@ -215,9 +288,11 @@ extension YouTubeStore {
                 channels: Array(subscribedChannels.prefix(40)),
                 maxResultsPerChannel: 4
             )
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             if uploads.isEmpty {
                 uploads = await accountSignalVideos(maxResults: 16)
             }
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             if uploads.isEmpty {
                 showEmptySection("No recent subscription uploads were returned")
             } else {
@@ -225,24 +300,32 @@ extension YouTubeStore {
             }
         }
 
-        func loadPlaylists() async {
+        func loadPlaylists(sectionGeneration: Int? = nil) async {
+            guard canPublishSectionLoad(sectionGeneration) else { return }
             guard isSignedIn else {
                 playlists = []
                 showEmptySection("Sign in with Google to load your YouTube playlists")
                 return
             }
 
-            guard await client.hasCredentials() else {
+            let hasCredentials = await client.hasCredentials()
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard hasCredentials else {
                 showEmptySection("Add a YouTube API key or reconnect Google in Settings")
                 return
             }
 
             playlistLoading = true
             playlistError = nil
-            defer { playlistLoading = false }
+            defer {
+                if canPublishSectionLoad(sectionGeneration) {
+                    playlistLoading = false
+                }
+            }
 
             do {
                 let loaded = try await client.myPlaylists(maxResults: 100)
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 playlists = loaded
                 if loaded.isEmpty {
                     showEmptySection("No YouTube playlists were found on this account")
@@ -251,6 +334,7 @@ extension YouTubeStore {
                     connectionMessage = "Loaded \(loaded.count) playlists from YouTube"
                 }
             } catch {
+                guard canPublishSectionLoad(sectionGeneration) else { return }
                 playlistError = error.localizedDescription
                 if playlists.isEmpty {
                     showEmptySection(error.localizedDescription)

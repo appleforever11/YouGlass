@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-28 — begin the cross-cutting app overhaul
+
+- Captured the pre-overhaul staged arm64 app, committed source archive, and dirty-worktree patch in `backups/YouGlass-pre-overhaul-20260828T152754Z/`; `RESTORE_POINT.txt` records the verified hashes and restore procedure.
+- Added stable connection-state UX, cancellation/generation guards for navigable async work, cancellation-safe and coalesced image loading, lazy subscription rendering, and Reduce Motion support for Home ambience and card hover.
+- Stabilized the full-window Home/player ambience after runtime sampling showed the continuously animated gradient consuming roughly half a CPU core while idle. The palette remains themed and video-responsive without a perpetual render loop.
+- Runtime validation confirmed Home's `For You` ordering, end-to-end Appearance scrolling, and top-aligned General settings. The rebuilt app remained running with no new crash diagnostic.
+
 ## 2026-08-28 — make native player controls follow hover state
 
 - Normal-player transport chrome now starts hidden, appears when the pointer enters the media surface or the player is explicitly interacted with, and fades after pointer exit. Compact/PIP transport remains independently available.

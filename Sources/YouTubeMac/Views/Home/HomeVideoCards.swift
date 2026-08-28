@@ -77,6 +77,7 @@ struct VideoCard: View {
     let video: VideoItem
     let palette: Palette
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
 
     var body: some View {
         Button(action: { store.openFromUserInteraction(video) }) {
@@ -142,8 +143,8 @@ struct VideoCard: View {
             isHovered = hovering
             if hovering { store.prewarmPlayback(for: video) }
         }
-        .scaleEffect(isHovered ? 1.012 : 1)
-        .animation(.easeOut(duration: 0.16), value: isHovered)
+        .scaleEffect(accessibilityReduceMotion ? 1 : (isHovered ? 1.012 : 1))
+        .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: isHovered)
         .accessibilityLabel("\(video.title), by \(video.channel)")
         .contextMenu {
             Button(store.isSaved(video) ? "Remove from Watch Later" : "Save to Watch Later") {

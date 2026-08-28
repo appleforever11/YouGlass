@@ -30,7 +30,16 @@ struct YouTubeHomeView: View {
                 : (compactShell ? 8 : 12)
 
             ZStack {
-                YouGlassAmbientBackdrop(palette: palette, ambientPalette: store.ambientPalette, intensity: 1.15)
+                // Keep the shell's ambient colors stable while idle. Continuous
+                // gradient animation makes the entire Home view re-render even
+                // when no content is changing; the player can still provide its
+                // own video-driven ambience when it is presented.
+                YouGlassAmbientBackdrop(
+                    palette: palette,
+                    ambientPalette: store.ambientPalette,
+                    intensity: 1.15,
+                    animated: false
+                )
                     .ignoresSafeArea()
 
                 HStack(spacing: 0) {

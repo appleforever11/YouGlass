@@ -75,8 +75,9 @@ struct RemoteImage: View {
             return
         }
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            guard !Task.isCancelled, let image = NSImage(data: data) else {
+            let data = try await YouGlassImageLoader.shared.data(for: url)
+            guard !Task.isCancelled else { return }
+            guard let image = NSImage(data: data) else {
                 failed = true
                 return
             }
@@ -85,6 +86,50 @@ struct RemoteImage: View {
         } catch {
             guard !Task.isCancelled else { return }
             failed = true
+        }
+    }
+}
+
+/// Coalesces duplicate thumbnail/avatar requests while the Home and player
+/// surfaces are being assembled. The in-memory NSImage cache handles finished
+/// requests; this actor handles the common case where several cards ask for
+/// the same URL during one render pass.
+private actor YouGlassImageLoader {
+    static let shared = YouGlassImageLoader()
+
+    private var inFlight: [URL: Task<Data, Error>] = [:]
+
+    func data(for url: URL) async throws -> Data {
+        if let existing = inFlight[url] {
+            return try await existing.value
+        }
+
+        let task = Task { () throws -> Data in
+            var request = URLRequest(
+                url: url,
+                cachePolicy: .returnCacheDataElseLoad,
+                timeoutInterval: 12
+            )
+            request.setValue(
+                "Mozilla/5.0 (Macintosh; Apple Silicon Mac OS X) AppleWebKit/605.1.15",
+                forHTTPHeaderField: "User-Agent"
+            )
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse,
+                  200..<300 ~= httpResponse.statusCode else {
+                throw URLError(.badServerResponse)
+            }
+            return data
+        }
+        inFlight[url] = task
+
+        do {
+            let data = try await task.value
+            inFlight[url] = nil
+            return data
+        } catch {
+            inFlight[url] = nil
+            throw error
         }
     }
 }

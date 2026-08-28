@@ -74,6 +74,9 @@ Do not launch the SwiftPM GUI executable directly for normal UI validation. Use 
 - Normal-player transport chrome starts hidden, reveals on media hover or interaction, fades after pointer exit, and moves the native caption overlay with the same visibility state; compact/PIP transport remains independently available.
 - `YouGlassThemeCustomization` is an optional accent override layered through `Palette`; preserve the selected theme family's light/dark colors and keep the blank/reset state equivalent to the environment default.
 - Network recovery uses `NWPathMonitor`, cached feed data, and the bounded `RemoteImage` cache. Offline states must remain usable and must not erase local library or playback data.
+- Store-driven navigation loads use cancellation plus generation checks across sections, search, account, channels, playlists, and card resolution so a slow older request cannot replace the current page or reset its progress state.
+- Home and player ambient backdrops are stable palette surfaces; do not reintroduce continuous full-window gradient animation that competes with WebKit playback and main-thread UI work. Motion remains opt-in through the shared backdrop API and must honor Reduce Motion.
+- Hidden WebKit feed/comments compatibility scripts must keep retries bounded, avoid whole-page polling/scans when a targeted query is sufficient, and dispatch each continuation action only once.
 
 ## Durable documentation rule
 

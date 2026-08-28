@@ -56,7 +56,11 @@ struct SidebarView: View {
             }
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 11) {
+                // Keep the sidebar responsive for accounts with a large
+                // subscription list. A regular VStack constructs every row
+                // and starts every avatar load even though this viewport only
+                // exposes a small subset at once.
+                LazyVStack(spacing: 11) {
                     ForEach(store.sidebarSubscriptionsSnapshot) { item in
                         Button {
                             Task { @MainActor in store.openChannel(item) }

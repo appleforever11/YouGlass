@@ -12,7 +12,12 @@ struct PlayerAmbientSurface: View {
         YouGlassAmbientBackdrop(
             palette: palette,
             ambientPalette: ambientPalette,
-            intensity: intensity
+            intensity: intensity,
+            // The sampled video palette should change when the video changes,
+            // not continuously animate the whole watch hierarchy. Keeping this
+            // surface stable prevents the player from competing with WebKit
+            // video decoding for the main thread.
+            animated: false
         )
     }
 }

@@ -9,6 +9,7 @@ This directory is the tracked, non-skill reference layer for the project. `AGENT
 - [ARCHITECTURE.md](ARCHITECTURE.md) — SwiftUI/AppKit structure, state ownership, data flow, and platform safety boundaries.
 - [PLAYER_HOVER_CONTROLS.md](PLAYER_HOVER_CONTROLS.md) — transient native-player controls, caption placement, and runtime validation notes.
 - [FEATURES_AND_WORKFLOWS.md](FEATURES_AND_WORKFLOWS.md) — the eight product foundations, their source boundaries, persistence, and smoke-test expectations.
+- [OVERHAUL_MILESTONE.md](OVERHAUL_MILESTONE.md) — the current app-overhaul baseline, safety restore point, validation evidence, and next review targets.
 - [HISTORY_AND_CHANGELOG.md](HISTORY_AND_CHANGELOG.md) — local Git baseline, dirty-worktree notes, durable investigations, and instructions for recalling or reverting work.
 
 ## How to use this directory
