@@ -32,9 +32,9 @@ extension NativeYouTubePlayer {
                         .allowsHitTesting(false)
                 }
                 // Keep the media layer visual-only. A separate SwiftUI interaction
-                // layer below the controls owns center taps, hover state, and PIP
-                // dragging, so the visible transport buttons never share an
-                // AppKit hit-test path with the video surface.
+                // layer below the controls owns center taps and PIP dragging, so
+                // the visible transport buttons never share an AppKit hit-test
+                // path with the video surface.
                 .allowsHitTesting(false)
                 PlayerInteractionLayer(
                     isCompact: isCompact,
@@ -55,7 +55,7 @@ extension NativeYouTubePlayer {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .opacity(controlsVisible ? 1 : 0)
+                .opacity(transportControlsVisible ? 1 : 0)
                 .allowsHitTesting(false)
 
                 if playbackController.isCaptionsEnabled,
@@ -73,7 +73,7 @@ extension NativeYouTubePlayer {
                         .frame(maxWidth: isCompact ? 520 : 980)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.horizontal, isCompact ? 18 : 72)
-                        .padding(.bottom, isCompact ? 128 : 178)
+                        .padding(.bottom, captionBottomInset)
                         .allowsHitTesting(false)
                         .accessibilityIdentifier("player-caption-text")
                         .zIndex(3)
@@ -117,6 +117,7 @@ extension NativeYouTubePlayer {
                 }
             }
             .background(.black)
+            .onHover(perform: handlePlayerHover)
             // YouTubeInlinePlayerHostView owns the WebKit layer’s rounded clip.
             // Avoid applying a second SwiftUI mask to a remote WebKit layer while
             // AppKit is receiving a layer-tree transaction.
@@ -134,22 +135,29 @@ extension NativeYouTubePlayer {
             .onChange(of: video.id) { _, _ in
                 scrubPosition = 0
                 isScrubbing = false
-                revealControls()
+                if isPointerHovering {
+                    revealControls()
+                } else {
+                    controlsVisible = false
+                }
             }
             .onChange(of: playbackController.isSurfaceReady) { _, isReady in
                 // WebKit can finish creating the media surface after this view
                 // appears. Reveal the native transport when the first usable
                 // frame is ready instead of letting the initial timer expire
                 // while the player is still loading.
-                if isReady {
+                if isReady, isPointerHovering {
                     revealControls()
                 }
             }
             .onAppear {
-                // Give the native controls a short discoverable window when a
-                // video opens. They then follow the normal hover timeout.
-                revealControls()
+                // The normal player starts clean and reveals its transport only
+                // after the pointer enters the media surface. Compact/PIP keeps
+                // its always-available bottom transport independently.
+                if !isCompact {
+                    controlsVisible = false
+                }
             }
-            .animation(.easeOut(duration: 0.18), value: controlsVisible)
+            .animation(.easeOut(duration: 0.18), value: transportControlsVisible)
         }
 }

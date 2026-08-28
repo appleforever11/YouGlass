@@ -131,8 +131,9 @@ extension NativeYouTubePlayer {
                 )
                 .allowsHitTesting(false)
             }
-            .opacity(playbackController.canRetry ? 0 : 1)
-            .allowsHitTesting(!playbackController.canRetry)
+            .opacity(transportControlsVisible && !playbackController.canRetry ? 1 : 0)
+            .allowsHitTesting(transportControlsVisible && !playbackController.canRetry)
+            .accessibilityHidden(!transportControlsVisible || playbackController.canRetry)
             .zIndex(10)
         }
 
@@ -160,11 +161,16 @@ extension NativeYouTubePlayer {
             // Keep its compact transport available while the floating player is
             // active; the normal watch player still follows the transient hover
             // state.
-            // During loading, keep the native controls available so the first
-            // Play click can be used as the WebKit user gesture that starts the
-            // media element. Once a frame is ready, controls return to the normal
-            // hover-driven behavior.
-            isCompact || controlsVisible || isPointerHovering || (!playbackController.isSurfaceReady && !playbackController.canRetry)
+            isCompact || controlsVisible
+        }
+
+        var captionBottomInset: CGFloat {
+            if isCompact {
+                return 128
+            }
+            return transportControlsVisible
+                ? PlayerTransportLayout.normalCaptionControlInset
+                : PlayerTransportLayout.normalCaptionRestingInset
         }
 
         var scrubberBinding: Binding<Double> {
@@ -200,9 +206,26 @@ extension NativeYouTubePlayer {
             return String(format: "%d:%02d", minutes, remainder)
         }
 
+        func handlePlayerHover(_ hovering: Bool) {
+            guard isPointerHovering != hovering else { return }
+            isPointerHovering = hovering
+            onPlayerHoverChanged?(hovering)
+
+            guard !isCompact else { return }
+            if hovering {
+                revealControls()
+            } else {
+                // Keep the controls discoverable for a beat while the pointer
+                // crosses the media edge, then move the caption into the freed
+                // lower space with the same visibility transition.
+                scheduleControlsHide(after: 0.55)
+            }
+        }
+
         func revealControls() {
             controlsHideTask?.cancel()
             controlsVisible = true
+            guard !isPointerHovering else { return }
             scheduleControlsHide(after: 2.2)
         }
 
@@ -211,7 +234,10 @@ extension NativeYouTubePlayer {
             controlsHideTask = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 guard !Task.isCancelled else { return }
-                guard !isPointerHovering else { return }
+                guard !isPointerHovering else {
+                    controlsHideTask = nil
+                    return
+                }
                 controlsVisible = false
                 controlsHideTask = nil
             }

@@ -89,6 +89,8 @@ enum PlayerTransportLayout {
     static let normalButtonSize: CGFloat = 38
     static let normalSpacing: CGFloat = 10
     static let normalStatusWidth: CGFloat = 120
+    static let normalCaptionControlInset: CGFloat = 178
+    static let normalCaptionRestingInset: CGFloat = 30
     // Keep the full-player row inside the clipped media surface. The
     // scrubber remains at the media edge while the circular controls sit
     // one visual shelf above it. Arctic Glass has a lighter, taller-looking

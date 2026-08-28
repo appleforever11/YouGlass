@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-28 — make native player controls follow hover state
+
+- Normal-player transport chrome now starts hidden, appears when the pointer enters the media surface or the player is explicitly interacted with, and fades after pointer exit. Compact/PIP transport remains independently available.
+- Native captions share the transport visibility state: they sit above the controls while the shelf is visible and animate into a lower resting position as the controls dismiss, avoiding captions colliding with or floating unnecessarily far above the media controls.
+- Validation: `swift build --product YouGlass`, `./script/test.sh` (43 tests), and the rebuilt `dist/YouGlass.app` runtime smoke check passed; the live player showed controls plus captions on hover and a clean media frame after hover ended.
+
 ## 2026-08-27 — render captions in the native player surface
 
 - Kept YouTube responsible for caption-track selection and timing, but moved visible caption presentation into a SwiftUI layer above the WebKit media surface. The bridge now sends changed active-track text to the native player, which clears it when captions are disabled and positions it above the transport controls.

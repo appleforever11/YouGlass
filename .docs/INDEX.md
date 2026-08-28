@@ -7,6 +7,7 @@ This directory is the tracked, non-skill reference layer for the project. `AGENT
 - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) — product scope, runtime boundaries, toolchain, persistence, and current project state.
 - [BUILD_AND_RUN.md](BUILD_AND_RUN.md) — exact dependency, test, debug, packaging, signing, and runtime validation commands.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — SwiftUI/AppKit structure, state ownership, data flow, and platform safety boundaries.
+- [PLAYER_HOVER_CONTROLS.md](PLAYER_HOVER_CONTROLS.md) — transient native-player controls, caption placement, and runtime validation notes.
 - [FEATURES_AND_WORKFLOWS.md](FEATURES_AND_WORKFLOWS.md) — the eight product foundations, their source boundaries, persistence, and smoke-test expectations.
 - [HISTORY_AND_CHANGELOG.md](HISTORY_AND_CHANGELOG.md) — local Git baseline, dirty-worktree notes, durable investigations, and instructions for recalling or reverting work.
 
