@@ -218,7 +218,7 @@ extension NativeYouTubePlayer {
                 // Keep the controls discoverable for a beat while the pointer
                 // crosses the media edge, then move the caption into the freed
                 // lower space with the same visibility transition.
-                scheduleControlsHide(after: 0.55)
+                scheduleControlsHide(after: PlayerTransportLayout.normalControlExitGracePeriod)
             }
         }
 
