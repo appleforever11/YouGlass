@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — stop player scroll crashes and isolate comments scrolling
+
+- The supplied runtime reports showed repeated `EXC_BAD_ACCESS` failures during SwiftUI `initializeWithCopy for ScrollView` work in the player view graph, including the mounted `LiveChatPanel` path. The failure appeared after adding a nested comments scroller and was reproducible when launching the staged bundle on macOS 26.6.2.
+- Added the small `YouGlassBoundedScrollView` AppKit bridge and moved the watch-page, comments, compact related rail, live chat, and queue scroll surfaces onto stock `NSScrollView` instances with hosted SwiftUI content. Comments retain a bounded 360-point viewport; Up Next remains intrinsic-height in the outer page document.
+- A clean Swift package rebuild was required because stale opaque-result metadata continued to contain the removed SwiftUI scroll types. The rebuilt `dist/YouGlass.app` stayed running, opened the native player, and accepted a real downward page scroll without a new diagnostic report. `git diff --check`, `./script/test.sh` (40 tests), and `./script/build_and_run.sh --verify` passed.
+
 ## 2026-08-27 — let long player titles use the full header width
 
 - Removed the artificial 640-point title cap and redundant spacer from the expanded-player header. The title now uses the flexible area between the close button and the fixed action shelf, preventing premature wrapping and left-side compression while preserving the title-first themed hierarchy.
