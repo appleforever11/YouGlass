@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.5] - 2026-08-28
+
+Broad stability and polish pass covering stale navigation loads, Home connection state, image loading, large subscription lists, Reduce Motion, and idle ambient rendering. See [the complete end-user release notes](RELEASE_NOTES/1.13.5.md).
+
 ## [1.13.4] - 2026-08-27
 
 Fixed native player captions and playback-surface stability, and refined the speed picker and player controls. See [the complete end-user release notes](RELEASE_NOTES/1.13.4.md).
