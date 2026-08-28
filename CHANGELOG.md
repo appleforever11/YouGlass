@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.13.6] - 2026-08-28
+
+Fixed full-player visual isolation so Home feed cards and headings cannot bleed through the themed player background. The ambient gradients and light/dark theme treatment remain intact. See [the complete end-user release notes](RELEASE_NOTES/1.13.6.md).
+
 ## [1.13.5] - 2026-08-28
 
 Broad stability and polish pass covering stale navigation loads, Home connection state, image loading, large subscription lists, Reduce Motion, and idle ambient rendering. See [the complete end-user release notes](RELEASE_NOTES/1.13.5.md).
