@@ -8,7 +8,7 @@ extension YouTubeInlinePlayerView {
         window.webkit.messageHandlers.youglassPlayback.postMessage({
           videoID: currentVideoID(),
           muted: Boolean(media.muted || media.volume === 0),
-          captionsEnabled: readCaptionsState(),
+          captionsEnabled: readCaptionsState(media),
           playing: !media.paused && !media.ended,
           ended: Boolean(media.ended),
           currentTime: Number.isFinite(media.currentTime) ? media.currentTime : 0,
@@ -22,6 +22,32 @@ extension YouTubeInlinePlayerView {
       };
 
       const waitFor = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
+
+      const settleCaptionsToggle = (media, previousState, attempt = 0, fallbackAttempted = false) => {
+        const enabled = readCaptionsState(media);
+        if (enabled !== previousState || attempt >= 8) {
+          emitState(
+            enabled ? 'Captions on' :
+              (previousState ? 'Captions off' : 'Captions did not change')
+          );
+          return;
+        }
+        if (attempt >= 4 && !fallbackAttempted) {
+          const fallbackUsed = invokeCaptionFallback(media);
+          if (fallbackUsed) {
+            window.setTimeout(
+              () => settleCaptionsToggle(media, previousState, attempt + 1, true),
+              100
+            );
+            return;
+          }
+          fallbackAttempted = true;
+        }
+        window.setTimeout(
+          () => settleCaptionsToggle(media, previousState, attempt + 1, fallbackAttempted),
+          100
+        );
+      };
 
       const installMediaEvents = () => {
         if (window.__youglassPlaybackStopped) return;
@@ -138,17 +164,26 @@ extension YouTubeInlinePlayerView {
           // while remaining hidden with the rest of YouTube's chrome. This
           // keeps caption availability and language behavior account/video
           // aware without adding a second caption renderer over the video.
-          const button = document.querySelector('.ytp-subtitles-button');
-          if (!button || button.getAttribute('aria-disabled') === 'true') {
+          const button = findCaptionButton(media);
+          if (captionsButtonIsDisabled(button)) {
             window.__youglassCaptionsEnabled = false;
-            return emitState('Captions unavailable for this video');
+            return emitState('No captions available for this video');
           }
 
-          button.click();
-          window.setTimeout(() => {
-            const enabled = readCaptionsState();
-            emitState(enabled ? 'Captions on' : 'Captions off');
-          }, 180);
+          const previousState = readCaptionsState(media);
+          try {
+            button.click();
+          } catch (_) {
+            try {
+              button.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                view: window
+              }));
+            } catch (_) {}
+          }
+          window.setTimeout(() => settleCaptionsToggle(media, previousState), 100);
         },
         applyAudioPolicy(autoMuteOnStart) {
           window.__youglassAutoplayBootstrap = false;
@@ -175,7 +210,7 @@ extension YouTubeInlinePlayerView {
           if (!media) return emitState('Video is not ready');
           const boundedRate = Math.max(0.25, Math.min(2, Number(rate) || 1));
           media.playbackRate = boundedRate;
-          emitState(`${boundedRate}x playback`);
+          emitState(formatPlaybackRate(boundedRate));
         },
         async togglePictureInPicture() {
           const media = findMediaElement();

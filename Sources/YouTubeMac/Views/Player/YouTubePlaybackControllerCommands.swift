@@ -114,6 +114,7 @@ extension YouTubePlaybackController {
             if let value = payload["status"] as? String, !value.isEmpty {
                 status = value
                 let lowercased = value.lowercased()
+                let isCaptionStatus = lowercased.contains("caption")
                 statusIndicatesFailure = lowercased.contains("blocked") ||
                     lowercased.contains("not allowed")
                 if lowercased.contains("picture in picture is unavailable") ||
@@ -122,11 +123,13 @@ extension YouTubePlaybackController {
                     clearPictureInPictureFallback()
                     fallback?()
                 }
-                if lowercased.contains("error") ||
+                if !isCaptionStatus && (
+                    lowercased.contains("error") ||
                     lowercased.contains("unavailable") ||
                     lowercased.contains("failed") ||
                     lowercased.contains("did not load") ||
-                    statusIndicatesFailure {
+                    statusIndicatesFailure
+                ) {
                     canRetry = true
                     cancelLoadWatchdog()
                     cancelPlaybackBootstrap()

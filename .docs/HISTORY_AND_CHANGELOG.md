@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — restore captions and polish playback speed selection
+
+- Scoped caption discovery to the active WebKit media/player instead of the first page-level subtitle button. Caption toggling now tries YouTube's native control, then its player caption API when a hidden DOM click is ignored; missing caption tracks remain a normal caption status and cannot trigger playback retry UI.
+- Replaced the raw system speed menu with a themed popover that uses readable `0.75×`, `Normal`, `1.25×`, `1.5×`, and `2×` labels, descriptive pace hints, an active checkmark, and a compact current-rate indicator in the player header.
+- Validation: `./script/test.sh` passed all 41 tests, `./script/build_and_run.sh --verify` passed, and the rebuilt bundle toggled captions on/off and applied 1.5× playback in the live player.
+
 ## 2026-08-27 — extend the outer player page beyond comments
 
 - Kept the comments panel as its own bounded 360-point AppKit scroll box and added a reachable trailing document inset after it. The outer watch-page scroll can now move a little farther when the pointer is outside the comments box, leaving the lower page content and stopping area accessible without changing inner comment scrolling.

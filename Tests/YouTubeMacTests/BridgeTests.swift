@@ -103,6 +103,19 @@ final class BridgeTests: XCTestCase {
         XCTAssertTrue(script.contains("items.slice(0, limit)"))
     }
 
+    func testPlayerChromeScopesCaptionsAndUsesReadablePlaybackRateStatus() {
+        let script = YouTubeInlinePlayerView.playerChromeScript
+
+        XCTAssertTrue(script.contains("findCaptionButton"))
+        XCTAssertTrue(script.contains("invokeCaptionFallback"))
+        XCTAssertTrue(script.contains("toggleSubtitles"))
+        XCTAssertTrue(script.contains("setOption('captions', 'track'"))
+        XCTAssertTrue(script.contains("readCaptionsState(media)"))
+        XCTAssertTrue(script.contains("formatPlaybackRate"))
+        XCTAssertTrue(script.contains("No captions available for this video"))
+        XCTAssertFalse(script.contains("Captions unavailable for this video"))
+    }
+
     func testCommentsPayloadMapsContinuationAndInvalidAvatarSafely() throws {
         let json = """
         {

@@ -259,23 +259,13 @@ extension NativeWatchScreen {
                 .accessibilityLabel(queuePresented ? "Hide playback queue" : "Show playback queue")
                 .help("Playback queue")
 
-                Menu {
-                    ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in
-                        Button(rate == 1 ? "Normal" : "\(rate)x") {
-                            store.sendPlaybackCommand(.setPlaybackRate(rate))
-                        }
+                PlaybackSpeedMenu(
+                    palette: palette,
+                    playbackController: playbackController,
+                    onSelect: { rate in
+                        store.sendPlaybackCommand(.setPlaybackRate(rate))
                     }
-                } label: {
-                    HStack(spacing: 3) {
-                        Image(systemName: "speedometer")
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 8, weight: .bold))
-                    }
-                }
-                .menuStyle(.borderlessButton)
-                .buttonStyle(PlayerHeaderControlButtonStyle(palette: palette, minimumWidth: 42))
-                .accessibilityLabel("Playback speed")
-                .help("Playback speed")
+                )
 
                 Button(action: store.minimizePlayer) {
                     Image(systemName: "minus")

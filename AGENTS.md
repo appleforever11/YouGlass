@@ -70,6 +70,7 @@ Do not launch the SwiftPM GUI executable directly for normal UI validation. Use 
 
 - Home is local-first: Continue Watching is derived from bounded playback checkpoints, the Library owns local collections and timestamped notes, and the persisted queue is capped before it reaches UserDefaults.
 - Player workspace behavior belongs in the store/player boundary: queue navigation, autoplay, speed, compact/PIP/full-screen actions, sharing, Now Playing, and media-key commands must remain safe when the feed or network is unavailable.
+- Native player captions must resolve the control for the active media element, fall back to YouTube's player caption API when a hidden DOM click is ignored, and report missing caption tracks without entering playback retry. Playback speed labels must use stable, human-readable values with a visible active selection.
 - `YouGlassThemeCustomization` is an optional accent override layered through `Palette`; preserve the selected theme family's light/dark colors and keep the blank/reset state equivalent to the environment default.
 - Network recovery uses `NWPathMonitor`, cached feed data, and the bounded `RemoteImage` cache. Offline states must remain usable and must not erase local library or playback data.
 

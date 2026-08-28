@@ -211,17 +211,77 @@ extension YouTubeInlinePlayerView {
         return false;
       };
 
-      const captionsButtonIsActive = button => Boolean(
-        button && (
-          button.getAttribute('aria-pressed') === 'true' ||
-          button.classList.contains('ytp-button-active')
-        )
+      const findCaptionButton = (media = findMediaElement()) => {
+        const playerRoot = media?.closest?.('.html5-video-player') ||
+          document.querySelector('#movie_player') ||
+          document;
+        const selectors = [
+          '.ytp-subtitles-button',
+          'button[aria-label*="captions" i]',
+          'button[aria-label*="subtitles" i]'
+        ];
+        for (const selector of selectors) {
+          const candidates = playerRoot.querySelectorAll?.(selector) || [];
+          const button = Array.from(candidates).find(candidate => candidate.isConnected);
+          if (button) return button;
+        }
+        return null;
+      };
+
+      const captionsButtonIsActive = button => {
+        if (!button) return false;
+        const ariaLabel = (button.getAttribute('aria-label') || '').toLowerCase();
+        const dataTitle = (button.getAttribute('data-title-no-tooltip') || '').toLowerCase();
+        return button.getAttribute('aria-pressed') === 'true' ||
+          button.classList.contains('ytp-button-active') ||
+          ariaLabel.includes('turn off') ||
+          ariaLabel.includes('hide captions') ||
+          dataTitle.includes('turn off');
+      };
+
+      const captionsButtonIsDisabled = button => Boolean(
+        !button ||
+        button.disabled ||
+        button.getAttribute('aria-disabled') === 'true' ||
+        button.classList.contains('ytp-button-disabled')
       );
 
-      const readCaptionsState = () => {
-        const button = document.querySelector('.ytp-subtitles-button');
+      const findCaptionPlayer = media =>
+        window.movie_player ||
+        document.querySelector('#movie_player') ||
+        media?.closest?.('.html5-video-player') ||
+        null;
+
+      const invokeCaptionFallback = media => {
+        const player = findCaptionPlayer(media);
+        if (!player) return false;
+        if (typeof player.toggleSubtitles === 'function') {
+          try {
+            player.toggleSubtitles();
+            return true;
+          } catch (_) {}
+        }
+        if (typeof player.setOption === 'function') {
+          try {
+            const track = readCaptionsState(media)
+              ? {}
+              : { languageCode: window.ytplayer?.config?.args?.cc_lang_pref || 'en' };
+            player.setOption('captions', 'track', track);
+            return true;
+          } catch (_) {}
+        }
+        return false;
+      };
+
+      const readCaptionsState = (media = findMediaElement()) => {
+        const button = findCaptionButton(media);
         if (button) window.__youglassCaptionsEnabled = captionsButtonIsActive(button);
         return Boolean(window.__youglassCaptionsEnabled);
+      };
+
+      const formatPlaybackRate = rate => {
+        const normalized = Math.round(Number(rate) * 100) / 100;
+        return normalized === 1 ? 'Normal speed' : `${normalized}× playback`;
       };
 
       const currentVideoID = () => {

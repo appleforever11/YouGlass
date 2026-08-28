@@ -87,3 +87,7 @@ The Appearance page is deliberately taller than the default window because it co
 - WebKit surfaces are treated as remote layer-tree owners. Avoid unnecessary reparenting, masking, or zero-size first passes around them.
 - Keychain credentials and OAuth/API secrets are local runtime state. Never move them into source, diagnostics, commits, or `.docs`.
 - AppKit bridges should be lifecycle-scoped to the representable/coordinator or owning window. Do not create global strong references to views/windows without an explicit ownership reason.
+
+### Caption and speed controls
+
+The inline player scopes caption controls to the active media/player, falls back to YouTube's caption API when a hidden button click is ignored, and keeps caption availability statuses out of playback retry handling. Playback speed uses a themed popover with readable labels and an explicit active state.
