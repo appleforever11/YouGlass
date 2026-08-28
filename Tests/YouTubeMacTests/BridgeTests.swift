@@ -103,17 +103,53 @@ final class BridgeTests: XCTestCase {
         XCTAssertTrue(script.contains("items.slice(0, limit)"))
     }
 
-    func testPlayerChromeScopesCaptionsAndUsesReadablePlaybackRateStatus() {
+    func testPlayerChromeScopesCaptionsAndUsesNativeCaptionSurface() {
         let script = YouTubeInlinePlayerView.playerChromeScript
 
         XCTAssertTrue(script.contains("findCaptionButton"))
         XCTAssertTrue(script.contains("invokeCaptionFallback"))
         XCTAssertTrue(script.contains("toggleSubtitles"))
         XCTAssertTrue(script.contains("setOption('captions', 'track'"))
+        XCTAssertTrue(script.contains("ensureCaptionTrack"))
         XCTAssertTrue(script.contains("readCaptionsState(media)"))
         XCTAssertTrue(script.contains("formatPlaybackRate"))
         XCTAssertTrue(script.contains("No captions available for this video"))
+        XCTAssertTrue(script.contains("display: block !important"))
+        XCTAssertTrue(script.contains("display: inline !important"))
+        XCTAssertTrue(script.contains("font-size: clamp(18px, 3.2vw, 32px) !important"))
+        XCTAssertTrue(script.contains("readRenderedCaptionText"))
+        XCTAssertTrue(script.contains("emitCaptionState"))
+        XCTAssertTrue(script.contains("captionText: text"))
+        XCTAssertTrue(script.contains("__youglassLastCaptionState"))
         XCTAssertFalse(script.contains("Captions unavailable for this video"))
+    }
+
+    func testPlaybackMessageCarriesCaptionTextToNativePlayer() {
+        let message = YouTubeInlinePlayerView.PlaybackMessage(body: [
+            "videoID": "video-one",
+            "captionsEnabled": true,
+            "captionText": "Hello from the active track",
+            "frameReady": true
+        ])
+
+        XCTAssertEqual(message?.captionText, "Hello from the active track")
+        XCTAssertEqual(message?.captionsEnabled, true)
+        XCTAssertEqual(message?.dictionary["captionText"] as? String, "Hello from the active track")
+    }
+
+    func testCaptionOnlyPlaybackMessagePreservesReadySurface() {
+        let controller = YouTubePlaybackController()
+        controller.activeVideoID = "video-one"
+        controller.isSurfaceReady = true
+
+        controller.update(from: [
+            "videoID": "video-one",
+            "captionsEnabled": true,
+            "captionText": "A live caption update"
+        ])
+
+        XCTAssertTrue(controller.isSurfaceReady)
+        XCTAssertEqual(controller.captionText, "A live caption update")
     }
 
     func testCommentsPayloadMapsContinuationAndInvalidAvatarSafely() throws {

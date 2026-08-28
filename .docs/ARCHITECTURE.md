@@ -90,4 +90,4 @@ The Appearance page is deliberately taller than the default window because it co
 
 ### Caption and speed controls
 
-The inline player scopes caption controls to the active media/player, falls back to YouTube's caption API when a hidden button click is ignored, and keeps caption availability statuses out of playback retry handling. Playback speed uses a themed popover with readable labels and an explicit active state.
+The inline player scopes caption controls to the active media/player, falls back to YouTube's caption API when a hidden button click is ignored, and keeps caption availability statuses out of playback retry handling. It reads the active YouTube caption DOM and sends only changed track text through the playback bridge; `NativeYouTubePlayer` renders that text in a stable SwiftUI surface above WebKit so captions remain visible when YouTube's own chrome is hidden. Caption-only bridge messages intentionally omit frame readiness and must not make the already-ready media surface reveal its thumbnail. Playback speed uses a themed popover with readable labels and an explicit active state.

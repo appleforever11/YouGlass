@@ -8,6 +8,7 @@ extension YouTubeInlinePlayerView {
             let videoID: String?
             let muted: Bool?
             let captionsEnabled: Bool?
+            let captionText: String?
             let playing: Bool?
             let currentTime: Double?
             let duration: Double?
@@ -22,6 +23,7 @@ extension YouTubeInlinePlayerView {
                 videoID = payload["videoID"] as? String
                 muted = payload["muted"] as? Bool
                 captionsEnabled = payload["captionsEnabled"] as? Bool
+                captionText = payload["captionText"] as? String
                 playing = payload["playing"] as? Bool
                 currentTime = (payload["currentTime"] as? NSNumber)?.doubleValue
                 duration = (payload["duration"] as? NSNumber)?.doubleValue
@@ -30,7 +32,7 @@ extension YouTubeInlinePlayerView {
                 pipActive = payload["pipActive"] as? Bool
                 status = payload["status"] as? String
 
-                guard videoID != nil || muted != nil || captionsEnabled != nil || playing != nil || currentTime != nil || duration != nil || frameReady != nil || pipAvailable != nil || pipActive != nil || status != nil else {
+                guard videoID != nil || muted != nil || captionsEnabled != nil || captionText != nil || playing != nil || currentTime != nil || duration != nil || frameReady != nil || pipAvailable != nil || pipActive != nil || status != nil else {
                     return nil
                 }
             }
@@ -40,6 +42,7 @@ extension YouTubeInlinePlayerView {
                 if let videoID { result["videoID"] = videoID }
                 if let muted { result["muted"] = muted }
                 if let captionsEnabled { result["captionsEnabled"] = captionsEnabled }
+                if let captionText { result["captionText"] = captionText }
                 if let playing { result["playing"] = playing }
                 if let currentTime { result["currentTime"] = currentTime }
                 if let duration { result["duration"] = duration }

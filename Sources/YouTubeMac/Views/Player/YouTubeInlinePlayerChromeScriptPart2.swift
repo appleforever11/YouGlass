@@ -279,6 +279,89 @@ extension YouTubeInlinePlayerView {
         return Boolean(window.__youglassCaptionsEnabled);
       };
 
+      const ensureCaptionTrack = media => {
+        if (!media || media.dataset.youglassCaptionTrackSelected === '1') return true;
+        const player = findCaptionPlayer(media);
+        if (!player || typeof player.setOption !== 'function') return false;
+        try {
+          const languageCode = window.ytplayer?.config?.args?.cc_lang_pref || 'en';
+          player.setOption('captions', 'track', { languageCode });
+          media.dataset.youglassCaptionTrackSelected = '1';
+          return true;
+        } catch (_) {
+          return false;
+        }
+      };
+
+      const captionTextForElement = element =>
+        (element?.textContent || element?.innerText || element?.getAttribute?.('aria-label') || '')
+          .replace(/\\u00a0/g, ' ')
+          .replace(/\\s+/g, ' ')
+          .trim();
+
+      const captionDocumentRoots = (media, seen = new Set()) => {
+        const firstRoot = media?.closest?.('.html5-video-player') ||
+          document.querySelector('#movie_player') ||
+          document;
+        const roots = [];
+        const visit = root => {
+          if (!root || seen.has(root)) return;
+          seen.add(root);
+          roots.push(root);
+          const elements = root.querySelectorAll?.('*') || [];
+          for (const element of Array.from(elements)) {
+            if (element.shadowRoot) visit(element.shadowRoot);
+          }
+          const frames = root.querySelectorAll?.('iframe') || [];
+          for (const frame of Array.from(frames)) {
+            try {
+              if (frame.contentDocument) visit(frame.contentDocument);
+            } catch (_) {}
+          }
+        };
+        visit(firstRoot);
+        if (firstRoot !== document) visit(document);
+        return roots;
+      };
+
+      const captionElements = (media, selector) => {
+        const elements = [];
+        for (const root of captionDocumentRoots(media)) {
+          elements.push(...Array.from(root.querySelectorAll?.(selector) || []));
+        }
+        return Array.from(new Set(elements));
+      };
+
+      const readRenderedCaptionText = (media = findMediaElement()) => {
+        const segments = captionElements(media, '.ytp-caption-segment')
+          .map(captionTextForElement)
+          .filter(Boolean);
+        if (segments.length) return Array.from(new Set(segments)).join(' ').trim();
+
+        return captionElements(
+          media,
+          '.caption-window, .ytp-caption-window-container'
+        )
+          .map(captionTextForElement)
+          .find(Boolean) || '';
+      };
+
+      const emitCaptionState = () => {
+        const media = findMediaElement();
+        if (!media || !window.webkit?.messageHandlers?.youglassPlayback) return;
+        const enabled = readCaptionsState(media);
+        if (enabled) ensureCaptionTrack(media);
+        const text = enabled ? readRenderedCaptionText(media) : '';
+        const key = `${enabled ? '1' : '0'}:${text}`;
+        if (window.__youglassLastCaptionState === key) return;
+        window.__youglassLastCaptionState = key;
+        window.webkit.messageHandlers.youglassPlayback.postMessage({
+          videoID: currentVideoID(),
+          captionsEnabled: enabled,
+          captionText: text
+        });
+      };
+
       const formatPlaybackRate = rate => {
         const normalized = Math.round(Number(rate) * 100) / 100;
         return normalized === 1 ? 'Normal speed' : `${normalized}× playback`;

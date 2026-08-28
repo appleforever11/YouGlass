@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-27 — render captions in the native player surface
+
+- Kept YouTube responsible for caption-track selection and timing, but moved visible caption presentation into a SwiftUI layer above the WebKit media surface. The bridge now sends changed active-track text to the native player, which clears it when captions are disabled and positions it above the transport controls.
+- This avoids the hidden/remote WebKit caption compositing path that left the caption button active while no words appeared on-screen. The selected-track fallback remains scoped to the active media player and missing tracks remain ordinary caption status.
+- Caption-only bridge messages no longer reset `isSurfaceReady`; this prevents the decoded WebKit frame from flickering back to the thumbnail whenever subtitle text changes.
+- Validation: `swift test --disable-sandbox` passed all 43 tests, `./script/build_and_run.sh --verify` passed, and the rebuilt player displayed live caption text on a ready video while the caption control remained active; an eight-sample live check confirmed the WebKit frame stayed visible during caption updates.
+
 ## 2026-08-27 — restore captions and polish playback speed selection
 
 - Scoped caption discovery to the active WebKit media/player instead of the first page-level subtitle button. Caption toggling now tries YouTube's native control, then its player caption API when a hidden DOM click is ignored; missing caption tracks remain a normal caption status and cannot trigger playback retry UI.

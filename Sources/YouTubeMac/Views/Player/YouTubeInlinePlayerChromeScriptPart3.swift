@@ -26,6 +26,7 @@ extension YouTubeInlinePlayerView {
       const settleCaptionsToggle = (media, previousState, attempt = 0, fallbackAttempted = false) => {
         const enabled = readCaptionsState(media);
         if (enabled !== previousState || attempt >= 8) {
+          if (enabled) emitCaptionState();
           emitState(
             enabled ? 'Captions on' :
               (previousState ? 'Captions off' : 'Captions did not change')
@@ -72,6 +73,7 @@ extension YouTubeInlinePlayerView {
         }
         watchForFirstFrame(media);
         emitState();
+        emitCaptionState();
       };
 
       window.__youglassControls = {
@@ -161,9 +163,9 @@ extension YouTubeInlinePlayerView {
           if (!media) return emitState('Video is not ready');
 
           // The native button drives YouTube's own caption track selection,
-          // while remaining hidden with the rest of YouTube's chrome. This
-          // keeps caption availability and language behavior account/video
-          // aware without adding a second caption renderer over the video.
+          // while remaining hidden with the rest of YouTube's chrome. The
+          // caption track text is mirrored into YouGlass's stable media overlay
+          // so it remains visible when YouTube's page chrome is suppressed.
           const button = findCaptionButton(media);
           if (captionsButtonIsDisabled(button)) {
             window.__youglassCaptionsEnabled = false;
@@ -281,6 +283,15 @@ extension YouTubeInlinePlayerView {
       installStyle();
       installMediaEvents();
       primePlayback();
+      emitCaptionState();
+      const captionTimer = window.setInterval(() => {
+        if (window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) {
+          window.clearInterval(captionTimer);
+          return;
+        }
+        emitCaptionState();
+      }, 120);
+      window.__youglassCaptionTimer = captionTimer;
       let attempts = 0;
       const playbackTimer = window.setInterval(() => {
         if (window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) {

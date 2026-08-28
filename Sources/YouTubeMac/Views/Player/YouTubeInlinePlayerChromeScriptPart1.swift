@@ -51,12 +51,14 @@ extension YouTubeInlinePlayerView {
         .ytp-featured-product {
           display: none !important;
         }
-        /* Keep YouTube's caption track inside the media surface. YouTube
-           normally shifts this layer when its own chrome autohides; that
-           transition makes captions fall into the native title row. */
+        /* Keep YouTube's caption DOM available to the bridge. The native
+           layer is visually suppressed below because YouGlass renders the
+           selected track in the native player surface instead of inheriting
+           the page chrome's shifting caption placement. */
         .ytp-caption-window-container,
         .caption-window.ytp-caption-window-bottom,
         .ytp-caption-window-bottom {
+          display: block !important;
           position: absolute !important;
           top: auto !important;
           bottom: clamp(88px, 20%, 150px) !important;
@@ -67,14 +69,16 @@ extension YouTubeInlinePlayerView {
           min-width: 0 !important;
           transform: translateX(-50%) !important;
           text-align: center !important;
-          opacity: 1 !important;
+          opacity: 0 !important;
           visibility: visible !important;
           transition: none !important;
           z-index: 40 !important;
           pointer-events: none !important;
+          overflow: visible !important;
         }
         .ytp-caption-window-container .caption-window,
         .ytp-caption-window-container .caption-window.ytp-caption-window-bottom {
+          display: block !important;
           position: static !important;
           top: auto !important;
           right: auto !important;
@@ -85,6 +89,10 @@ extension YouTubeInlinePlayerView {
           margin: 0 auto !important;
           transform: none !important;
           text-align: center !important;
+          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", sans-serif !important;
+          font-size: clamp(18px, 3.2vw, 32px) !important;
+          font-weight: 700 !important;
+          line-height: 1.3 !important;
         }
         .ytp-caption-window-container .caption-window,
         .ytp-caption-window-container .ytp-caption-segment {
@@ -92,6 +100,7 @@ extension YouTubeInlinePlayerView {
           text-shadow: 0 1px 3px rgba(0, 0, 0, .95) !important;
         }
         .ytp-caption-window-container .ytp-caption-segment {
+          display: inline !important;
           background: rgba(0, 0, 0, .72) !important;
           line-height: 1.25 !important;
           box-decoration-break: clone !important;
@@ -227,6 +236,10 @@ extension YouTubeInlinePlayerView {
         window.__youglassPlaybackObserver.disconnect();
         window.__youglassPlaybackObserver = null;
       }
+      if (window.__youglassCaptionTimer) {
+        window.clearInterval(window.__youglassCaptionTimer);
+        window.__youglassCaptionTimer = null;
+      }
       window.__youglassAutoplayBootstrap = false;
       window.__youglassPlayRequestInFlight = false;
       window.__youglassUserAudioChoice = null;
@@ -239,6 +252,7 @@ extension YouTubeInlinePlayerView {
       window.__youglassExpectedVideoID = '__YOUGLASS_VIDEO_ID__';
       window.__youglassPlaybackStopped = false;
       window.__youglassCaptionsEnabled = false;
+      window.__youglassLastCaptionState = null;
       // This is intentionally reset when a new native player is installed.
       // Once the user presses Play or Pause, the bootstrap observer must not
       // override that explicit choice while YouTube mutates its page DOM.

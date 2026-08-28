@@ -42,6 +42,7 @@ extension YouTubePlaybackController {
             webView?.evaluateJavaScript("window.__youglassControls?.stopPlayback()", completionHandler: nil)
             isMuted = true
             isCaptionsEnabled = false
+            captionText = ""
             isPlaying = false
             didFinish = false
             isPictureInPictureAvailable = false
@@ -97,6 +98,7 @@ extension YouTubePlaybackController {
         func resetPublishedStateForAttachment() {
             isMuted = false
             isCaptionsEnabled = false
+            captionText = ""
             isPlaying = false
             didFinish = false
             isPictureInPictureAvailable = false
@@ -124,6 +126,7 @@ extension YouTubePlaybackController {
             playbackRate = 1
             didFinish = false
             isCaptionsEnabled = false
+            captionText = ""
             isPlaying = false
             status = "Loading player..."
 

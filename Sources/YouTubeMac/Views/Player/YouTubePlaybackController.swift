@@ -8,6 +8,7 @@ import SwiftUI
 final class YouTubePlaybackController: ObservableObject {
     @Published var isMuted = false
     @Published var isCaptionsEnabled = false
+    @Published var captionText = ""
     @Published var isPlaying = false
     @Published var didFinish = false
     @Published var isPictureInPictureAvailable = false

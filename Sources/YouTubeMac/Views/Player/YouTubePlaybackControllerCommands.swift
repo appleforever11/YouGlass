@@ -96,7 +96,11 @@ extension YouTubePlaybackController {
             let frameReady = payload["frameReady"] as? Bool
 
             if let value = payload["muted"] as? Bool { isMuted = value }
-            if let value = payload["captionsEnabled"] as? Bool { isCaptionsEnabled = value }
+            if let value = payload["captionsEnabled"] as? Bool {
+                isCaptionsEnabled = value
+                if !value { captionText = "" }
+            }
+            if let value = payload["captionText"] as? String { captionText = value }
             if let value = payload["playing"] as? Bool { isPlaying = value }
             if let value = payload["ended"] as? Bool {
                 didFinish = value
@@ -142,17 +146,15 @@ extension YouTubePlaybackController {
                value.doubleValue > 0 {
                 playbackRate = value.doubleValue
             }
+            // Partial bridge messages, such as caption-text updates, do not
+            // describe frame readiness. Preserve the last known media state
+            // instead of swapping the live WebKit surface for its thumbnail.
             if let frameReady {
                 isSurfaceReady = frameReady
                 if frameReady {
                     canRetry = false
                     cancelLoadWatchdog()
                 }
-            } else {
-                // A duration or an audio-only "playing" event is not enough to
-                // render a usable player surface. The page bridge must explicitly
-                // confirm that a decoded video frame exists.
-                isSurfaceReady = false
             }
             applyPendingResumeIfReady()
         }
