@@ -9,16 +9,24 @@ struct PlayerAmbientSurface: View {
     let ambientPalette: VideoAmbientPalette
     let intensity: Double
     var body: some View {
-        YouGlassAmbientBackdrop(
-            palette: palette,
-            ambientPalette: ambientPalette,
-            intensity: intensity,
-            // The sampled video palette should change when the video changes,
-            // not continuously animate the whole watch hierarchy. Keeping this
-            // surface stable prevents the player from competing with WebKit
-            // video decoding for the main thread.
-            animated: false
-        )
+        ZStack {
+            // The player is presented as a layer above Home. Keep an opaque
+            // theme base here so the backdrop's translucent gradients and
+            // materials blend with player ambience rather than sampling Home's
+            // cards and headings through the clear portions of the fade.
+            (palette.isDark ? Color.black : palette.window)
+
+            YouGlassAmbientBackdrop(
+                palette: palette,
+                ambientPalette: ambientPalette,
+                intensity: intensity,
+                // The sampled video palette should change when the video
+                // changes, not continuously animate the whole watch hierarchy.
+                // Keeping this surface stable prevents the player from
+                // competing with WebKit video decoding for the main thread.
+                animated: false
+            )
+        }
     }
 }
 
