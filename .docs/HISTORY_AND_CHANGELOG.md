@@ -13,6 +13,11 @@ This file records durable project context, not every line edit. The local Git hi
 - Reduced the normal-player pointer-exit grace period from 0.55 seconds to 0.12 seconds. The controls and caption inset still use the coordinated fade, but the media frame returns to its resting state much sooner after hover ends.
 - Validation: `git diff --check`, `./script/test.sh` (43 tests), and `./script/build_and_run.sh --verify` passed against the rebuilt staged bundle.
 
+## 2026-08-28 — make hover re-entry and dismissal immediate
+
+- Reduced the remaining edge grace period to 0.04 seconds and shortened the coordinated control/caption transition to 0.08 seconds. Re-hover now restores the controls and caption position quickly while pointer exit returns to the clean media frame almost immediately.
+- Validation: `git diff --check`, `./script/test.sh` (43 tests), and `./script/build_and_run.sh --verify` passed against the rebuilt staged bundle.
+
 ## 2026-08-27 — render captions in the native player surface
 
 - Kept YouTube responsible for caption-track selection and timing, but moved visible caption presentation into a SwiftUI layer above the WebKit media surface. The bridge now sends changed active-track text to the native player, which clears it when captions are disabled and positions it above the transport controls.

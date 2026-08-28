@@ -2,7 +2,7 @@
 
 Updated 2026-08-28.
 
-The normal expanded player keeps its native transport chrome out of the resting frame. The player root owns pointer hover, so the transport appears when the pointer enters the media surface and remains available while the pointer is over the player. A very short 0.12-second exit grace period prevents the controls from blinking while the pointer crosses the media edge; after that, the controls and their bottom gradient fade out quickly. Explicit transport interactions still reveal the controls and use the existing delayed hide fallback when the pointer is not over the player.
+The normal expanded player keeps its native transport chrome out of the resting frame. The player root owns pointer hover, so the transport appears when the pointer enters the media surface and remains available while the pointer is over the player. A minimal 0.04-second exit grace period prevents an edge-crossing flicker; after that, the controls and their bottom gradient fade out with a fast 0.08-second transition. Explicit transport interactions still reveal the controls and use the existing delayed hide fallback when the pointer is not over the player.
 
 The native caption overlay reads the same `transportControlsVisible` state as the transport. While controls are visible, captions sit above the circular control shelf. When the shelf fades, captions animate down into the lower resting position. The shared visibility animation keeps the caption movement and chrome transition synchronized. Compact/PIP mode keeps its independent always-available bottom transport and fixed caption inset.
 

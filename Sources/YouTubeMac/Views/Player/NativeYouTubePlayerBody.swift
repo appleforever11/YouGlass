@@ -158,6 +158,9 @@ extension NativeYouTubePlayer {
                     controlsVisible = false
                 }
             }
-            .animation(.easeOut(duration: 0.18), value: transportControlsVisible)
+            .animation(
+                .easeOut(duration: PlayerTransportLayout.normalControlTransitionDuration),
+                value: transportControlsVisible
+            )
         }
 }
