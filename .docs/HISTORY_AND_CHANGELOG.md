@@ -9,6 +9,12 @@ This file records durable project context, not every line edit. The local Git hi
 - Cross-Mac guarantee: the signed Sparkle archive contains the new Icon Composer/ICNS resources and YouGlass prompts LaunchServices to re-read them, but YouGlass cannot directly invalidate DockDoor's private cache. DockDoor may still need to refresh/restart itself.
 - Validation: current 2.0.0 bundle metadata and icon resources were inspected; DockDoor was restarted and its pinned preview visibly changed to the current icon. Full build/test validation follows this patch.
 
+## 2026-08-29 — keep main-player captions visible through hover dismissal
+
+- Decoupled the normal-player native caption surface from transport visibility. The caption view now stays mounted and text-driven while hover only changes its bottom inset, so the current line remains visible after the playback controls fade and lifts above them on re-hover.
+- Hosted the expanded caption above the AppKit-backed WebKit representable at the watch-layout level, avoiding remote-layer occlusion when the transport fades. Hardened playback-message handling so an intermediate `captionsEnabled: false` read or empty disabled poll without an explicit caption-off/no-track status cannot clear the current native line. Explicit off/no-track states and empty active-track updates still clear it normally.
+- PIP layout and interaction behavior remain unchanged; its existing lower resting caption inset and transient control shelf are preserved.
+
 ## 2026-08-29 — begin the YouGlass 2.0 release milestone
 
 - Promoted the app metadata to 2.0.0 (build 200000) for the major product relaunch. Theme Center now contains the original 12 environments plus 12 new paired Light/Dark families, with collection filters, search, NEW/FEATURED badges, result counts, an empty state, and Surprise me navigation.

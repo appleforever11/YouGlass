@@ -98,9 +98,19 @@ extension YouTubePlaybackController {
             if let value = payload["muted"] as? Bool { isMuted = value }
             if let value = payload["captionsEnabled"] as? Bool {
                 isCaptionsEnabled = value
-                if !value { captionText = "" }
             }
-            if let value = payload["captionText"] as? String { captionText = value }
+            let captionStatus = (payload["status"] as? String)?.lowercased() ?? ""
+            let explicitlyClearsCaption = captionStatus.contains("captions off") ||
+                captionStatus.contains("no captions available")
+            if let value = payload["captionText"] as? String,
+               !value.isEmpty || (payload["captionsEnabled"] as? Bool) != false || explicitlyClearsCaption {
+                // A caption-state poll can briefly report disabled while the
+                // active YouTube track is still rendering. Do not erase the
+                // last visible line from that transient empty payload; an
+                // enabled empty update and explicit off/no-track status still
+                // clear it normally.
+                captionText = value
+            }
             if let value = payload["playing"] as? Bool { isPlaying = value }
             if let value = payload["ended"] as? Bool {
                 didFinish = value
@@ -119,6 +129,9 @@ extension YouTubePlaybackController {
                 status = value
                 let lowercased = value.lowercased()
                 let isCaptionStatus = lowercased.contains("caption")
+                if lowercased.contains("captions off") || lowercased.contains("no captions available") {
+                    captionText = ""
+                }
                 statusIndicatesFailure = lowercased.contains("blocked") ||
                     lowercased.contains("not allowed")
                 if lowercased.contains("picture in picture is unavailable") ||

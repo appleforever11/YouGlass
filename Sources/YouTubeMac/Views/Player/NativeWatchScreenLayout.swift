@@ -70,7 +70,10 @@ extension NativeWatchScreen {
                     isCompact: false,
                     onCompactDragChanged: nil,
                     onCompactDragEnded: nil,
-                    onPlayerHoverChanged: nil
+                    onPlayerHoverChanged: nil,
+                    onTransportVisibilityChanged: { visible in
+                        playerTransportVisible = visible
+                    }
                 )
                 .frame(
                     width: playerWidth,
@@ -103,6 +106,19 @@ extension NativeWatchScreen {
                         style: .continuous
                     )
                 )
+                // Host the expanded caption outside the NSView-backed player.
+                // WebKit can keep its remote layer above SwiftUI content inside
+                // the representable; this wrapper remains above that layer even
+                // after the transport fades and only changes its resting inset.
+                .overlay(alignment: .bottom) {
+                    NativePlayerCaptionOverlay(
+                        text: playbackController.captionText,
+                        bottomInset: playerTransportVisible
+                            ? PlayerTransportLayout.normalCaptionControlInset
+                            : PlayerTransportLayout.normalCaptionRestingInset,
+                        isCompact: false
+                    )
+                }
 
                 YouGlassVideoTitleBlock(
                     title: video.title,

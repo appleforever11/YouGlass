@@ -22,7 +22,8 @@ extension NativeWatchScreen {
                         isCompact: true,
                         onCompactDragChanged: onCompactDragChanged,
                         onCompactDragEnded: onCompactDragEnded,
-                        onPlayerHoverChanged: onPlayerHoverChanged
+                        onPlayerHoverChanged: onPlayerHoverChanged,
+                        onTransportVisibilityChanged: nil
                     )
                     .aspectRatio(CompactPlayerMetrics.aspectRatio, contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)

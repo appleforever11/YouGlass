@@ -56,27 +56,14 @@ extension NativeYouTubePlayer {
                     endPoint: .bottom
                 )
                 .opacity(transportControlsVisible ? 1 : 0)
+                .animation(
+                    .easeOut(duration: PlayerTransportLayout.normalControlTransitionDuration),
+                    value: transportControlsVisible
+                )
                 .allowsHitTesting(false)
 
-                if playbackController.isCaptionsEnabled,
-                   !playbackController.captionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(playbackController.captionText)
-                        .font(.system(size: isCompact ? 16 : 22, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                        .lineSpacing(2)
-                        .padding(.horizontal, isCompact ? 10 : 16)
-                        .padding(.vertical, isCompact ? 5 : 7)
-                        .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .shadow(color: .black.opacity(0.86), radius: 4, y: 2)
-                        .frame(maxWidth: isCompact ? 520 : 980)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.horizontal, isCompact ? 18 : 72)
-                        .padding(.bottom, captionBottomInset)
-                        .allowsHitTesting(false)
-                        .accessibilityIdentifier("player-caption-text")
-                        .zIndex(3)
+                if isCompact {
+                    nativeCaptionOverlay
                 }
 
                 if playbackController.canRetry {
@@ -138,7 +125,7 @@ extension NativeYouTubePlayer {
                 if isPointerHovering {
                     revealControls()
                 } else {
-                    controlsVisible = false
+                    setTransportControlsVisible(false)
                 }
             }
             .onChange(of: playbackController.isSurfaceReady) { _, isReady in
@@ -157,12 +144,19 @@ extension NativeYouTubePlayer {
                 if isCompact {
                     revealControls()
                 } else {
-                    controlsVisible = false
+                    setTransportControlsVisible(false)
                 }
             }
-            .animation(
-                .easeOut(duration: PlayerTransportLayout.normalControlTransitionDuration),
-                value: transportControlsVisible
+        }
+
+        /// Keep the native caption surface mounted independently of the
+        /// transport chrome. Hover only changes its resting inset; it must not
+        /// remove the current caption line when the controls fade out.
+        var nativeCaptionOverlay: some View {
+            NativePlayerCaptionOverlay(
+                text: playbackController.captionText,
+                bottomInset: captionBottomInset,
+                isCompact: isCompact
             )
         }
 }

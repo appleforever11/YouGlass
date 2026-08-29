@@ -163,6 +163,38 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(controller.captionText, "A live caption update")
     }
 
+    func testTransientCaptionStateDoesNotClearNativeText() {
+        let controller = YouTubePlaybackController()
+        controller.activeVideoID = "video-one"
+        controller.captionText = "Keep this line visible"
+        controller.isCaptionsEnabled = true
+
+        controller.update(from: [
+            "videoID": "video-one",
+            "captionsEnabled": false,
+            "playing": true
+        ])
+
+        XCTAssertEqual(controller.captionText, "Keep this line visible")
+
+        controller.update(from: [
+            "videoID": "video-one",
+            "captionsEnabled": false,
+            "captionText": "",
+            "playing": true
+        ])
+
+        XCTAssertEqual(controller.captionText, "Keep this line visible")
+
+        controller.update(from: [
+            "videoID": "video-one",
+            "captionsEnabled": false,
+            "status": "Captions off"
+        ])
+
+        XCTAssertEqual(controller.captionText, "")
+    }
+
     func testCommentsPayloadMapsContinuationAndInvalidAvatarSafely() throws {
         let json = """
         {

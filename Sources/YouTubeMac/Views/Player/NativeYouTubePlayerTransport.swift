@@ -58,6 +58,10 @@ extension NativeYouTubePlayer {
             .padding(.bottom, 22)
             .offset(y: -22)
             .opacity(transportControlsVisible && !playbackController.canRetry ? 1 : 0)
+            .animation(
+                .easeOut(duration: PlayerTransportLayout.normalControlTransitionDuration),
+                value: transportControlsVisible
+            )
             .allowsHitTesting(transportControlsVisible && !playbackController.canRetry)
             .accessibilityHidden(!transportControlsVisible || playbackController.canRetry)
             .zIndex(22)
@@ -133,6 +137,10 @@ extension NativeYouTubePlayer {
                 .allowsHitTesting(false)
             }
             .opacity(transportControlsVisible && !playbackController.canRetry ? 1 : 0)
+            .animation(
+                .easeOut(duration: PlayerTransportLayout.normalControlTransitionDuration),
+                value: transportControlsVisible
+            )
             .allowsHitTesting(transportControlsVisible && !playbackController.canRetry)
             .accessibilityHidden(!transportControlsVisible || playbackController.canRetry)
             .zIndex(10)
@@ -222,9 +230,15 @@ extension NativeYouTubePlayer {
 
         func revealControls() {
             controlsHideTask?.cancel()
-            controlsVisible = true
+            setTransportControlsVisible(true)
             guard !isPointerHovering else { return }
             scheduleControlsHide(after: 2.2)
+        }
+
+        func setTransportControlsVisible(_ visible: Bool) {
+            guard controlsVisible != visible else { return }
+            controlsVisible = visible
+            onTransportVisibilityChanged?(visible)
         }
 
         func scheduleControlsHide(after seconds: Double) {
@@ -236,7 +250,7 @@ extension NativeYouTubePlayer {
                     controlsHideTask = nil
                     return
                 }
-                controlsVisible = false
+                setTransportControlsVisible(false)
                 controlsHideTask = nil
             }
         }

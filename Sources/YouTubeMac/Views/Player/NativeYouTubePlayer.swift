@@ -10,6 +10,7 @@ struct NativeYouTubePlayer: View {
     let onCompactDragChanged: ((CGSize) -> Void)?
     let onCompactDragEnded: ((CGSize) -> Void)?
     let onPlayerHoverChanged: ((Bool) -> Void)?
+    let onTransportVisibilityChanged: ((Bool) -> Void)?
     @State var controlsVisible = false
     @State var isPointerHovering = false
     @State var controlsHideTask: Task<Void, Never>?
