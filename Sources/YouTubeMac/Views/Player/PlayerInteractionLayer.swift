@@ -91,6 +91,8 @@ enum PlayerTransportLayout {
     static let normalStatusWidth: CGFloat = 120
     static let normalCaptionControlInset: CGFloat = 178
     static let normalCaptionRestingInset: CGFloat = 30
+    static let compactCaptionControlInset: CGFloat = 128
+    static let compactCaptionRestingInset: CGFloat = 46
     static let normalControlExitGracePeriod: Double = 0.04
     static let compactControlExitGracePeriod: Double = 0.16
     static let normalControlTransitionDuration: Double = 0.08

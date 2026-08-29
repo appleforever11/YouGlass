@@ -163,7 +163,9 @@ extension NativeYouTubePlayer {
 
         var captionBottomInset: CGFloat {
             if isCompact {
-                return 128
+                return transportControlsVisible
+                    ? PlayerTransportLayout.compactCaptionControlInset
+                    : PlayerTransportLayout.compactCaptionRestingInset
             }
             return transportControlsVisible
                 ? PlayerTransportLayout.normalCaptionControlInset

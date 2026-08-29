@@ -6,6 +6,10 @@ This file records durable project context, not every line edit. The local Git hi
 
 - Fixed the compact desktop PIP window shelf and bottom playback transport so both honor the player hover state. They reveal immediately on hover, fade after a short pointer-exit grace period, and stop intercepting pointer input while hidden so the PIP surface remains draggable.
 
+## 2026-08-28 — lower captions in compact PIP
+
+- Compact/PIP captions now use a lower resting inset when the transient controls are hidden, then animate back above the playback shelf when the pointer returns. This keeps captions from floating too high in the clean PIP frame while preserving clearance from the controls during interaction.
+
 ## 2026-08-28 — begin the cross-cutting app overhaul
 
 - Captured the pre-overhaul staged arm64 app, committed source archive, and dirty-worktree patch in `backups/YouGlass-pre-overhaul-20260828T152754Z/`; `RESTORE_POINT.txt` records the verified hashes and restore procedure.
