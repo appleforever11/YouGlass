@@ -27,7 +27,7 @@ The Appearance page contains:
 - a page header;
 - color mode and ambient-glass controls;
 - the selected theme summary;
-- a 12-family theme catalog with paired light/dark previews;
+- a 24-family Theme Center with paired light/dark previews, collection filters, search, NEW/FEATURED badges, and Surprise me;
 - an AppKit-backed scroll view because the private SwiftUI hosting scroll path has been unstable on the current macOS 27 beta/runtime. The bridge measures the `NSHostingController` document at the viewport width, keeps the page at the visual top, and preserves native scrolling through the entire catalog.
 
 The settings scroll bridge keeps every detail page top-aligned while preserving real scrolling. Its AppKit boundary uses a stock `NSScrollView` and `NSHostingController.sizeThatFits(in:)` to give the document its actual content height; it resolves the visual top from the document view's coordinate system and resets only when the selected page changes. The SwiftUI document root is explicitly top-leading aligned.

@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-29 — begin the YouGlass 2.0 release milestone
+
+- Promoted the app metadata to 2.0.0 (build 200000) for the major product relaunch. Theme Center now contains the original 12 environments plus 12 new paired Light/Dark families, with collection filters, search, NEW/FEATURED badges, result counts, an empty state, and Surprise me navigation.
+- Integrated the approved Glass Prism identity into the Icon Composer source, packaged fallback ICNS, and preview artwork. Removed the unrelated legacy icon resource from the project resource set.
+- Kept the 2.0 presentation layer compatible with the established `visualTheme` persistence contract: existing selections and palette behavior remain stable while the catalog and browsing metadata expand around them.
+- Validation: `./script/test.sh` passed all 47 tests; `./script/build_and_run.sh --verify` passed and produced the 2.0.0 staged bundle. Computer Use opened the rebuilt app, confirmed 2.0.0 in Settings > General, confirmed the Appearance page is top-aligned with `Theme Center 24 of 24 environments`, and reached the final new-theme rows through the native scroll action. A Home smoke check showed `For You` first and the conditional Continue Watching behavior intact.
+
 ## 2026-08-29 — remove YouTube Shorts from YouGlass
 
 - Removed the Shorts navigation route and recommendation preference. A shared `YouGlassContentPolicy` now excludes Shorts from API, WebKit, Safari, channel, recommendation, search, direct-open, playback, queue, and presentation boundaries.

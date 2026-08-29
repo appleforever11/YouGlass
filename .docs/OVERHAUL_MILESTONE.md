@@ -41,6 +41,13 @@ The checkpoint records:
 - Current redacted diagnostics showed normal player/feed events and no crash or fatal event. Public comments remained unavailable because local YouTube API credentials were not configured; this is a separate account/setup concern, not a renderer crash.
 - Idle Home sampling after the stable-ambience change remained at 0% CPU across five one-second samples, compared with roughly 38–54% while the animated gradient was active.
 
+## 2026-08-29 — YouGlass 2.0 identity and Theme Center
+
+- The approved Glass Prism icon is now the release identity in both the layered Icon Composer source and the packaged ICNS fallback. Unrelated legacy artwork has been removed.
+- Theme Center is now a 24-family catalog with paired Light/Dark previews, searchable collections, stable metadata, NEW/FEATURED badges, and Surprise me browsing. Existing theme identities remain compatible with persisted settings.
+- Version metadata, README, changelog, release notes, internal knowledge base, and the public screenshot contract are aligned to 2.0.0.
+- The release smoke check covers the rebuilt Home and Settings surfaces; the full 24-family Light/Dark player sweep remains a release QA target when the player boundary changes.
+
 ### Next review targets
 
 Continue the overhaul in small verified batches: player interaction polish and frame stability, settings consistency, bounded network/image work, local-data resilience, and release-quality packaging. Each batch should preserve the restore point, run focused tests, rebuild the staged app, and add a local-only commit before moving on.

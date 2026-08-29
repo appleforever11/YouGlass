@@ -121,28 +121,95 @@ extension YouGlassSettingsView {
 
                     Spacer(minLength: 12)
 
-                    Text("\(YouGlassThemeFamily.allCases.count) environments")
+                    Text("\(filteredThemeFamilies.count) of \(YouGlassThemeFamily.allCases.count) environments")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 2)
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 240, maximum: 360), spacing: 16)],
-                    alignment: .leading,
-                    spacing: 16
-                ) {
-                    ForEach(YouGlassThemeFamily.allCases) { theme in
-                        YouGlassThemeCard(
-                            theme: theme,
-                            isSelected: store.visualTheme == theme,
-                            action: { store.setVisualTheme(theme) }
-                        )
+                themeBrowserControls
+
+                if filteredThemeFamilies.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                        Text("No matching environments")
+                            .font(.headline)
+                        Text("Try a different name or collection.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 34)
+                } else {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 240, maximum: 360), spacing: 16)],
+                        alignment: .leading,
+                        spacing: 16
+                    ) {
+                        ForEach(filteredThemeFamilies) { theme in
+                            YouGlassThemeCard(
+                                theme: theme,
+                                isSelected: store.visualTheme == theme,
+                                action: { store.setVisualTheme(theme) }
+                            )
+                        }
                     }
                 }
             }
             .onAppear {
                 accentHexDraft = store.themeCustomization.normalizedAccentHex ?? ""
+            }
+        }
+
+        var themeBrowserControls: some View {
+            HStack(spacing: 12) {
+                HStack(spacing: 7) {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .foregroundStyle(palette.accent)
+                    Picker("Collection", selection: $themeCollection) {
+                        ForEach(YouGlassThemeCollection.allCases) { collection in
+                            Text(collection.title).tag(collection)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                }
+
+                TextField("Search environments", text: $themeQuery)
+                    .textFieldStyle(.roundedBorder)
+                    .overlay(alignment: .trailing) {
+                        if !themeQuery.isEmpty {
+                            Button {
+                                themeQuery = ""
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 7)
+                            .accessibilityLabel("Clear theme search")
+                        }
+                    }
+                    .frame(maxWidth: 280)
+
+                Spacer(minLength: 0)
+
+                Button {
+                    let candidates = YouGlassThemeFamily.allCases.filter { $0 != store.visualTheme }
+                    store.setVisualTheme(candidates.randomElement() ?? .neoCitrus)
+                } label: {
+                    Label("Surprise me", systemImage: "shuffle")
+                }
+                .buttonStyle(.bordered)
+                .help("Apply a different environment")
+            }
+            .padding(10)
+            .background(palette.card.opacity(0.72), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(palette.stroke, lineWidth: 1)
             }
         }
 

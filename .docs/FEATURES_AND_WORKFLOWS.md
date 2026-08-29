@@ -1,6 +1,6 @@
 # YouGlass product foundations
 
-This document is the detailed companion to the concise product rules in `AGENTS.md`. It describes the eight improvement areas implemented in the current local milestone and the boundaries an agent should preserve when extending them.
+This document is the detailed companion to the concise product rules in `AGENTS.md`. It describes the eight product foundations plus the YouGlass 2.0 Theme Center expansion and the boundaries an agent should preserve when extending them.
 
 ## 1. Continue Watching as the second Home section
 
@@ -44,6 +44,14 @@ The Data API does not expose a reliable Shorts flag, so API results use the shar
 
 `YouGlassThemeCustomization` currently provides a validated six-digit hex accent override. Settings edits it through the Accent editor; `Palette` applies it to selection, accent, pink/highlight, and progress treatments while preserving each theme family's coordinated Light/Dark palette. Reset removes the override and returns to the environment default.
 
+## 9. YouGlass 2.0 Theme Center
+
+The Theme Center now contains 24 selectable environment families. The original twelve families retain their existing raw values and exact Light/Dark palettes so saved preferences remain compatible. Twelve new families live in `Models/YouGlassThemeCatalogExpansion.swift` and provide paired palettes for Aurora Bloom, Midnight Velvet, Ocean Drive, Desert Rose, Alpine Sage, Copper Noir, Lavender Haze, Ruby Signal, Monochrome Studio, Cosmic Coral, Indigo Harbor, and Paper Lantern.
+
+Each family exposes a stable title, subtitle, SF Symbol, collection, and optional NEW/FEATURED badge. Appearance adds a collection menu, case-insensitive search over the title/subtitle/collection, a matching-result count, an empty state, and a Surprise me action. These controls only filter or choose the catalog; the store continues to persist the selected `visualTheme` through the existing preference key.
+
+The approved YouGlass 2.0 Glass Prism artwork is packaged in the Icon Composer resource, the fallback ICNS, and the source preview PNG. Unrelated legacy artwork is not part of the YouGlass resource set.
+
 ## Validation checklist
 
-After a UI-affecting change, rebuild the staged app bundle with `./script/build_and_run.sh --verify` and inspect the actual window. Cover Home, Library, player controls, `⌘K`, Settings Accent/Recommendations, and a relaunch. For visual theme work, test all 12 theme families in both color schemes when the player ambient boundary is touched.
+After a UI-affecting change, rebuild the staged app bundle with `./script/build_and_run.sh --verify` and inspect the actual window. Cover Home, Library, player controls, `⌘K`, Settings Accent/Recommendations, and a relaunch. For visual Theme Center work, verify every family exposes both Light and Dark colors and that the Appearance page scrolls through the expanded catalog. When the player ambient boundary is touched, test all 24 families in both color schemes.

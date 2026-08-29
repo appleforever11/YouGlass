@@ -1,10 +1,10 @@
-# YouGlass
+# YouGlass 2.0
 
 YouGlass is a native Apple Silicon macOS YouTube client with an Apple-inspired liquid-glass interface, native navigation, an in-app player, desktop Picture in Picture, account-aware feeds, and a Sparkle update channel.
 
-![YouGlass 1.13.6 home screen](docs/screenshots/youglass-home-1.13.6.png)
+![YouGlass 2.0 home screen](docs/screenshots/youglass-home-2.0.0.png)
 
-![YouGlass 1.0.9 Liquid Glass app icon](Sources/YouTubeMac/Resources/YouGlassIconSource.png)
+![YouGlass 2.0 Glass Prism app icon](Sources/YouTubeMac/Resources/YouGlassIconSource.png)
 
 ## Install
 
@@ -15,9 +15,11 @@ After installation, use **YouGlass > Check for Updates...** to check the GitHub-
 ## What ships
 
 - Native SwiftUI/AppKit desktop shell with dark and light appearance.
+- Theme Center with 24 coordinated Light/Dark environments, searchable collections, and per-environment accent treatment.
 - Google/YouTube sign-in session handling with credentials stored in the macOS Keychain.
 - Account-aware home, subscriptions, channels, search, comments, live chat, likes, saves, and playback state where YouTube grants access.
 - In-app player, captions, scrubber, desktop Picture in Picture, and resume position.
+- Local-first Continue Watching, Library collections, playback queue, command palette, offline cache recovery, and global YouTube Shorts exclusion.
 - Sparkle 2.9.5 update support with an Ed25519-signed GitHub release feed.
 
 ## Build locally
@@ -28,7 +30,7 @@ swift package resolve
 ./script/build_and_run.sh
 ```
 
-The test script stages Sparkle for SwiftPM's test runner before running the test suite. The build script stages a complete `.app` bundle, including `Sparkle.framework` and its updater helpers. `./script/build_and_run.sh --verify` builds, launches, and verifies the signed bundle. `./script/package_dmg.sh` creates the installable DMG. `./script/package_release.sh 1.0.9` creates the Sparkle-compatible arm64 ZIP.
+The test script stages Sparkle for SwiftPM's test runner before running the test suite. The build script stages a complete `.app` bundle, including `Sparkle.framework` and its updater helpers. `./script/build_and_run.sh --verify` builds, launches, and verifies the signed bundle. `./script/package_dmg.sh` creates the installable DMG. `./script/package_release.sh 2.0.0` creates the Sparkle-compatible arm64 ZIP.
 
 ## Fast development deployment to another Mac
 
@@ -69,7 +71,7 @@ YouGlass follows Semantic Versioning:
 - `1.0.0` is the first GitHub release.
 - `1.0.x` is for bug fixes, reliability work, security fixes, and compatibility patches.
 - `1.x.0` is for backward-compatible features and user-facing improvements.
-- `2.0.0` is reserved for breaking changes, migration requirements, or a new update channel.
+- `2.0.0` is for a major product relaunch, broad UI/UX overhaul, breaking changes, migration requirements, or a new update channel.
 
 Every version must have a matching file in [`RELEASE_NOTES/`](RELEASE_NOTES/) and a matching `CFBundleShortVersionString`/`CFBundleVersion` in `Sources/YouTubeMac/Info.plist`. The release notes are embedded in the Sparkle appcast and are also used as the GitHub release notes.
 

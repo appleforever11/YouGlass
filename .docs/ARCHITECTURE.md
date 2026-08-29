@@ -21,7 +21,7 @@ The source tree is organized by responsibility rather than by one-file-per-featu
 - `Models/` contains plain value types and policies. Keep parsing, validation, and policy decisions there when they do not require UI state.
 - `YouTubeStore` is declared in `Stores/YouTubeStore.swift`; focused extensions keep initialization, settings, playback, feed, account, persistence, community, search, and presentation responsibilities independently editable.
 - `YouGlassSettingsView` owns only settings-window-local state such as selected page, sidebar visibility, text-field drafts, alerts, and authorization progress. Its pages, components, theme cards, window configuration, and scroll bridge live in separate `Views/Settings/` files. Shared settings are read/written through `YouTubeStore` and `@AppStorage`.
-- `Models/YouGlassThemeCatalog.swift` provides the 12 selectable theme families and their light/dark colors. `Views/Shared/YouGlassVisualTheme.swift` provides the visual defaults and shared `Palette`/ambient background layer; `Views/Shared/YouGlassSurface.swift` and `YouGlassParallax.swift` hold the related reusable modifiers.
+- `Models/YouGlassThemeCatalog.swift` provides the original and expanded 24 selectable theme families, collection metadata, and light/dark identity. `Models/YouGlassThemeCatalogExpansion.swift` keeps the twelve new 2.0 palettes separate from the compatibility-sensitive original palettes. `Views/Shared/YouGlassVisualTheme.swift` provides the visual defaults and shared `Palette`/ambient background layer; `Views/Shared/YouGlassSurface.swift` and `YouGlassParallax.swift` hold the related reusable modifiers.
 - `Views/Home/YouTubeHomeView` renders the main navigation and feed surfaces from the store, with sidebar, hero, card, playlist, image, background, and loading states separated into focused files.
 - `Views/Player/` renders native controls and coordinates player state. The inline player owns the visible WebKit media surface, lifecycle, coordinator, messages, and ordered JavaScript command bridge independently from the native watch screen.
 
@@ -45,7 +45,7 @@ The wide and narrow watch layouts use one outer vertical AppKit `NSScrollView` a
 
 Video-opening buttons use `YouTubeStore.openFromUserInteraction(_:)` from the home and player surfaces. It yields one MainActor turn before mutating the selected video so macOS 26 accessibility presses do not copy title/geometry state while SwiftUI's AttributeGraph transaction is still updating. The supplied 1.13.3 crash report showed `AccessibilityNode.sendAction`/`accessibilityPerformPress` reaching `initializeWithCopy for YouGlassVideoTitleBlock`; the guarded path was rebuilt and exercised successfully in the player.
 
-Runtime visual validation for this boundary covers all 12 theme families in both Light and Dark (24 rebuilt app launches/captures). Each state must open the player, retain the themed ambient flow at the media/page boundary, and avoid a flat opaque rectangle or clipped glow.
+Runtime visual validation for this boundary covers all 24 theme families in both Light and Dark (48 rebuilt app launches/captures) when the player ambient boundary is changed. Each state must open the player, retain the themed ambient flow at the media/page boundary, and avoid a flat opaque rectangle or clipped glow.
 
 ## Settings layout
 

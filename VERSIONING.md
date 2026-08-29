@@ -10,7 +10,7 @@ YouGlass uses Semantic Versioning and Git tags with a leading `v`.
 | `1.0.x` | Patch, bug fix, security, or compatibility release | `v1.0.1`, `v1.0.2` |
 | `1.0.x.n` | Same-line rebuild with a higher Sparkle build number; the user-facing release may use a suffix such as `(a)` | `v1.0.5.1` -> `1.0.5(a)` |
 | `1.x.0` | Backward-compatible feature release | `v1.1.0` |
-| `2.0.0` | Breaking change or migration | `v2.0.0` |
+| `2.0.0` | Major product relaunch, broad UI/UX overhaul, breaking change, migration, or new update channel | `v2.0.0` |
 
 The first release from this repository is `1.0.0`. The prior internal `0.1.0` build is treated as a development predecessor, not as a public update baseline.
 

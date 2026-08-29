@@ -17,6 +17,8 @@ struct YouGlassSettingsView: View {
     @State var showingResetConfirmation = false
     @State var showingCacheResetConfirmation = false
     @State var accentHexDraft = ""
+    @State var themeQuery = ""
+    @State var themeCollection: YouGlassThemeCollection = .all
     @State var debugStatus: String?
     @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) var reduceAmbientMotion = false
     @AppStorage("YouGlass.preferTechnicalErrorAlerts") var preferTechnicalErrorAlerts = false
@@ -37,5 +39,17 @@ struct YouGlassSettingsView: View {
             theme: store.visualTheme,
             customization: store.themeCustomization
         )
+    }
+
+    var filteredThemeFamilies: [YouGlassThemeFamily] {
+        let query = themeQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return YouGlassThemeFamily.allCases.filter { theme in
+            let matchesCollection = themeCollection == .all || theme.collection == themeCollection
+            let matchesQuery = query.isEmpty
+                || theme.title.localizedCaseInsensitiveContains(query)
+                || theme.subtitle.localizedCaseInsensitiveContains(query)
+                || theme.collection.title.localizedCaseInsensitiveContains(query)
+            return matchesCollection && matchesQuery
+        }
     }
 }

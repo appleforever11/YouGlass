@@ -5,9 +5,10 @@ final class ModelsTests: XCTestCase {
     func testThemeCatalogProvidesPairedLightAndDarkFamilies() throws {
         let themes = YouGlassThemeFamily.allCases
 
-        XCTAssertEqual(themes.count, 12)
+        XCTAssertEqual(themes.count, 24)
         XCTAssertEqual(Set(themes.map(\.id)).count, themes.count)
-        XCTAssertEqual(themes.filter(\.isFeatured), [.neoCitrus])
+        XCTAssertEqual(themes.filter(\.isFeatured), [.neoCitrus, .auroraBloom, .midnightVelvet, .paperLantern])
+        XCTAssertEqual(themes.filter(\.isNew).count, 12)
         XCTAssertTrue(themes.allSatisfy { !$0.title.isEmpty && !$0.subtitle.isEmpty })
 
         for theme in themes {
@@ -17,6 +18,16 @@ final class ModelsTests: XCTestCase {
             let encoded = try JSONEncoder().encode(theme)
             XCTAssertEqual(try JSONDecoder().decode(YouGlassThemeFamily.self, from: encoded), theme)
         }
+    }
+
+    func testThemeCollectionsCoverEveryEnvironment() {
+        let themes = YouGlassThemeFamily.allCases
+        let collections = Set(themes.map(\.collection))
+
+        XCTAssertFalse(collections.contains(.all))
+        XCTAssertEqual(collections, Set([.vivid, .calm, .warm, .cool, .nature, .minimal]))
+        XCTAssertTrue(themes.contains { $0.badgeTitle == "NEW" })
+        XCTAssertTrue(themes.contains { $0.badgeTitle == "FEATURED" })
     }
 
     func testPIPTransitionOnlyMatchesItsCurrentVideo() {

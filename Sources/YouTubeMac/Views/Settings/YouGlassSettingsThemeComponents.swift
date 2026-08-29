@@ -49,8 +49,8 @@ struct YouGlassThemeCard: View {
                             Text(theme.title)
                                 .font(.system(size: 14, weight: .bold))
                                 .lineLimit(1)
-                            if theme.isFeatured {
-                                Text("FEATURED")
+                            if let badgeTitle = theme.badgeTitle {
+                                Text(badgeTitle)
                                     .font(.system(size: 8, weight: .bold))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 3)

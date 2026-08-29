@@ -1,6 +1,30 @@
 import SwiftUI
 
-enum YouGlassThemeFamily: String, CaseIterable, Codable, Identifiable {
+enum YouGlassThemeCollection: String, CaseIterable, Codable, Identifiable, Hashable {
+    case all
+    case vivid
+    case calm
+    case warm
+    case cool
+    case nature
+    case minimal
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all: "All environments"
+        case .vivid: "Vivid"
+        case .calm: "Calm"
+        case .warm: "Warm"
+        case .cool: "Cool"
+        case .nature: "Nature"
+        case .minimal: "Minimal"
+        }
+    }
+}
+
+enum YouGlassThemeFamily: String, CaseIterable, Codable, Identifiable, Hashable {
     case neoCitrus
     case youGlassOriginal
     case electricTide
@@ -13,6 +37,18 @@ enum YouGlassThemeFamily: String, CaseIterable, Codable, Identifiable {
     case emberConsole
     case solarDesk
     case peachChrome
+    case auroraBloom
+    case midnightVelvet
+    case oceanDrive
+    case desertRose
+    case alpineSage
+    case copperNoir
+    case lavenderHaze
+    case rubySignal
+    case monochromeStudio
+    case cosmicCoral
+    case indigoHarbor
+    case paperLantern
 
     var id: String { rawValue }
 
@@ -30,6 +66,18 @@ enum YouGlassThemeFamily: String, CaseIterable, Codable, Identifiable {
         case .emberConsole: "Ember Console"
         case .solarDesk: "Solar Desk"
         case .peachChrome: "Peach Chrome"
+        case .auroraBloom: "Aurora Bloom"
+        case .midnightVelvet: "Midnight Velvet"
+        case .oceanDrive: "Ocean Drive"
+        case .desertRose: "Desert Rose"
+        case .alpineSage: "Alpine Sage"
+        case .copperNoir: "Copper Noir"
+        case .lavenderHaze: "Lavender Haze"
+        case .rubySignal: "Ruby Signal"
+        case .monochromeStudio: "Monochrome Studio"
+        case .cosmicCoral: "Cosmic Coral"
+        case .indigoHarbor: "Indigo Harbor"
+        case .paperLantern: "Paper Lantern"
         }
     }
 
@@ -47,6 +95,18 @@ enum YouGlassThemeFamily: String, CaseIterable, Codable, Identifiable {
         case .emberConsole: "Orange, amber, and red glass"
         case .solarDesk: "Sunlit gold, blue, and paper"
         case .peachChrome: "Peach, aqua, and soft chrome"
+        case .auroraBloom: "Northern lights over violet glass"
+        case .midnightVelvet: "Plum, ink, and starlight"
+        case .oceanDrive: "Pacific blue, foam, and sea glass"
+        case .desertRose: "Terracotta, rose, and dusk"
+        case .alpineSage: "Pine, glacier, and sage"
+        case .copperNoir: "Burnished copper and midnight ink"
+        case .lavenderHaze: "Soft lilac, cloud, and orchid"
+        case .rubySignal: "Ruby, crimson, and champagne"
+        case .monochromeStudio: "Graphite, paper, and silver"
+        case .cosmicCoral: "Coral flare, orchid, and space blue"
+        case .indigoHarbor: "Harbor blue, indigo, and mint"
+        case .paperLantern: "Warm paper, saffron, and ink"
         }
     }
 
@@ -64,10 +124,62 @@ enum YouGlassThemeFamily: String, CaseIterable, Codable, Identifiable {
         case .emberConsole: "flame.fill"
         case .solarDesk: "sun.max.fill"
         case .peachChrome: "circle.grid.2x2.fill"
+        case .auroraBloom: "sparkles"
+        case .midnightVelvet: "moon.stars.fill"
+        case .oceanDrive: "water.waves"
+        case .desertRose: "sunset.fill"
+        case .alpineSage: "mountain.2.fill"
+        case .copperNoir: "circle.lefthalf.filled"
+        case .lavenderHaze: "cloud.fill"
+        case .rubySignal: "diamond.fill"
+        case .monochromeStudio: "circle.lefthalf.filled.righthalf.striped.horizontal"
+        case .cosmicCoral: "star.circle.fill"
+        case .indigoHarbor: "sailboat.fill"
+        case .paperLantern: "lightbulb.fill"
         }
     }
 
-    var isFeatured: Bool { self == .neoCitrus }
+    var collection: YouGlassThemeCollection {
+        switch self {
+        case .neoCitrus, .youGlassOriginal, .roseQuartz, .emberConsole, .auroraBloom, .rubySignal, .cosmicCoral:
+            .vivid
+        case .electricTide, .arcticGlass, .deepOrbit, .silverMist, .solarDesk, .oceanDrive, .indigoHarbor:
+            .cool
+        case .goldenGate, .desertRose, .copperNoir, .paperLantern:
+            .warm
+        case .forestRadar, .alpineSage:
+            .nature
+        case .lavenderHaze, .midnightVelvet:
+            .calm
+        case .monochromeStudio, .peachChrome:
+            .minimal
+        }
+    }
+
+    var isFeatured: Bool {
+        switch self {
+        case .neoCitrus, .auroraBloom, .midnightVelvet, .paperLantern:
+            true
+        default:
+            false
+        }
+    }
+
+    var isNew: Bool {
+        switch self {
+        case .auroraBloom, .midnightVelvet, .oceanDrive, .desertRose, .alpineSage,
+             .copperNoir, .lavenderHaze, .rubySignal, .monochromeStudio,
+             .cosmicCoral, .indigoHarbor, .paperLantern:
+            true
+        default:
+            false
+        }
+    }
+
+    var badgeTitle: String? {
+        if isNew { return "NEW" }
+        return isFeatured ? "FEATURED" : nil
+    }
 
     func colors(isDark: Bool) -> YouGlassThemeColors {
         switch (self, isDark) {
@@ -315,6 +427,8 @@ enum YouGlassThemeFamily: String, CaseIterable, Codable, Identifiable {
                 tertiaryText: rgb(0.840, 0.560, 0.680).opacity(0.50), primary: rgb(1.000, 0.360, 0.420),
                 secondary: rgb(0.180, 0.700, 0.820), tertiary: rgb(0.820, 0.300, 0.700), accent: rgb(0.500, 0.760, 0.900)
             )
+        default:
+            expansionColors(isDark: isDark)
         }
     }
 
