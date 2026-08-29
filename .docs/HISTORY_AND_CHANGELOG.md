@@ -9,6 +9,11 @@ This file records durable project context, not every line edit. The local Git hi
 - Cross-Mac guarantee: the signed Sparkle archive contains the new Icon Composer/ICNS resources and YouGlass prompts LaunchServices to re-read them, but YouGlass cannot directly invalidate DockDoor's private cache. DockDoor may still need to refresh/restart itself.
 - Validation: current 2.0.0 bundle metadata and icon resources were inspected; DockDoor was restarted and its pinned preview visibly changed to the current icon. Full build/test validation follows this patch.
 
+## 2026-08-29 — lower expanded captions beside the hover controls
+
+- Reduced only the normal-player control-visible caption inset from 178 to 110 points so captions remain close to, and clearly above, the transport shelf when it returns on hover.
+- The lower resting inset and all compact/PIP caption constants remain unchanged.
+
 ## 2026-08-29 — keep main-player captions visible through hover dismissal
 
 - Decoupled the normal-player native caption surface from transport visibility. The caption view now stays mounted and text-driven while hover only changes its bottom inset, so the current line remains visible after the playback controls fade and lifts above them on re-hover.

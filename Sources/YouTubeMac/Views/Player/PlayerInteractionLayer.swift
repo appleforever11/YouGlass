@@ -89,7 +89,9 @@ enum PlayerTransportLayout {
     static let normalButtonSize: CGFloat = 38
     static let normalSpacing: CGFloat = 10
     static let normalStatusWidth: CGFloat = 120
-    static let normalCaptionControlInset: CGFloat = 178
+    // Keep expanded captions just above the normal transport shelf. The
+    // resting inset remains intentionally lower; PIP has its own constants.
+    static let normalCaptionControlInset: CGFloat = 110
     static let normalCaptionRestingInset: CGFloat = 30
     static let compactCaptionControlInset: CGFloat = 128
     static let compactCaptionRestingInset: CGFloat = 46
