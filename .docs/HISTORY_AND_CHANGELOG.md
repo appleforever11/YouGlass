@@ -8,6 +8,11 @@ This file records durable project context, not every line edit. The local Git hi
 - Existing known Short entries are removed from local feed/history/save/like/queue caches and related playback, collection, note, and recommendation-seed references during load/write migration. This does not modify the user's YouTube account data.
 - Because the YouTube Data API does not provide a reliable Shorts flag, API filtering uses title markers while WebKit/channel extraction also rejects Shorts URLs and reel renderers.
 
+## 2026-08-28 — stabilize the command palette surface
+
+- Added an opaque, theme-colored base to the command palette and kept the surrounding scrim theme-aware. The command list remains readable when the app's translucent window is over Home content or another desktop window, while the normal glass treatment returns after dismissal. Moved the modal overlay outside the horizontal Home shell so it centers in the full window instead of being laid out at the trailing edge. Command rows now receive a visible accent-backed hover highlight and become the active keyboard selection when hovered.
+- Rebuilt and inspected the staged `dist/YouGlass.app`; the palette opened from the toolbar without exposing the underlying Home feed through its panel. `./script/test.sh` passed all 45 tests and `./script/build_and_run.sh --verify` passed.
+
 ## 2026-08-28 — make compact PIP controls transient
 
 - Fixed the compact desktop PIP window shelf and bottom playback transport so both honor the player hover state. They reveal immediately on hover, fade after a short pointer-exit grace period, and stop intercepting pointer input while hidden so the PIP surface remains draggable.
@@ -15,6 +20,11 @@ This file records durable project context, not every line edit. The local Git hi
 ## 2026-08-28 — lower captions in compact PIP
 
 - Compact/PIP captions now use a lower resting inset when the transient controls are hidden, then animate back above the playback shelf when the pointer returns. This keeps captions from floating too high in the clean PIP frame while preserving clearance from the controls during interaction.
+
+## 2026-08-28 — isolate the full-player surface from Home
+
+- Added an opaque theme-colored base inside `PlayerAmbientSurface`, the root ambience layer behind the full player. Existing translucent gradients and materials still provide the themed flow, but the Home feed can no longer show through the clear portions of the player overlay.
+- Runtime validation of the rebuilt `dist/YouGlass.app` confirmed the player surface stays self-contained in the light theme, with no Home headings or recommendation cards visible beneath the watch page. `./script/test.sh` passed all 45 tests and `./script/build_and_run.sh --verify` passed.
 
 ## 2026-08-28 — begin the cross-cutting app overhaul
 
@@ -63,6 +73,16 @@ This file records durable project context, not every line edit. The local Git hi
 - The supplied runtime reports showed repeated `EXC_BAD_ACCESS` failures during SwiftUI `initializeWithCopy for ScrollView` work in the player view graph, including the mounted `LiveChatPanel` path. The failure appeared after adding a nested comments scroller and was reproducible when launching the staged bundle on macOS 26.6.2.
 - Added the small `YouGlassBoundedScrollView` AppKit bridge and moved the watch-page, comments, compact related rail, live chat, and queue scroll surfaces onto stock `NSScrollView` instances with hosted SwiftUI content. Comments retain a bounded 360-point viewport; Up Next remains intrinsic-height in the outer page document.
 - A clean Swift package rebuild was required because stale opaque-result metadata continued to contain the removed SwiftUI scroll types. The rebuilt `dist/YouGlass.app` stayed running, opened the native player, and accepted a real downward page scroll without a new diagnostic report. `git diff --check`, `./script/test.sh` (40 tests), and `./script/build_and_run.sh --verify` passed.
+
+## 2026-08-27 — bound bridge extraction work and organize Swift sources
+
+- Reduced avoidable WebKit bridge work: comments loading no longer scans every page element or dispatches two click events for one continuation control; comments extraction caches shadow-root search roots, reuses continuation queries, and avoids rescanning the DOM while a continuation request is pending. Feed extraction now avoids normalizing each card anchor twice.
+- Moved the remaining root-level Swift files into `Models/`, `Services/`, `Views/Home/`, and `Views/Shared/`. Split `YouTubeHomeView` into root, content, and compact-player files; the root view is now 111 lines. Theme catalog data and visual ambience remain separate because they have distinct model/rendering responsibilities.
+- Added bridge payload decoding/mapping, merge, ID validation, and script-regression tests. The comments script builder now uses `JSONEncoder` for continuation-token literals so quoted tokens cannot trigger `JSONSerialization` top-level-string failure.
+
+## 2026-08-27 — place For You before Continue Watching on Home
+
+- Reordered the Home recommendation rows so `For You` is the first section below the hero and the enabled/populated Continue Watching row follows it. Continue Watching remains conditional on the user's visibility setting and real playback checkpoints.
 
 ## 2026-08-27 — let long player titles use the full header width
 

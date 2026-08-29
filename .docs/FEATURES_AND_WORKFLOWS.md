@@ -2,9 +2,9 @@
 
 This document is the detailed companion to the concise product rules in `AGENTS.md`. It describes the eight improvement areas implemented in the current local milestone and the boundaries an agent should preserve when extending them.
 
-## 1. Continue Watching as the Home center
+## 1. Continue Watching as the second Home section
 
-`YouTubeStorePlayback` records a position, duration, and last-updated date for recently watched videos. The store removes checkpoints near completion and bounds the remaining entries. `ContinueWatchingRow` renders progress and a resume label on Home and Library; the progress track is shown only when a real unfinished checkpoint with a known duration exists and is constrained to the thumbnail's bottom overlay so it cannot become a top-of-card decoration. Removing a card clears only its local checkpoint.
+`YouTubeStorePlayback` records a position, duration, and last-updated date for recently watched videos. The store removes checkpoints near completion and bounds the remaining entries. On Home, the `For You` recommendation row comes first below the hero, and the enabled/populated `ContinueWatchingRow` follows as the second section. The row also appears in Library. It renders progress and a resume label; the progress track is shown only when a real unfinished checkpoint with a known duration exists and is constrained to the thumbnail's bottom overlay so it cannot become a top-of-card decoration. Removing a card clears only its local checkpoint.
 
 Source boundaries:
 
@@ -24,7 +24,7 @@ Collections store video IDs and remain independent of YouTube account playlists.
 
 ## 4. Command palette and keyboard flow
 
-`CommandPaletteView` is opened by the toolbar command button, `⌘K`, the application menu, or the Dock menu. It supports search, arrow-key selection, Return, Escape, navigation, refresh, theme cycling, and selected-player commands. Keep actions routed through `YouTubeStore` so the palette does not duplicate state transitions.
+`CommandPaletteView` is opened by the toolbar command button, `⌘K`, the application menu, or the Dock menu. It supports search, arrow-key selection, Return, Escape, navigation, refresh, theme cycling, and selected-player commands. Its modal surface uses an opaque theme-colored base with a restrained material/tint layer so the Home feed, desktop windows, and other translucent layers cannot show through the command list. The overlay is a sibling of the horizontal Home shell, which keeps the palette centered in the full window instead of placing it at the shell's trailing edge. Each command row has a visible accent-backed pointer hover state, and hovering a row makes it the active selection for Return. Keep actions routed through `YouTubeStore` so the palette does not duplicate state transitions.
 
 ## 5. Smarter Home recommendations
 

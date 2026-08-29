@@ -48,7 +48,7 @@ The supported environment overrides are:
 
 For a UI change, run `./script/build_and_run.sh --verify`, open Settings, select the affected page, resize if relevant, and inspect the real window with Computer Use. A successful Swift build alone is not sufficient evidence for settings layout or scroll behavior.
 
-For the current product foundation milestone, smoke-test the rebuilt bundle at minimum across these paths: Home -> Continue Watching -> resume; card context menu -> Watch Later/queue; Library -> collection and note creation; player -> queue, speed, mini-player, PIP, full screen, and Share; `⌘K` -> palette command; Settings -> Accent editor and recommendation toggles; and offline/cached Home behavior. Verify that local data survives a relaunch. Theme changes should be checked in both Light and Dark, especially at the player media/page boundary.
+For the current product foundation milestone, smoke-test the rebuilt bundle at minimum across these paths: Home -> `For You` -> Continue Watching -> resume; card context menu -> Watch Later/queue; Library -> collection and note creation; player -> queue, speed, mini-player, PIP, full screen, and Share; `⌘K` -> palette command; Settings -> Accent editor and recommendation toggles; and offline/cached Home behavior. Verify that local data survives a relaunch. Theme changes should be checked in both Light and Dark, especially at the player media/page boundary.
 
 ## Artifacts
 
