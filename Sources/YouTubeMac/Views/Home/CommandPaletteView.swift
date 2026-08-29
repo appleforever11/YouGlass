@@ -15,6 +15,7 @@ struct CommandPaletteView: View {
     let dismiss: () -> Void
     @State private var query = ""
     @State private var selectedIndex = 0
+    @State private var hoveredCommandID: String?
     @FocusState private var searchFocused: Bool
 
     private var surfaceShape: RoundedRectangle {
@@ -85,6 +86,15 @@ struct CommandPaletteView: View {
         }
     }
 
+    private var highlightedCommandID: String? {
+        if let hoveredCommandID,
+           commands.contains(where: { $0.id == hoveredCommandID }) {
+            return hoveredCommandID
+        }
+        guard commands.indices.contains(selectedIndex) else { return nil }
+        return commands[selectedIndex].id
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
@@ -118,6 +128,10 @@ struct CommandPaletteView: View {
                 ScrollView {
                     LazyVStack(spacing: 4) {
                         ForEach(Array(commands.enumerated()), id: \.element.id) { index, item in
+                            let isHovered = hoveredCommandID == item.id
+                            let isKeyboardSelected = index == selectedIndex
+                            let isHighlighted = item.id == highlightedCommandID
+
                             Button {
                                 item.action()
                                 dismiss()
@@ -125,7 +139,7 @@ struct CommandPaletteView: View {
                                 HStack(spacing: 11) {
                                     Image(systemName: item.systemImage)
                                         .frame(width: 22)
-                                        .foregroundStyle(index == selectedIndex ? palette.accent : palette.secondaryText)
+                                        .foregroundStyle(isHighlighted ? palette.accent : palette.secondaryText)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(item.title)
                                             .font(.subheadline.weight(.semibold))
@@ -145,9 +159,36 @@ struct CommandPaletteView: View {
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(index == selectedIndex ? palette.selected : .clear, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .background {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .fill(
+                                            isHovered
+                                                ? palette.accent.opacity(palette.isDark ? 0.22 : 0.14)
+                                                : (isKeyboardSelected ? palette.selected : .clear)
+                                        )
+                                }
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .stroke(
+                                            isHovered
+                                                ? palette.accent.opacity(palette.isDark ? 0.82 : 0.62)
+                                                : .clear,
+                                            lineWidth: 1
+                                        )
+                                }
                             }
                             .buttonStyle(.plain)
+                            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .onHover { isHovering in
+                                if isHovering {
+                                    hoveredCommandID = item.id
+                                    selectedIndex = index
+                                } else if hoveredCommandID == item.id {
+                                    hoveredCommandID = nil
+                                }
+                            }
+                            .animation(.easeOut(duration: 0.12), value: isHovered)
                         }
                     }
                 }
@@ -189,6 +230,7 @@ struct CommandPaletteView: View {
         }
         .onChange(of: query) { _, _ in
             selectedIndex = 0
+            hoveredCommandID = nil
         }
         .onKeyPress(.escape) {
             dismiss()
