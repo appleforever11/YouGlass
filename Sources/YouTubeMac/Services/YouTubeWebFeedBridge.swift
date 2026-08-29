@@ -31,7 +31,6 @@ final class YouTubeWebFeedBridge: NSObject, WKNavigationDelegate {
     var maxResults = 20
     var sessionCookiePresent = false
     var requestLabel = "YouTube homepage"
-    var includeShorts = false
 
     static let sessionCookieNames: Set<String> = [
         "APISID",

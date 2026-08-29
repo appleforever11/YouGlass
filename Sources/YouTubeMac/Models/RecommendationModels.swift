@@ -20,8 +20,7 @@ struct RecommendationRanker {
         liked: [VideoItem],
         seeds: [String],
         saved: [VideoItem] = [],
-        limit: Int = 40,
-        excludeShortForm: Bool = false
+        limit: Int = 40
     ) -> [VideoItem] {
         guard limit > 0 else { return [] }
 
@@ -43,7 +42,7 @@ struct RecommendationRanker {
 
         var best: [String: (video: VideoItem, score: Double, index: Int)] = [:]
         for (index, video) in videos.enumerated() {
-            if excludeShortForm && video.isShortForm {
+            if !YouGlassContentPolicy.allows(video) {
                 continue
             }
 

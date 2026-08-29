@@ -8,8 +8,7 @@ struct SidebarView: View {
     private let topItems: [(String, String, Bool, String, String?)] = [
         ("house.fill", "Home", false, "Home", nil),
         ("safari", "Explore", false, "Explore", "trending technology"),
-        ("play.rectangle", "Subscriptions", false, "Subscriptions", "latest from subscribed channels"),
-        ("play.square.stack", "Shorts", false, "Shorts", "youtube shorts")
+        ("play.rectangle", "Subscriptions", false, "Subscriptions", "latest from subscribed channels")
     ]
     private let libraryItems: [(String, String, Bool, String, String?)] = [
         ("rectangle.stack", "Library", false, "Library", nil),

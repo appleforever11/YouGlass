@@ -21,7 +21,9 @@ extension YouTubeAPIClient {
         ]
         let data = try await data(from: components)
         let response = try JSONDecoder().decode(VideoListResponse.self, from: data)
-        return response.items
+        return response.items.filter { resource in
+            !YouGlassContentPolicy.isShortsText(resource.snippet.title.htmlDecoded)
+        }
     }
 
     func videoItem(from resource: VideoListItem) -> VideoItem {

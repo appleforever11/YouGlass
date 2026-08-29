@@ -62,6 +62,7 @@ struct SafariHomeFeedClient: Sendable {
                 .sorted { $0.publishedAt > $1.publishedAt }
                 .compactMap { entry in
                     guard seen.insert(entry.video.id).inserted else { return nil }
+                    guard YouGlassContentPolicy.allows(entry.video) else { return nil }
                     return entry.video
                 }
         }
@@ -82,9 +83,9 @@ struct SafariHomeFeedClient: Sendable {
         let videos = fetched
             .sorted { $0.publishedAt > $1.publishedAt }
             .map(\.video)
+            .filter(YouGlassContentPolicy.allows)
         guard !videos.isEmpty else { return nil }
 
-        let shorts = videos.filter { $0.isShortForm }
         let live = videos.filter { video in
             let title = video.title.lowercased()
             return title.contains(" live ")
@@ -112,7 +113,6 @@ struct SafariHomeFeedClient: Sendable {
                 isSubscribed: true
             ),
             videos: videos,
-            shorts: shorts,
             live: live,
             playlists: []
         )
@@ -154,6 +154,7 @@ struct SafariHomeFeedClient: Sendable {
                     verified: false,
                     channelID: resolvedChannelID
                 )
+                guard YouGlassContentPolicy.allows(video) else { return nil }
                 return FetchedVideo(video: video, publishedAt: publishedAt)
             }
         } catch {

@@ -90,8 +90,7 @@ extension YouTubeStore {
                 liked: locallyLikedVideos,
                 seeds: recommendationSeeds,
                 saved: savedVideos,
-                limit: 40,
-                excludeShortForm: true
+                limit: 40
             )
             if !ranked.isEmpty {
                 return ranked
@@ -106,8 +105,7 @@ extension YouTubeStore {
                     liked: locallyLikedVideos,
                     seeds: recommendationSeeds,
                     saved: savedVideos,
-                    limit: 40,
-                    excludeShortForm: true
+                    limit: 40
                 )
             }
 
@@ -116,7 +114,7 @@ extension YouTubeStore {
 
         func accountSignalVideos(maxResults: Int) async -> [VideoItem] {
             let requestedCount = max(1, maxResults)
-            let cachedCandidates = cachedAccountSignalVideos.filter { !$0.isShortForm }
+            let cachedCandidates = YouGlassContentPolicy.nonShortVideos(from: cachedAccountSignalVideos)
             if cachedCandidates.count >= requestedCount,
                let lastAccountSignalLoadDate,
                !YouGlassFeedRefreshPolicy.needsRefresh(
@@ -134,7 +132,7 @@ extension YouTubeStore {
             // fallback for that mode.
             guard (try? await oauth.validAccessToken()) != nil else {
                 let local = recentlyWatched + locallyLikedVideos + savedVideos
-                return Array(mergeVideos(local).filter { !$0.isShortForm }.prefix(requestedCount))
+                return Array(YouGlassContentPolicy.nonShortVideos(from: mergeVideos(local)).prefix(requestedCount))
             }
 
             if let liked = try? await client.likedVideos(maxResults: 8) {
@@ -144,7 +142,7 @@ extension YouTubeStore {
             videos.append(contentsOf: recentlyWatched.prefix(8))
             videos.append(contentsOf: locallyLikedVideos.prefix(8))
             videos.append(contentsOf: savedVideos.prefix(8))
-            let merged = Array(mergeVideos(videos).filter { !$0.isShortForm }.prefix(requestedCount))
+            let merged = Array(YouGlassContentPolicy.nonShortVideos(from: mergeVideos(videos)).prefix(requestedCount))
             cachedAccountSignalVideos = merged
             lastAccountSignalLoadDate = Date()
             return merged

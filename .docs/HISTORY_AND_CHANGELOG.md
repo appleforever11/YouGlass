@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-29 — remove YouTube Shorts from YouGlass
+
+- Removed the Shorts navigation route and recommendation preference. A shared `YouGlassContentPolicy` now excludes Shorts from API, WebKit, Safari, channel, recommendation, search, direct-open, playback, queue, and presentation boundaries.
+- Existing known Short entries are removed from local feed/history/save/like/queue caches and related playback, collection, note, and recommendation-seed references during load/write migration. This does not modify the user's YouTube account data.
+- Because the YouTube Data API does not provide a reliable Shorts flag, API filtering uses title markers while WebKit/channel extraction also rejects Shorts URLs and reel renderers.
+
 ## 2026-08-28 — make compact PIP controls transient
 
 - Fixed the compact desktop PIP window shelf and bottom playback transport so both honor the player hover state. They reveal immediately on hover, fade after a short pointer-exit grace period, and stop intercepting pointer input while hidden so the PIP surface remains draggable.

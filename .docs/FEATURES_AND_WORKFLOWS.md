@@ -28,7 +28,9 @@ Collections store video IDs and remain independent of YouTube account playlists.
 
 ## 5. Smarter Home recommendations
 
-`RecommendationRanker` combines subscription, history, local likes, saved videos, search seeds, recency, and view signals while diversifying channels. The recommendation settings page controls Continue Watching visibility and whether Shorts are filtered from primary Home recommendations. The dedicated Shorts section remains independent. Cached personalized candidates use the same Shorts preference when they are stored/restored.
+`RecommendationRanker` combines subscription, history, local likes, saved videos, search seeds, recency, and view signals while diversifying channels. YouGlass permanently excludes YouTube Shorts from recommendations and from the feed/API/WebKit/channel ingestion paths that supply them. Search and direct-open reject Shorts URLs and Shorts-oriented queries, the Shorts navigation/settings surfaces are removed, and known Short entries are sanitized from local history, library references, queue, playback checkpoints, recommendation seeds, and feed caches when they are loaded or written. YouTube account-side history, likes, and playlists are not modified.
+
+The Data API does not expose a reliable Shorts flag, so API results use the shared title marker policy; WebKit and channel extraction additionally reject `/shorts/` and reel renderer entries before they become `VideoItem` values.
 
 ## 6. Reliability and performance
 

@@ -29,6 +29,7 @@ extension VideoItem {
         if let url = URL(string: trimmed),
            let host = url.host?.lowercased(),
            host == "youtube.com" || host.hasSuffix(".youtube.com") || host == "youtu.be" {
+            guard !YouGlassContentPolicy.isShortsURL(url) else { return nil }
             if host == "youtu.be" {
                 candidate = url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
             } else if let queryID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "v" })?.value {

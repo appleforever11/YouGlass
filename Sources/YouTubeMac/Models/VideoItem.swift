@@ -74,21 +74,10 @@ struct VideoItem: Identifiable, Hashable, Codable {
         return URL(string: "https://i.ytimg.com/vi/\(id)/hqdefault.jpg")
     }
 
-    /// Shorts should remain available in the dedicated Shorts surface, but
-    /// must not silently take over the primary Home recommendations.
+    /// The title-based fallback is needed for Data API responses, which do not
+    /// expose whether a video was presented as a YouTube Short.
     var isShortForm: Bool {
-        let normalizedTitle = title
-            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
-            .lowercased()
-        let tokens = normalizedTitle
-            .components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-        return normalizedTitle.contains("#shorts")
-            || normalizedTitle.contains("#short")
-            || normalizedTitle.contains("youtube shorts")
-            || normalizedTitle.contains("short form")
-            || normalizedTitle.contains("vertical short")
-            || tokens.first == "shorts"
+        YouGlassContentPolicy.isShortsText(title)
     }
 
     var embedURL: URL? {

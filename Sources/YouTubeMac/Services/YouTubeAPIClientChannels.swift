@@ -10,12 +10,15 @@ extension YouTubeAPIClient {
         let playlistIDs = try await uploadVideoIDs(playlistID: uploadsID, maxResults: maxResults)
         let resources = try await videoResources(ids: playlistIDs)
         let resourcesByID = Dictionary(uniqueKeysWithValues: resources.map { ($0.id, $0) })
-        let orderedItems = playlistIDs.compactMap { resourcesByID[$0] }.map { videoItem(from: $0) }
-        let shorts = orderedItems.filter { durationSeconds(for: $0.duration) <= 180 }
+        let orderedItems = playlistIDs
+            .compactMap { resourcesByID[$0] }
+            .map { videoItem(from: $0) }
+            .filter(YouGlassContentPolicy.allows)
         let live = resources
             .filter { $0.liveStreamingDetails?.isCurrentlyLive == true }
             .sorted { $0.snippet.publishedAt > $1.snippet.publishedAt }
             .map { videoItem(from: $0) }
+            .filter(YouGlassContentPolicy.allows)
 
         let subscriberText: String
         if resource.statistics?.hiddenSubscriberCount == true {
@@ -49,7 +52,6 @@ extension YouTubeAPIClient {
         return YouTubeChannelPage(
             channel: channel,
             videos: orderedItems,
-            shorts: shorts,
             live: live,
             playlists: playlists
         )
@@ -115,14 +117,5 @@ extension YouTubeAPIClient {
             return nil
         }
         return path
-    }
-
-    func durationSeconds(for displayDuration: String) -> Int {
-        let parts = displayDuration.split(separator: ":").compactMap { Int($0) }
-        switch parts.count {
-        case 2: return parts[0] * 60 + parts[1]
-        case 3: return parts[0] * 3600 + parts[1] * 60 + parts[2]
-        default: return Int(displayDuration) ?? 0
-        }
     }
 }

@@ -13,8 +13,7 @@ extension YouTubeWebFeedBridge {
         return await loadVideos(
             at: components.url!,
             maxResults: maxResults,
-            label: "YouTube homepage",
-            includeShorts: false
+            label: "YouTube homepage"
         )
     }
 
@@ -27,14 +26,14 @@ extension YouTubeWebFeedBridge {
         return await loadVideos(
             at: components.url!,
             maxResults: maxResults,
-            label: "YouTube watch history",
-            includeShorts: true
+            label: "YouTube watch history"
         )
     }
 
     func searchVideos(query: String, maxResults: Int = 12) async -> YouTubeWebFeedResult {
         let searchTerm = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !searchTerm.isEmpty else { return .empty }
+        guard !searchTerm.isEmpty,
+              !YouGlassContentPolicy.isShortsSearch(searchTerm) else { return .empty }
 
         var components = URLComponents(string: "https://www.youtube.com/results")!
         components.queryItems = [URLQueryItem(name: "search_query", value: searchTerm)]
@@ -43,16 +42,14 @@ extension YouTubeWebFeedBridge {
         return await loadVideos(
             at: url,
             maxResults: maxResults,
-            label: "YouTube search",
-            includeShorts: false
+            label: "YouTube search"
         )
     }
 
     func loadVideos(
         at url: URL,
         maxResults: Int,
-        label: String,
-        includeShorts: Bool
+        label: String
     ) async -> YouTubeWebFeedResult {
         guard YouGlassHiddenWebKitPolicy.isEnabled() else {
             YouGlassDiagnostics.record(
@@ -74,7 +71,6 @@ extension YouTubeWebFeedBridge {
 
         self.maxResults = maxResults
         requestLabel = label
-        self.includeShorts = includeShorts
         let cookieSession = await hasYouTubeSessionCookie()
         sessionCookiePresent = cookieSession
         let webView = existingOrCreateWebView()

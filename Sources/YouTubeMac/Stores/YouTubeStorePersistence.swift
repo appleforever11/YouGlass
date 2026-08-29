@@ -10,6 +10,7 @@ extension YouTubeStore {
         }
 
         func rememberRecommendationSeed(_ video: VideoItem) {
+            guard YouGlassContentPolicy.allows(video) else { return }
             let seed = "\(video.channel) \(video.title)"
             recommendationSeeds.removeAll { $0 == seed }
             recommendationSeeds.insert(seed, at: 0)
@@ -18,6 +19,7 @@ extension YouTubeStore {
         }
 
         func rememberHistory(_ video: VideoItem) {
+            guard YouGlassContentPolicy.allows(video) else { return }
             recentlyWatched.removeAll { $0.id == video.id }
             recentlyWatched.insert(video, at: 0)
             recentlyWatched = Array(recentlyWatched.prefix(100))
@@ -27,7 +29,31 @@ extension YouTubeStore {
         func decodeVideos(forKey key: String) -> [VideoItem] {
             guard let data = defaults.data(forKey: key),
                   let videos = try? JSONDecoder().decode([VideoItem].self, from: data) else { return [] }
-            return videos
+            let filtered = nonShortVideos(videos)
+            excludedShortFormIDs.formUnion(
+                videos.filter { !YouGlassContentPolicy.allows($0) }.map(\.id)
+            )
+            if filtered.count != videos.count {
+                persistVideos(filtered, key: key)
+            }
+            return filtered
+        }
+
+        func decodeRecommendationSeeds() -> [String] {
+            let seeds = defaults.stringArray(forKey: DefaultsKey.recommendationSeeds) ?? []
+            let filtered = seeds.filter { !YouGlassContentPolicy.isShortsText($0) }
+            if filtered != seeds {
+                defaults.set(filtered, forKey: DefaultsKey.recommendationSeeds)
+            }
+            return filtered
+        }
+
+        func nonShortVideos(_ videos: [VideoItem]) -> [VideoItem] {
+            let filtered = YouGlassContentPolicy.nonShortVideos(from: videos)
+            excludedShortFormIDs.formUnion(
+                videos.filter { !YouGlassContentPolicy.allows($0) }.map(\.id)
+            )
+            return filtered
         }
 
         func decodePlaybackPositions() -> [String: Double] {
@@ -35,7 +61,12 @@ extension YouTubeStore {
                   let positions = try? JSONDecoder().decode([String: Double].self, from: data) else {
                 return [:]
             }
-            return positions.filter { $0.value.isFinite && $0.value > 0 }
+            return positions.filter {
+                !$0.key.isEmpty
+                    && !excludedShortFormIDs.contains($0.key)
+                    && $0.value.isFinite
+                    && $0.value > 0
+            }
         }
 
         func decodePlaybackDurations() -> [String: Double] {
@@ -43,7 +74,12 @@ extension YouTubeStore {
                   let durations = try? JSONDecoder().decode([String: Double].self, from: data) else {
                 return [:]
             }
-            return durations.filter { $0.value.isFinite && $0.value > 0 && playbackPositions[$0.key] != nil }
+            return durations.filter {
+                !excludedShortFormIDs.contains($0.key)
+                    && $0.value.isFinite
+                    && $0.value > 0
+                    && playbackPositions[$0.key] != nil
+            }
         }
 
         func decodePlaybackPositionDates() -> [String: Date] {
@@ -51,7 +87,10 @@ extension YouTubeStore {
                   let dates = try? JSONDecoder().decode([String: Date].self, from: data) else {
                 return [:]
             }
-            return dates.filter { playbackPositions[$0.key] != nil }
+            return dates.filter {
+                !excludedShortFormIDs.contains($0.key)
+                    && playbackPositions[$0.key] != nil
+            }
         }
 
         func decodeSubscriptions() -> [SubscriptionItem] {
@@ -63,6 +102,9 @@ extension YouTubeStore {
         }
 
         func persistPlaybackPositions() {
+            playbackPositions = playbackPositions.filter { !excludedShortFormIDs.contains($0.key) }
+            playbackDurations = playbackDurations.filter { !excludedShortFormIDs.contains($0.key) }
+            playbackPositionUpdatedAt = playbackPositionUpdatedAt.filter { !excludedShortFormIDs.contains($0.key) }
             guard let positionsData = try? JSONEncoder().encode(playbackPositions),
                   let durationsData = try? JSONEncoder().encode(playbackDurations),
                   let datesData = try? JSONEncoder().encode(playbackPositionUpdatedAt) else { return }
@@ -76,7 +118,20 @@ extension YouTubeStore {
                   let collections = try? JSONDecoder().decode([YouGlassLibraryCollection].self, from: data) else {
                 return []
             }
-            return Array(collections.prefix(40))
+            var changed = false
+            let filtered = collections.map { collection in
+                var collection = collection
+                let originalIDs = collection.videoIDs
+                collection.videoIDs.removeAll { excludedShortFormIDs.contains($0) }
+                changed = changed || originalIDs != collection.videoIDs
+                return collection
+            }
+            let bounded = Array(filtered.prefix(40))
+            if (changed || bounded.count != collections.count),
+               let filteredData = try? JSONEncoder().encode(bounded) {
+                defaults.set(filteredData, forKey: DefaultsKey.customCollections)
+            }
+            return bounded
         }
 
         func decodeVideoNotes() -> [YouGlassVideoNote] {
@@ -84,7 +139,13 @@ extension YouTubeStore {
                   let notes = try? JSONDecoder().decode([YouGlassVideoNote].self, from: data) else {
                 return []
             }
-            return Array(notes.prefix(200))
+            let filtered = notes.filter { !excludedShortFormIDs.contains($0.videoID) }
+            let bounded = Array(filtered.prefix(200))
+            if bounded.count != notes.count,
+               let filteredData = try? JSONEncoder().encode(bounded) {
+                defaults.set(filteredData, forKey: DefaultsKey.videoNotes)
+            }
+            return bounded
         }
 
         func decodeThemeCustomization() -> YouGlassThemeCustomization {
@@ -106,6 +167,7 @@ extension YouTubeStore {
         }
 
         func persistPlaybackQueue() {
+            playbackQueue = nonShortVideos(playbackQueue)
             let state = YouGlassPlaybackQueueState(videos: playbackQueue, autoplay: queueAutoplay)
             if let data = try? JSONEncoder().encode(state) {
                 defaults.set(data, forKey: DefaultsKey.playbackQueue)
@@ -126,7 +188,7 @@ extension YouTubeStore {
         }
 
         func persistVideos(_ videos: [VideoItem], key: String) {
-            if let data = try? JSONEncoder().encode(videos) {
+            if let data = try? JSONEncoder().encode(nonShortVideos(videos)) {
                 defaults.set(data, forKey: key)
             }
         }
@@ -143,6 +205,7 @@ extension YouTubeStore {
 
         func mergeVideos(_ videos: [VideoItem]) -> [VideoItem] {
             videos.reduce(into: [VideoItem]()) { result, video in
+                guard YouGlassContentPolicy.allows(video) else { return }
                 if !result.contains(where: { $0.id == video.id }) {
                     result.append(video)
                 }
@@ -154,7 +217,7 @@ extension YouTubeStore {
         }
 
         func applyHomeVideos(_ videos: [VideoItem], message: String, cacheFeed: Bool) {
-            let merged = mergeVideos(videos)
+            let merged = mergeVideos(nonShortVideos(videos))
             guard !merged.isEmpty else { return }
             sectionEmptyMessage = nil
             feed.hero = merged.first ?? feed.hero
@@ -185,8 +248,7 @@ extension YouTubeStore {
                 liked: locallyLikedVideos,
                 seeds: recommendationSeeds,
                 saved: savedVideos,
-                limit: 40,
-                excludeShortForm: hideShortsFromHome
+                limit: 40
             )
             guard !ranked.isEmpty else { return false }
             applyHomeVideos(ranked, message: message, cacheFeed: cacheFeed)
@@ -194,9 +256,7 @@ extension YouTubeStore {
         }
 
         func cachePersonalizedFeed(_ videos: [VideoItem]) {
-            let cacheCandidates = mergeVideos(videos).filter { video in
-                !hideShortsFromHome || !video.isShortForm
-            }
+            let cacheCandidates = mergeVideos(nonShortVideos(videos))
             guard let data = try? JSONEncoder().encode(Array(cacheCandidates.prefix(40))) else { return }
             defaults.set(data, forKey: DefaultsKey.cachedPersonalizedFeed)
             cachedPersonalizedFeedUpdatedAt = Date()

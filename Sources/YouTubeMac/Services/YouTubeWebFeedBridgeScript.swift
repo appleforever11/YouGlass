@@ -4,11 +4,10 @@ import OSLog
 @preconcurrency import WebKit
 
 extension YouTubeWebFeedBridge {
-    nonisolated static func extractionScript(maxResults: Int, includeShorts: Bool) -> String {
+    nonisolated static func extractionScript(maxResults: Int) -> String {
         """
         (() => {
           const limit = \(maxResults);
-          const includeShorts = \(includeShorts ? "true" : "false");
           const seen = new Set();
           const items = [];
           let initialCount = 0;
@@ -42,12 +41,13 @@ extension YouTubeWebFeedBridge {
               return match ? match[1] : '';
             } catch (_) { return ''; }
           };
+          const isShortsRoute = value => String(value || '').toLowerCase().includes('/shorts/');
           const add = (entry) => {
-            if (!entry || (!includeShorts && entry.isShort) || !entry.id || seen.has(entry.id)) return;
+            if (!entry || entry.isShort || !entry.id || seen.has(entry.id)) return;
             const title = String(entry.title || '').replace(/\\s+/g, ' ').trim();
             if (!title || title.length < 2) return;
             const titleLower = title.toLowerCase();
-            if (!includeShorts && (titleLower.includes('#short') || titleLower.includes('youtube shorts') || titleLower.includes('short form'))) return;
+            if (titleLower.includes('#short') || titleLower.includes('youtube shorts') || titleLower.includes('short form')) return;
             seen.add(entry.id);
             items.push({
               id: entry.id,
@@ -56,8 +56,7 @@ extension YouTubeWebFeedBridge {
               views: String(entry.views || 'Recommended').replace(/\\s+/g, ' ').trim(),
               age: String(entry.age || '').replace(/\\s+/g, ' ').trim(),
               duration: String(entry.duration || '').replace(/\\s+/g, ' ').trim(),
-              imageURL: entry.imageURL || '',
-              isShort: Boolean(entry.isShort)
+              imageURL: entry.imageURL || ''
             });
           };
           const addRenderer = (renderer, isShort = false) => {
@@ -69,7 +68,10 @@ extension YouTubeWebFeedBridge {
             const views = firstText(renderer, ['viewCountText', 'shortViewCountText']);
             const age = firstText(renderer, ['publishedTimeText']);
             const duration = firstText(renderer, ['lengthText']);
-            add({ id, title, channel, views, age, duration, imageURL: thumbnail(renderer.thumbnail), isShort });
+            const route = renderer.navigationEndpoint && renderer.navigationEndpoint.commandMetadata
+              && renderer.navigationEndpoint.commandMetadata.webCommandMetadata
+              && renderer.navigationEndpoint.commandMetadata.webCommandMetadata.url;
+            add({ id, title, channel, views, age, duration, imageURL: thumbnail(renderer.thumbnail), isShort: isShort || isShortsRoute(route) });
           };
           const walk = (node, depth) => {
             if (!node || typeof node !== 'object' || depth > 32 || items.length >= limit * 3) return;
@@ -169,7 +171,7 @@ extension YouTubeWebFeedBridge {
     }
 
     func extractVideos(from webView: WKWebView) async -> YouTubeWebFeedResult {
-        let script = Self.extractionScript(maxResults: maxResults, includeShorts: includeShorts)
+        let script = Self.extractionScript(maxResults: maxResults)
 
         do {
             let result = try await webView.youGlassEvaluateJavaScript(script)
@@ -194,17 +196,18 @@ extension YouTubeWebFeedBridge {
     }
 
     nonisolated static func videoItems(from payload: WebFeedPayload) -> [VideoItem] {
-        payload.items.map { entry in
-                VideoItem(
-                    id: entry.id,
-                    title: entry.title,
-                    channel: entry.channel.isEmpty ? "YouTube" : entry.channel,
-                    views: entry.views.isEmpty ? "Recommended" : entry.views,
-                    age: entry.age,
-                    duration: entry.duration,
-                    imageURL: URL(string: entry.imageURL),
-                    verified: false
-                )
-            }
+        payload.items.compactMap { entry in
+            let video = VideoItem(
+                id: entry.id,
+                title: entry.title,
+                channel: entry.channel.isEmpty ? "YouTube" : entry.channel,
+                views: entry.views.isEmpty ? "Recommended" : entry.views,
+                age: entry.age,
+                duration: entry.duration,
+                imageURL: URL(string: entry.imageURL),
+                verified: false
+            )
+            return YouGlassContentPolicy.allows(video) ? video : nil
+        }
     }
 }

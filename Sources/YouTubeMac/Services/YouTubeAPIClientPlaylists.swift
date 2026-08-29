@@ -134,6 +134,6 @@ extension YouTubeAPIClient {
         let resourcesByID = Dictionary(uniqueKeysWithValues: resources.map { ($0.id, $0) })
         return ordered.map { id, fallback in
             resourcesByID[id].map(videoItem(from:)) ?? fallback
-        }
+        }.filter(YouGlassContentPolicy.allows)
     }
 }

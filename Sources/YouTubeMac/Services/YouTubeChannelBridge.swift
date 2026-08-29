@@ -234,13 +234,24 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
             if (/^[A-Za-z0-9_-]{11}$/.test(raw)) return raw;
             return videoID(raw);
           };
-          const addRenderer = renderer => {
+          const isShortTitle = value => {
+            const lower = clean(value).toLowerCase();
+            return lower.includes('#short')
+              || lower.includes('youtube shorts')
+              || lower.includes('short form')
+              || lower.includes('vertical short')
+              || /\\bshorts\\b/.test(lower);
+          };
+          const addRenderer = (renderer, isShort = false) => {
             if (!renderer || typeof renderer !== 'object' || videos.length >= limit) return;
             const endpoint = renderer.navigationEndpoint && renderer.navigationEndpoint.watchEndpoint;
             const id = normalizeVideoID(renderer.videoId || (endpoint && endpoint.videoId));
             if (!id || seen.has(id)) return;
             const title = textValue(renderer.title) || textValue(renderer.headline) || textValue(renderer.accessibility);
-            if (!title) return;
+            const route = renderer.navigationEndpoint && renderer.navigationEndpoint.commandMetadata
+              && renderer.navigationEndpoint.commandMetadata.webCommandMetadata
+              && renderer.navigationEndpoint.commandMetadata.webCommandMetadata.url;
+            if (!title || isShort || String(route || '').toLowerCase().includes('/shorts/') || isShortTitle(title)) return;
             const badges = textValue(renderer.badges) + ' ' + textValue(renderer.thumbnailOverlays);
             seen.add(id);
             videos.push({
@@ -251,7 +262,6 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
               age: textValue(renderer.publishedTimeText),
               duration: textValue(renderer.lengthText),
               imageURL: thumbnail(renderer.thumbnail),
-              isShort: title.toLowerCase().includes('#shorts'),
               isLive: badges.toLowerCase().includes('live')
             });
           };
@@ -260,7 +270,7 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
             if (node.videoRenderer) addRenderer(node.videoRenderer);
             if (node.gridVideoRenderer) addRenderer(node.gridVideoRenderer);
             if (node.richItemRenderer && node.richItemRenderer.content) walk(node.richItemRenderer.content, depth + 1);
-            if (node.reelItemRenderer) addRenderer(node.reelItemRenderer);
+            if (node.reelItemRenderer) addRenderer(node.reelItemRenderer, true);
             for (const key of Object.keys(node)) {
               if (key === 'playerResponse' || key === 'responseContext') continue;
               const value = node[key];
@@ -288,9 +298,10 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
               if (!title) continue;
               const href = anchor.href || '';
               const isShort = href.includes('/shorts/') || clean(card.innerText).toLowerCase().includes('shorts');
+              if (isShort || isShortTitle(title)) continue;
               const isLive = clean(card.innerText).toLowerCase().includes('live') || href.includes('/live/');
               seen.add(id);
-              videos.push({ id, title, channel: name, views: metadata[0] || 'YouTube', age: metadata[1] || '', duration: text(durationNode), imageURL: image(card), isShort, isLive });
+              videos.push({ id, title, channel: name, views: metadata[0] || 'YouTube', age: metadata[1] || '', duration: text(durationNode), imageURL: image(card), isLive });
           }
           return JSON.stringify({
             channelID: (location.pathname.match(/\\/channel\\/(UC[A-Za-z0-9_-]+)/) || [])[1] || header.channelId || metadata.externalId || '',
@@ -344,8 +355,7 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
                 imageURL: URL(string: $0.imageURL),
                 verified: false
             )
-        }
-        let shortsIDs = Set(payload.videos.filter(\.isShort).map(\.id))
+        }.filter(YouGlassContentPolicy.allows)
         let liveIDs = Set(payload.videos.filter(\.isLive).map(\.id))
         let channel = YouTubeChannel(
             id: payload.channelID.isEmpty ? (subscription?.id ?? "channel") : payload.channelID,
@@ -361,7 +371,6 @@ final class YouTubeChannelBridge: NSObject, WKNavigationDelegate {
         return YouTubeChannelPage(
             channel: channel,
             videos: items,
-            shorts: items.filter { shortsIDs.contains($0.id) },
             live: items.filter { liveIDs.contains($0.id) },
             playlists: []
         )
@@ -403,6 +412,5 @@ private struct ChannelBridgeVideo: Decodable {
     let age: String
     let duration: String
     let imageURL: String
-    let isShort: Bool
     let isLive: Bool
 }

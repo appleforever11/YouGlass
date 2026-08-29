@@ -31,6 +31,7 @@ extension YouTubeStore {
         }
 
         func savePlaybackPosition(for video: VideoItem, at seconds: Double, duration: Double) {
+            guard YouGlassContentPolicy.allows(video) else { return }
             guard seconds.isFinite, seconds > 1 else { return }
 
             let safePosition = max(0, seconds)
@@ -85,6 +86,7 @@ extension YouTubeStore {
         }
 
         func toggleSaved(_ video: VideoItem) {
+            guard YouGlassContentPolicy.allows(video) else { return }
             if isSaved(video) {
                 savedVideos.removeAll { $0.id == video.id }
             } else {
@@ -111,6 +113,7 @@ extension YouTubeStore {
         }
 
         func recordLocalRating(for video: VideoItem, liked: Bool) {
+            guard YouGlassContentPolicy.allows(video) else { return }
             locallyLikedVideos.removeAll { $0.id == video.id }
             if liked { locallyLikedVideos.insert(video, at: 0) }
             locallyLikedVideos = Array(locallyLikedVideos.prefix(100))

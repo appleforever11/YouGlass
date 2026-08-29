@@ -24,6 +24,15 @@ final class BridgeTests: XCTestCase {
               "age": "now",
               "duration": "4:20",
               "imageURL": "https://i.ytimg.com/vi/video-two/hqdefault.jpg"
+            },
+            {
+              "id": "video-short",
+              "title": "Quick tips #shorts",
+              "channel": "Example",
+              "views": "2K views",
+              "age": "now",
+              "duration": "0:30",
+              "imageURL": "https://i.ytimg.com/vi/video-short/hqdefault.jpg"
             }
           ],
           "signedIn": true,
@@ -95,11 +104,13 @@ final class BridgeTests: XCTestCase {
     }
 
     func testWebFeedScriptAvoidsRedundantAnchorNormalizationAndPolling() {
-        let script = YouTubeWebFeedBridge.extractionScript(maxResults: 20, includeShorts: false)
+        let script = YouTubeWebFeedBridge.extractionScript(maxResults: 20)
 
         XCTAssertEqual(script.components(separatedBy: "normalizeId(candidate.href)").count - 1, 1)
         XCTAssertFalse(script.contains("MutationObserver"))
         XCTAssertFalse(script.contains("setInterval"))
+        XCTAssertFalse(script.contains("includeShorts"))
+        XCTAssertTrue(script.contains("entry.isShort"))
         XCTAssertTrue(script.contains("items.slice(0, limit)"))
     }
 

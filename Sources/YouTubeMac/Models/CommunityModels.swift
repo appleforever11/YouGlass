@@ -24,7 +24,6 @@ struct YouTubeChannel: Identifiable, Hashable {
 struct YouTubeChannelPage: Hashable {
     let channel: YouTubeChannel
     let videos: [VideoItem]
-    let shorts: [VideoItem]
     let live: [VideoItem]
     let playlists: [YouTubePlaylist]
 }

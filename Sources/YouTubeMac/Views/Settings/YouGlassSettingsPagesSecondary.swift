@@ -18,13 +18,6 @@ extension YouGlassSettingsView {
                             set: { store.setShowContinueWatching($0) }
                         )
                     )
-                    Toggle(
-                        "Hide Shorts from Home recommendations",
-                        isOn: Binding(
-                            get: { store.hideShortsFromHome },
-                            set: { store.setHideShortsFromHome($0) }
-                        )
-                    )
                 }
 
                 settingsGroup("Refresh", footer: "Refreshing asks the signed-in session and the official API for new candidates, then reranks them with your local signals.") {

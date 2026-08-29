@@ -57,7 +57,6 @@ final class YouTubeStore: ObservableObject {
     @Published var pipTransitionState: PIPTransitionState = .idle
     @Published var compactPlayerCorner: CompactPlayerCorner = .topTrailing
     @Published var showContinueWatching = true
-    @Published var hideShortsFromHome = true
     @Published var commandPalettePresented = false
     @Published var themeCustomization = YouGlassThemeCustomization.empty
     @Published var isNetworkAvailable = true
@@ -110,6 +109,7 @@ final class YouTubeStore: ObservableObject {
     var networkMonitor: YouGlassNetworkMonitor?
     let defaults = UserDefaults.standard
     let playbackLogger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")
+    var excludedShortFormIDs: Set<String> = []
 
     var isDesktopPIPTransitioning: Bool {
         pipTransitionState.isTransitioning
@@ -128,7 +128,6 @@ final class YouTubeStore: ObservableObject {
         backgroundGlow = defaults.object(forKey: DefaultsKey.backgroundGlow) as? Double ?? 0.78
         glassIntensity = defaults.object(forKey: DefaultsKey.glassIntensity) as? Double ?? 0.72
         showContinueWatching = defaults.object(forKey: DefaultsKey.showContinueWatching) as? Bool ?? true
-        hideShortsFromHome = defaults.object(forKey: DefaultsKey.hideShortsFromHome) as? Bool ?? true
         themeCustomization = decodeThemeCustomization()
         lastAccountSyncDate = defaults.object(forKey: DefaultsKey.lastAccountSyncDate) as? Date
         cachedFeedUpdatedAt = defaults.object(forKey: DefaultsKey.cachedFeedDate) as? Date
@@ -146,7 +145,7 @@ final class YouTubeStore: ObservableObject {
         if isSignedIn {
             subscriptions = decodeSubscriptions()
         }
-        recommendationSeeds = defaults.stringArray(forKey: DefaultsKey.recommendationSeeds) ?? []
+        recommendationSeeds = decodeRecommendationSeeds()
         recentlyWatched = decodeVideos(forKey: DefaultsKey.recentlyWatched)
         savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
         locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
@@ -154,25 +153,34 @@ final class YouTubeStore: ObservableObject {
         videoNotes = decodeVideoNotes()
         if let data = defaults.data(forKey: DefaultsKey.playbackQueue),
            let state = try? JSONDecoder().decode(YouGlassPlaybackQueueState.self, from: data) {
-            playbackQueue = state.videos
+            playbackQueue = nonShortVideos(state.videos)
             queueAutoplay = state.autoplay
+            if playbackQueue.count != state.videos.count {
+                persistPlaybackQueue()
+            }
         }
-        if let data = defaults.data(forKey: DefaultsKey.cachedPersonalizedFeed),
-           let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
-           !cachedVideos.isEmpty {
+        let cachedPersonalizedVideos = decodeVideos(forKey: DefaultsKey.cachedPersonalizedFeed)
+        if !cachedPersonalizedVideos.isEmpty {
             _ = applyPrimaryHomeVideos(
-                cachedVideos,
+                cachedPersonalizedVideos,
                 message: "Saved personalized YouTube recommendations",
                 cacheFeed: false
             )
-        } else if let data = defaults.data(forKey: DefaultsKey.cachedFeed),
-                  let cachedVideos = try? JSONDecoder().decode([VideoItem].self, from: data),
-                  !cachedVideos.isEmpty {
-            _ = applyPrimaryHomeVideos(cachedVideos, message: "Saved YouTube recommendations", cacheFeed: false)
+        } else {
+            let cachedFeedVideos = decodeVideos(forKey: DefaultsKey.cachedFeed)
+            if !cachedFeedVideos.isEmpty {
+                _ = applyPrimaryHomeVideos(cachedFeedVideos, message: "Saved YouTube recommendations", cacheFeed: false)
+            }
         }
+        // Cached feeds and queues can reveal additional Shorts IDs after the
+        // first local-library decode. Re-run the small reference cleanup once
+        // every video source has been inspected.
+        customCollections = decodeCollections()
+        videoNotes = decodeVideoNotes()
         playbackPositions = decodePlaybackPositions()
         playbackDurations = decodePlaybackDurations()
         playbackPositionUpdatedAt = decodePlaybackPositionDates()
+        persistPlaybackPositions()
 
         networkMonitor = YouGlassNetworkMonitor { [weak self] isAvailable in
             Task { @MainActor [weak self] in
@@ -263,7 +271,6 @@ final class YouTubeStore: ObservableObject {
         static let glassIntensity = YouGlassVisualDefaults.glassIntensity
         static let lastAccountSyncDate = "YouGlass.lastAccountSyncDate"
         static let showContinueWatching = "YouGlass.showContinueWatching"
-        static let hideShortsFromHome = "YouGlass.hideShortsFromHome"
         static let themeCustomization = "YouGlass.themeCustomization"
     }
 }

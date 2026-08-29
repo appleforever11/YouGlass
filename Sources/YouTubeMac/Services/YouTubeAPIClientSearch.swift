@@ -10,6 +10,8 @@ extension YouTubeAPIClient {
         videoDuration: String? = nil,
         regionCode: String = "US"
     ) async throws -> [VideoItem] {
+        guard !YouGlassContentPolicy.isShortsSearch(query) else { return [] }
+
         var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/search")!
         var queryItems = [
             URLQueryItem(name: "part", value: "snippet"),
@@ -54,7 +56,7 @@ extension YouTubeAPIClient {
                 verified: false,
                 channelID: item.snippet.channelID
             )
-        }
+        }.filter(YouGlassContentPolicy.allows)
     }
 
     func mostPopularVideos(maxResults: Int = 12, regionCode: String = "US", videoCategoryId: String? = nil) async throws -> [VideoItem] {
@@ -72,6 +74,6 @@ extension YouTubeAPIClient {
 
         let data = try await data(from: components, preferOAuth: false)
         let response = try JSONDecoder().decode(VideoListResponse.self, from: data)
-        return response.items.map(videoItem(from:))
+        return response.items.map(videoItem(from:)).filter(YouGlassContentPolicy.allows)
     }
 }

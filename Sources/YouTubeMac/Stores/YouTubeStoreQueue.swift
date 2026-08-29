@@ -18,6 +18,7 @@ extension YouTubeStore {
     }
 
     func preparePlaybackQueue(for video: VideoItem) {
+        guard YouGlassContentPolicy.allows(video) else { return }
         let source = playbackQueue.isEmpty
             ? feed.forYou + feed.trending + feed.more + feed.queue + recentlyWatched + savedVideos
             : playbackQueue + feed.forYou + feed.trending + feed.more + feed.queue
@@ -28,6 +29,7 @@ extension YouTubeStore {
     }
 
     func enqueue(_ video: VideoItem) {
+        guard YouGlassContentPolicy.allows(video) else { return }
         playbackQueue.removeAll { $0.id == video.id }
         playbackQueue.append(video)
         playbackQueue = Array(playbackQueue.prefix(24))

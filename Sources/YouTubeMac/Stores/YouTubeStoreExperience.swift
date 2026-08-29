@@ -7,14 +7,6 @@ extension YouTubeStore {
         defaults.set(enabled, forKey: DefaultsKey.showContinueWatching)
     }
 
-    func setHideShortsFromHome(_ enabled: Bool) {
-        hideShortsFromHome = enabled
-        defaults.set(enabled, forKey: DefaultsKey.hideShortsFromHome)
-        if selectedSection == "Home" {
-            Task { @MainActor [weak self] in await self?.loadHome(force: true) }
-        }
-    }
-
     func setThemeAccentHex(_ value: String) {
         guard let normalized = YouGlassThemeCustomization.normalizeHex(value) else {
             themeCustomization = .empty

@@ -209,15 +209,6 @@ struct YouTubeChannelView: View {
                 channelSectionHeader("Videos", count: page.videos.count)
                 videoGrid(page.videos)
             }
-        case .shorts:
-            VStack(alignment: .leading, spacing: 18) {
-                channelSectionHeader("Shorts", count: page.shorts.count)
-                if page.shorts.isEmpty {
-                    emptyChannelState("No Shorts were returned for this channel.")
-                } else {
-                    videoGrid(page.shorts)
-                }
-            }
         case .live:
             VStack(alignment: .leading, spacing: 18) {
                 channelSectionHeader("Live", count: page.live.count)
@@ -323,7 +314,6 @@ struct YouTubeChannelView: View {
 private enum ChannelTab: String, CaseIterable, Identifiable {
     case home
     case videos
-    case shorts
     case live
     case playlists
     case posts
@@ -334,7 +324,6 @@ private enum ChannelTab: String, CaseIterable, Identifiable {
         switch self {
         case .home: return "Home"
         case .videos: return "Videos"
-        case .shorts: return "Shorts"
         case .live: return "Live"
         case .playlists: return "Playlists"
         case .posts: return "Posts"

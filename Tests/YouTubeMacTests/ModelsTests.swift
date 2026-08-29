@@ -180,9 +180,17 @@ final class ModelsTests: XCTestCase {
     func testParsesShortLiveAndEmbedURLs() {
         let id = "5sTQfGJiVdc"
         XCTAssertEqual(VideoItem.fromYouTubeInput("https://youtu.be/\(id)")?.id, id)
-        XCTAssertEqual(VideoItem.fromYouTubeInput("https://youtube.com/shorts/\(id)")?.id, id)
+        XCTAssertNil(VideoItem.fromYouTubeInput("https://youtube.com/shorts/\(id)"))
         XCTAssertEqual(VideoItem.fromYouTubeInput("https://youtube.com/live/\(id)")?.id, id)
         XCTAssertEqual(VideoItem.fromYouTubeInput("https://youtube.com/embed/\(id)")?.id, id)
+        XCTAssertTrue(YouGlassContentPolicy.isShortsURL("https://youtube.com/shorts/\(id)"))
+    }
+
+    func testContentPolicyRecognizesShortsSignalsWithoutBlockingShortWords() {
+        XCTAssertTrue(YouGlassContentPolicy.isShortsText("Quick tips #shorts"))
+        XCTAssertTrue(YouGlassContentPolicy.isShortsText("YouTube Shorts compilation"))
+        XCTAssertTrue(YouGlassContentPolicy.isShortsSearch("latest shorts"))
+        XCTAssertFalse(YouGlassContentPolicy.isShortsText("A short film festival interview"))
     }
 
     func testRejectsUnsupportedOrMalformedInput() {
@@ -262,7 +270,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(decoded, state)
     }
 
-    func testRecommendationRankerCanExcludeShortFormWithoutDroppingLongForm() {
+    func testRecommendationRankerAlwaysExcludesShortFormWithoutDroppingLongForm() {
         let longForm = VideoItem(
             id: "long-form-1",
             title: "A thoughtful long-form interview",
@@ -292,20 +300,9 @@ final class ModelsTests: XCTestCase {
                 history: [],
                 liked: [],
                 seeds: [],
-                excludeShortForm: true
+                limit: 40
             ).map(\.id),
             [longForm.id]
-        )
-        XCTAssertEqual(
-            RecommendationRanker.rank(
-                [shortForm, longForm],
-                subscriptions: [],
-                history: [],
-                liked: [],
-                seeds: [],
-                excludeShortForm: false
-            ).count,
-            2
         )
     }
 
@@ -434,8 +431,7 @@ final class ModelsTests: XCTestCase {
             history: [],
             liked: [],
             seeds: [],
-            limit: 10,
-            excludeShortForm: true
+            limit: 10
         )
 
         XCTAssertEqual(ranked.map(\.id), ["long-video"])

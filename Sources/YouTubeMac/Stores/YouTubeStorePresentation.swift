@@ -15,6 +15,10 @@ extension YouTubeStore {
         }
 
         func open(_ video: VideoItem) {
+            guard YouGlassContentPolicy.allows(video) else {
+                connectionMessage = "YouTube Shorts are disabled in YouGlass"
+                return
+            }
             videoResolutionTask?.cancel()
             videoResolutionTask = nil
             videoResolutionGeneration &+= 1

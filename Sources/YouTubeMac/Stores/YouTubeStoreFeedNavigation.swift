@@ -108,8 +108,6 @@ extension YouTubeStore {
             switch title {
             case "Home":
                 await loadHome(sectionGeneration: generation)
-            case "Shorts":
-                await loadShorts(sectionGeneration: generation)
             case "History":
                 await loadHistory(sectionGeneration: generation)
             case "Watch Later":
@@ -189,35 +187,6 @@ extension YouTubeStore {
                 showEmptySection("Your YouTube watch history is unavailable in the current session. Reconnect YouTube and try again.")
             } else {
                 showEmptySection("Sign in with Google to load your YouTube watch history")
-            }
-        }
-
-        func loadShorts(sectionGeneration: Int? = nil) async {
-            guard canPublishSectionLoad(sectionGeneration) else { return }
-            let hasCredentials = await client.hasCredentials()
-            guard canPublishSectionLoad(sectionGeneration) else { return }
-            guard hasCredentials else {
-                connectionMessage = "Sign in with Google or add a YouTube API key to load Shorts"
-                return
-            }
-            isLoading = true
-            defer {
-                if canPublishSectionLoad(sectionGeneration) {
-                    isLoading = false
-                }
-            }
-            do {
-                let shorts = try await client.searchVideos(
-                    query: "shorts",
-                    maxResults: 12,
-                    order: "date",
-                    videoDuration: "short"
-                )
-                guard canPublishSectionLoad(sectionGeneration) else { return }
-                applyHomeVideos(shorts, message: "Latest Shorts from YouTube")
-            } catch {
-                guard canPublishSectionLoad(sectionGeneration) else { return }
-                connectionMessage = "Using saved Shorts. \(error.localizedDescription)"
             }
         }
 

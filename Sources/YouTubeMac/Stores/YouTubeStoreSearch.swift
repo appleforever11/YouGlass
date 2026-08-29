@@ -48,6 +48,15 @@ extension YouTubeStore {
                 return
             }
 
+            if YouGlassContentPolicy.isShortsURL(searchTerm)
+                || YouGlassContentPolicy.isShortsSearch(searchTerm) {
+                searchResults = []
+                feed = VideoItem.loadingFeed
+                sectionEmptyMessage = "YouTube Shorts are disabled in YouGlass"
+                connectionMessage = "Short-form YouTube content is excluded"
+                return
+            }
+
             let hasCredentials = await client.hasCredentials()
             guard canPublishSectionLoad(sectionGeneration) else { return }
             guard hasCredentials else {
