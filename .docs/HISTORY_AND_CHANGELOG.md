@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-29 — refresh app icon registration after Sparkle updates
+
+- Added a best-effort `NSWorkspace` LaunchServices refresh during every app launch, which also covers the relaunch after Sparkle installs an update. The refresh uses the running bundle path and records only the bundle/build icon metadata in diagnostics.
+- Documented that external dock applications can keep a separate icon preview cache. On this Mac, DockDoor's pinned YouGlass entry resolves the current `dist/YouGlass.app` by bundle ID/path with no custom icon override; restarting DockDoor caused it to display the current Glass Prism icon.
+- Cross-Mac guarantee: the signed Sparkle archive contains the new Icon Composer/ICNS resources and YouGlass prompts LaunchServices to re-read them, but YouGlass cannot directly invalidate DockDoor's private cache. DockDoor may still need to refresh/restart itself.
+- Validation: current 2.0.0 bundle metadata and icon resources were inspected; DockDoor was restarted and its pinned preview visibly changed to the current icon. Full build/test validation follows this patch.
+
 ## 2026-08-29 — begin the YouGlass 2.0 release milestone
 
 - Promoted the app metadata to 2.0.0 (build 200000) for the major product relaunch. Theme Center now contains the original 12 environments plus 12 new paired Light/Dark families, with collection filters, search, NEW/FEATURED badges, result counts, an empty state, and Surprise me navigation.

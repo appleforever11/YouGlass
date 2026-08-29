@@ -39,6 +39,10 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
             message: "Application did finish launching",
             metadata: ["os": ProcessInfo.processInfo.operatingSystemVersionString]
         )
+        // Sparkle relaunches the updated bundle after installation. Prompt
+        // LaunchServices to re-read its icon before external dock apps ask
+        // for the new preview.
+        YouGlassAppIconRefresh.refresh()
         guard YouGlassRuntimeStabilityPolicy.isAffectedSystem else { return }
         // macOS 26+ routes pointer-motion events through SwiftUI's
         // HoverEventDispatcher without a valid main-executor context, causing

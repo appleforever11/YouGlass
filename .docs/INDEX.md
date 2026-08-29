@@ -10,6 +10,7 @@ This directory is the tracked, non-skill reference layer for the project. `AGENT
 - [PLAYER_HOVER_CONTROLS.md](PLAYER_HOVER_CONTROLS.md) — transient native-player controls, caption placement, and runtime validation notes.
 - [FEATURES_AND_WORKFLOWS.md](FEATURES_AND_WORKFLOWS.md) — the eight product foundations, their source boundaries, persistence, and smoke-test expectations.
 - [THEME_CENTER_2_0.md](THEME_CENTER_2_0.md) — the 2.0 theme catalog, collection metadata, browser controls, compatibility, and QA contract.
+- [ICON_AND_DOCKDOOR.md](ICON_AND_DOCKDOOR.md) — shipped icon resources, LaunchServices refresh behavior, DockDoor cache evidence, and cross-Mac update expectations.
 - [OVERHAUL_MILESTONE.md](OVERHAUL_MILESTONE.md) — the current app-overhaul baseline, safety restore point, validation evidence, and next review targets.
 - [HISTORY_AND_CHANGELOG.md](HISTORY_AND_CHANGELOG.md) — local Git baseline, dirty-worktree notes, durable investigations, and instructions for recalling or reverting work.
 
