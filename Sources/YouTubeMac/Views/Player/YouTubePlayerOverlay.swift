@@ -91,8 +91,9 @@ struct YouTubePlayerOverlay: View {
                     .padding(.top, 30)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
-                    .opacity(1)
-                    .allowsHitTesting(true)
+                    .opacity(compactChromeVisible ? 1 : 0)
+                    .allowsHitTesting(compactChromeVisible || cornerMenuPresented)
+                    .accessibilityHidden(!compactChromeVisible && !cornerMenuPresented)
                     .animation(.easeOut(duration: 0.18), value: compactChromeVisible)
                     .zIndex(20)
                 }
@@ -155,13 +156,11 @@ struct YouTubePlayerOverlay: View {
     }
 
     private func handleCompactPlayerHover(_ isHovering: Bool) {
+        compactChromePointerHovering = isHovering
         if isHovering {
             showCompactChrome()
         } else {
-            // The pointer often crosses the player surface before it reaches
-            // the top-left window controls. Keep the shelf alive for that
-            // short hand-off, then let it disappear when the pointer leaves.
-            scheduleCompactChromeHide(after: 0.9)
+            scheduleCompactChromeHide(after: PlayerTransportLayout.compactControlExitGracePeriod)
         }
     }
 

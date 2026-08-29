@@ -57,8 +57,9 @@ extension NativeYouTubePlayer {
             .padding(.horizontal, 6)
             .padding(.bottom, 22)
             .offset(y: -22)
-            .opacity(playbackController.canRetry ? 0 : 1)
-            .allowsHitTesting(!playbackController.canRetry)
+            .opacity(transportControlsVisible && !playbackController.canRetry ? 1 : 0)
+            .allowsHitTesting(transportControlsVisible && !playbackController.canRetry)
+            .accessibilityHidden(!transportControlsVisible || playbackController.canRetry)
             .zIndex(22)
         }
 
@@ -157,11 +158,7 @@ extension NativeYouTubePlayer {
         }
 
         var transportControlsVisible: Bool {
-            // PIP has no surrounding playback page to reveal controls on hover.
-            // Keep its compact transport available while the floating player is
-            // active; the normal watch player still follows the transient hover
-            // state.
-            isCompact || controlsVisible
+            controlsVisible
         }
 
         var captionBottomInset: CGFloat {
@@ -211,14 +208,13 @@ extension NativeYouTubePlayer {
             isPointerHovering = hovering
             onPlayerHoverChanged?(hovering)
 
-            guard !isCompact else { return }
             if hovering {
                 revealControls()
             } else {
-                // Keep the controls discoverable for a beat while the pointer
-                // crosses the media edge, then move the caption into the freed
-                // lower space with the same visibility transition.
-                scheduleControlsHide(after: PlayerTransportLayout.normalControlExitGracePeriod)
+                let exitGracePeriod = isCompact
+                    ? PlayerTransportLayout.compactControlExitGracePeriod
+                    : PlayerTransportLayout.normalControlExitGracePeriod
+                scheduleControlsHide(after: exitGracePeriod)
             }
         }
 

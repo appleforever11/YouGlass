@@ -151,10 +151,12 @@ extension NativeYouTubePlayer {
                 }
             }
             .onAppear {
-                // The normal player starts clean and reveals its transport only
-                // after the pointer enters the media surface. Compact/PIP keeps
-                // its always-available bottom transport independently.
-                if !isCompact {
+                // Both player surfaces start with a brief discoverable control
+                // state. Normal playback then waits for media hover, while
+                // compact/PIP uses the same transient hover contract.
+                if isCompact {
+                    revealControls()
+                } else {
                     controlsVisible = false
                 }
             }

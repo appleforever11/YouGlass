@@ -92,6 +92,7 @@ enum PlayerTransportLayout {
     static let normalCaptionControlInset: CGFloat = 178
     static let normalCaptionRestingInset: CGFloat = 30
     static let normalControlExitGracePeriod: Double = 0.04
+    static let compactControlExitGracePeriod: Double = 0.16
     static let normalControlTransitionDuration: Double = 0.08
     // Keep the full-player row inside the clipped media surface. The
     // scrubber remains at the media edge while the circular controls sit
