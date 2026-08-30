@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-30 — advance autoplay to the next queued video
+
+- Fixed queue preparation so opening a video that is already in `playbackQueue` preserves its existing order. Previously, selecting the next item moved it to index zero, causing the queue cursor to point back at an earlier video when the item finished.
+- Added an explicit native media `ended` listener so the player reports completion immediately to the Swift auto-advance handler. The existing autoplay toggle remains respected; when it is disabled, the current video stops at completion.
+- Added model and bridge regression coverage for queue order and completion-event wiring.
+
 ## 2026-08-29 — preserve private API credentials and restore the account avatar
 
 - Centralized the YouTube Data API key in a stable macOS Keychain service/account boundary. Existing keys from the legacy service migrate forward on read, and credential reset removes both identities; no API key is written to source, UserDefaults, diagnostics, Git, Sparkle artifacts, or `.docs/`.

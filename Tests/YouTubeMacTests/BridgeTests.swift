@@ -136,6 +136,7 @@ final class BridgeTests: XCTestCase {
         XCTAssertTrue(script.contains("emitCaptionState"))
         XCTAssertTrue(script.contains("captionText: text"))
         XCTAssertTrue(script.contains("__youglassLastCaptionState"))
+        XCTAssertTrue(script.contains("'ended'"))
         XCTAssertFalse(script.contains("Captions unavailable for this video"))
     }
 

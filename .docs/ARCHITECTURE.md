@@ -31,7 +31,7 @@ The current product layer is deliberately local-first and is composed from small
 
 - `YouTubeStorePlayback` records bounded per-video positions and durations. `continueWatching` filters completed items and feeds both the Home row and Library.
 - `YouTubeStoreLibrary` stores up to 40 named `YouGlassLibraryCollection` values and 200 `YouGlassVideoNote` values in UserDefaults. Collections retain IDs while the store resolves the newest known `VideoItem` metadata from the local catalog.
-- `YouTubeStoreQueue` stores a bounded `YouGlassPlaybackQueueState` with the current queue and autoplay preference. The player exposes queue navigation, remove/clear actions, and rate selection without requiring a YouTube account.
+- `YouTubeStoreQueue` stores a bounded `YouGlassPlaybackQueueState` with the current queue and autoplay preference. `YouGlassPlaybackQueuePolicy` preserves the order of a selected item already in the queue so the selected ID remains the cursor and completion advances to the following item. The player exposes queue navigation, remove/clear actions, and rate selection without requiring a YouTube account.
 - `YouTubeStoreExperience` is the bridge for the command palette, theme accent override, mini-player/full-screen/share actions, and native media controls. `YouGlassNativeIntegration` owns Now Playing, remote commands, Dock actions, and the native sharing picker.
 - `RecommendationRanker` handles local feed signals and enforces the shared no-Shorts content policy. Feed/API/WebKit/channel boundaries apply the same policy before data reaches recommendations or local persistence; `YouGlassNetworkMonitor`, the feed cache, and `YouGlassImageCache` keep the shell useful during transient network failures and prevent repeated thumbnail downloads.
 

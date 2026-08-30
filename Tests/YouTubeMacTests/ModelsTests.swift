@@ -319,6 +319,55 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(decoded, state)
     }
 
+    func testPlaybackQueueKeepsOrderWhenAutoplaySelectsTheNextVideo() {
+        let first = VideoItem(
+            id: "first-video",
+            title: "First video",
+            channel: "Example",
+            views: "",
+            age: "",
+            duration: "",
+            imageURL: nil,
+            verified: false
+        )
+        let second = VideoItem(
+            id: "second-video",
+            title: "Second video",
+            channel: "Example",
+            views: "",
+            age: "",
+            duration: "",
+            imageURL: nil,
+            verified: false
+        )
+        let third = VideoItem(
+            id: "third-video",
+            title: "Third video",
+            channel: "Example",
+            views: "",
+            age: "",
+            duration: "",
+            imageURL: nil,
+            verified: false
+        )
+
+        let initialQueue = YouGlassPlaybackQueuePolicy.prepare(
+            for: first,
+            existingQueue: [],
+            source: [first, second, third]
+        )
+        let queueAfterAutoplay = YouGlassPlaybackQueuePolicy.prepare(
+            for: second,
+            existingQueue: initialQueue,
+            source: [first, second, third]
+        )
+
+        XCTAssertEqual(initialQueue.map(\.id), [first.id, second.id, third.id])
+        XCTAssertEqual(queueAfterAutoplay.map(\.id), [first.id, second.id, third.id])
+        let currentIndex = queueAfterAutoplay.firstIndex { $0.id == second.id }
+        XCTAssertEqual(currentIndex.map { queueAfterAutoplay[$0 + 1].id }, third.id)
+    }
+
     func testRecommendationRankerAlwaysExcludesShortFormWithoutDroppingLongForm() {
         let longForm = VideoItem(
             id: "long-form-1",

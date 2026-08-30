@@ -66,7 +66,7 @@ extension YouTubeInlinePlayerView {
           [
             'play', 'playing', 'pause', 'volumechange', 'loadedmetadata',
             'durationchange', 'timeupdate', 'progress', 'seeking', 'seeked',
-            'canplay', 'waiting', 'stalled', 'error', 'abort',
+            'canplay', 'waiting', 'stalled', 'error', 'abort', 'ended',
             'enterpictureinpicture', 'leavepictureinpicture',
             'webkitpresentationmodechanged'
           ].forEach(name => media.addEventListener(name, () => emitState(statusForEvent(name))));

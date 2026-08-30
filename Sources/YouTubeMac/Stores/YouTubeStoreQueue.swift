@@ -22,7 +22,11 @@ extension YouTubeStore {
         let source = playbackQueue.isEmpty
             ? feed.forYou + feed.trending + feed.more + feed.queue + recentlyWatched + savedVideos
             : playbackQueue + feed.forYou + feed.trending + feed.more + feed.queue
-        let nextQueue = Array(mergeVideos([video] + source).prefix(24))
+        let nextQueue = YouGlassPlaybackQueuePolicy.prepare(
+            for: video,
+            existingQueue: playbackQueue,
+            source: source
+        )
         guard nextQueue.map(\.id) != playbackQueue.map(\.id) else { return }
         playbackQueue = nextQueue
         persistPlaybackQueue()
