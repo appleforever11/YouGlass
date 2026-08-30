@@ -16,7 +16,7 @@ struct YouTubeOAuthToken: Codable {
 final class YouTubeOAuthClient: @unchecked Sendable {
     static let shared = YouTubeOAuthClient()
 
-    private let service = "com.kevinhowe.YouGlass"
+    private let service = YouGlassCredentialStore.service
     private let clientIDAccount = "GOOGLE_OAUTH_CLIENT_ID"
     private let clientSecretAccount = "GOOGLE_OAUTH_CLIENT_SECRET"
     private let tokenAccount = "GOOGLE_OAUTH_TOKEN"

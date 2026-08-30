@@ -3,6 +3,22 @@ import Foundation
 import SwiftUI
 
 extension YouTubeStore {
+        func refreshProfileImage() async {
+            guard isSignedIn else { return }
+
+            do {
+                guard let url = try await client.myChannelProfileImageURL(),
+                      !Task.isCancelled else { return }
+                profileImageURL = url
+                defaults.set(url.absoluteString, forKey: DefaultsKey.profileImageURL)
+            } catch {
+                // A browser-only YouTube session may not have OAuth API access.
+                // Keep the last valid URL and let the browser capture path fill
+                // it when the signed-in YouTube page exposes the avatar.
+                YouGlassDiagnostics.auth.debug("Account profile image refresh unavailable")
+            }
+        }
+
         func refreshAccount() {
             accountSyncTask?.cancel()
             accountSyncGeneration &+= 1
@@ -43,6 +59,8 @@ extension YouTubeStore {
                     self.defaults.removeObject(forKey: DefaultsKey.profileImageURL)
                 }
 
+                guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }
+                await self.refreshProfileImage()
                 guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }
                 await self.loadSubscriptions(force: true)
                 guard !Task.isCancelled, self.accountSyncGeneration == generation else { return }

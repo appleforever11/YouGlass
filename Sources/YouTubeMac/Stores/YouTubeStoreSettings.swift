@@ -90,7 +90,7 @@ extension YouTubeStore {
         func saveDataAPIKey(_ value: String) {
             let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !clean.isEmpty else { return }
-            KeychainStore.write(clean, service: "com.kevinhowe.YouGlass", account: "YOUTUBE_API_KEY")
+            YouGlassCredentialStore.writeDataAPIKey(clean)
             client = YouTubeAPIClient(apiKey: clean, oauth: oauth)
             invalidateAccountSignalCache()
             connectionMessage = "YouTube Data API key saved"
@@ -114,7 +114,7 @@ extension YouTubeStore {
 
         func resetYouTubeCredentials() {
             oauth.clearStoredCredentials()
-            KeychainStore.remove(service: "com.kevinhowe.YouGlass", account: "YOUTUBE_API_KEY")
+            YouGlassCredentialStore.removeDataAPIKey()
             client = YouTubeAPIClient(oauth: oauth)
             isSignedIn = false
             profileImageURL = nil

@@ -1,6 +1,28 @@
 import Foundation
 
 extension YouTubeAPIClient {
+    func myChannelProfileImageURL() async throws -> URL? {
+        guard let token = try await oauth.validAccessToken() else {
+            return nil
+        }
+
+        var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/channels")!
+        components.queryItems = [
+            URLQueryItem(name: "part", value: "snippet"),
+            URLQueryItem(name: "mine", value: "true"),
+            URLQueryItem(name: "maxResults", value: "1")
+        ]
+
+        let data = try await authorizedData(from: components.url!, token: token)
+        let response = try JSONDecoder().decode(ChannelListResponse.self, from: data)
+        guard let thumbnail = response.items.first?.snippet.thumbnails.high?.url
+            ?? response.items.first?.snippet.thumbnails.medium?.url
+            ?? response.items.first?.snippet.thumbnails.defaultThumbnail.url else {
+            return nil
+        }
+        return URL(string: thumbnail)
+    }
+
     func rating(for videoID: String) async throws -> String? {
         guard try await oauth.validAccessToken() != nil else { return nil }
         var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/videos/getRating")!

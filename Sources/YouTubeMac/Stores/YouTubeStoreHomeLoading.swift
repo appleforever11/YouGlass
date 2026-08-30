@@ -105,6 +105,10 @@ extension YouTubeStore {
                 webResult = await YouTubeWebFeedBridge.shared.loadHomeVideos(maxResults: 32)
             }
             guard canPublishSectionLoad(sectionGeneration) else { return }
+            if let profileURL = webResult.profileImageURL {
+                profileImageURL = profileURL
+                defaults.set(profileURL.absoluteString, forKey: DefaultsKey.profileImageURL)
+            }
             if webResult.isSignedIn && !isSignedIn {
                 isSignedIn = true
                 defaults.set(true, forKey: DefaultsKey.isSignedIn)

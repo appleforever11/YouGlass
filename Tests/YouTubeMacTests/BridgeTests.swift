@@ -36,6 +36,7 @@ final class BridgeTests: XCTestCase {
             }
           ],
           "signedIn": true,
+          "profileImageURL": "https://yt3.ggpht.com/example=s240",
           "title": "YouTube",
           "url": "https://www.youtube.com/",
           "initialCount": 4,
@@ -48,6 +49,7 @@ final class BridgeTests: XCTestCase {
 
         XCTAssertEqual(payload.initialCount, 4)
         XCTAssertEqual(payload.domCount, 2)
+        XCTAssertEqual(payload.profileImageURL, "https://yt3.ggpht.com/example=s240")
         XCTAssertEqual(videos.map(\.id), ["video-one", "video-two"])
         XCTAssertEqual(videos[0].channel, "YouTube")
         XCTAssertEqual(videos[0].views, "Recommended")
@@ -112,6 +114,8 @@ final class BridgeTests: XCTestCase {
         XCTAssertFalse(script.contains("includeShorts"))
         XCTAssertTrue(script.contains("entry.isShort"))
         XCTAssertTrue(script.contains("items.slice(0, limit)"))
+        XCTAssertTrue(script.contains("profileImageURL"))
+        XCTAssertTrue(script.contains("#avatar-btn img#img"))
     }
 
     func testPlayerChromeScopesCaptionsAndUsesNativeCaptionSurface() {

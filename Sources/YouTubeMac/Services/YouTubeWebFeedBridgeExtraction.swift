@@ -25,6 +25,7 @@ extension YouTubeWebFeedBridge {
             let sessionResult = YouTubeWebFeedResult(
                 videos: result.videos,
                 isSignedIn: result.isSignedIn || sessionCookiePresent,
+                profileImageURL: result.profileImageURL,
                 diagnostics: result.diagnostics
             )
 
@@ -36,6 +37,7 @@ extension YouTubeWebFeedBridge {
                 bestResult = YouTubeWebFeedResult(
                     videos: Array(mergedVideos.prefix(maxResults)),
                     isSignedIn: bestResult.isSignedIn || sessionResult.isSignedIn,
+                    profileImageURL: bestResult.profileImageURL ?? sessionResult.profileImageURL,
                     diagnostics: sessionResult.diagnostics
                 )
             }

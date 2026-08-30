@@ -11,8 +11,11 @@ enum YouTubeAuthBridge {
     static let profileCaptureScript = """
     (() => {
       const selectors = [
+        '#avatar-btn img#img',
         'button#avatar-btn img',
+        'ytd-topbar-menu-button-renderer img#img',
         'ytd-topbar-menu-button-renderer img',
+        '#avatar-btn yt-img-shadow img',
         'yt-img-shadow#avatar img',
         'img[src*="googleusercontent.com"]',
         'img[src*="ggpht.com"]'
@@ -34,8 +37,10 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
     private var window: NSWindow?
     private var webView: WKWebView?
     private var addressField: NSTextField?
+    private var profileCaptureTask: Task<Void, Never>?
 
     func open(_ url: URL, title: String = "YouTube") {
+        profileCaptureTask?.cancel()
         let webView = existingOrCreateWebView()
         addressField?.stringValue = url.absoluteString
         webView.load(URLRequest(url: url))
@@ -156,14 +161,22 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
     private func captureProfileImage(from webView: WKWebView) {
         guard webView.url?.host?.contains("youtube.com") == true else { return }
 
-        Task { @MainActor in
-            let result = try? await webView.youGlassEvaluateJavaScript(YouTubeAuthBridge.profileCaptureScript)
-            guard let urlString = result, !urlString.isEmpty else { return }
-            NotificationCenter.default.post(
-                name: .youTubeBrowserDidAuthenticate,
-                object: nil,
-                userInfo: [YouTubeAuthBridge.profileImageURLKey: urlString]
-            )
+        profileCaptureTask?.cancel()
+        profileCaptureTask = Task { @MainActor [weak self, weak webView] in
+            for delay in [UInt64(0), 350_000_000, 900_000_000, 1_800_000_000] {
+                if delay > 0 {
+                    try? await Task.sleep(nanoseconds: delay)
+                }
+                guard !Task.isCancelled, self != nil, let webView else { return }
+                let result = try? await webView.youGlassEvaluateJavaScript(YouTubeAuthBridge.profileCaptureScript)
+                guard let urlString = result, !urlString.isEmpty else { continue }
+                NotificationCenter.default.post(
+                    name: .youTubeBrowserDidAuthenticate,
+                    object: nil,
+                    userInfo: [YouTubeAuthBridge.profileImageURLKey: urlString]
+                )
+                return
+            }
         }
     }
 }

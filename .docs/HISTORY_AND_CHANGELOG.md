@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-29 — preserve private API credentials and restore the account avatar
+
+- Centralized the YouTube Data API key in a stable macOS Keychain service/account boundary. Existing keys from the legacy service migrate forward on read, and credential reset removes both identities; no API key is written to source, UserDefaults, diagnostics, Git, Sparkle artifacts, or `.docs/`.
+- Added authenticated account-channel profile resolution, signed-in web-feed URL propagation, and bounded visible-browser capture retries so the Home toolbar can use the signed-in YouTube profile thumbnail instead of a generic stock portrait. The persisted value is only the non-secret image URL, and the last valid image remains available through transient image/network failures.
+- Added a channel-response decoding regression test and documented the secure handoff: enter the key directly in Settings → Account & API → YouTube Data API; never send it through chat or commit it.
+
 ## 2026-08-29 — refresh app icon registration after Sparkle updates
 
 - Added a best-effort `NSWorkspace` LaunchServices refresh during every app launch, which also covers the relaunch after Sparkle installs an update. The refresh uses the running bundle path and records only the bundle/build icon metadata in diagnostics.

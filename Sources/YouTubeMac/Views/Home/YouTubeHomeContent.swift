@@ -239,7 +239,7 @@ extension YouTubeHomeView {
 
             Button(action: { store.login() }) {
                 ZStack(alignment: .bottomTrailing) {
-                    AsyncAvatar(url: store.profileImageURL ?? URL(string: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80"))
+                    AsyncAvatar(url: store.profileImageURL)
                         .frame(width: 34, height: 34)
 
                     if store.isSignedIn {

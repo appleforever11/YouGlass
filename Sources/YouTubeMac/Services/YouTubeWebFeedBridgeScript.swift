@@ -151,7 +151,21 @@ extension YouTubeWebFeedBridge {
             });
           }
 
-          const signedIn = Boolean(document.querySelector([
+          const profileImageNode = document.querySelector([
+            '#avatar-btn img#img',
+            '#avatar-btn img',
+            'button#avatar-btn img',
+            '#avatar-btn yt-img-shadow img',
+            'ytd-topbar-menu-button-renderer img#img',
+            'ytd-topbar-menu-button-renderer img',
+            'a[href*="/channel/"] img[src*="googleusercontent.com"]',
+            'img[src*="googleusercontent.com"]',
+            'img[src*="ggpht.com"]'
+          ].join(','));
+          const profileImageURL = profileImageNode
+            ? (profileImageNode.currentSrc || profileImageNode.src || profileImageNode.getAttribute('data-src') || '')
+            : '';
+          const signedIn = Boolean(profileImageNode || document.querySelector([
             '#avatar-btn',
             'button#avatar-btn',
             'ytd-topbar-menu-button-renderer',
@@ -161,6 +175,7 @@ extension YouTubeWebFeedBridge {
           return JSON.stringify({
             items: items.slice(0, limit),
             signedIn,
+            profileImageURL,
             title: document.title || '',
             url: location.href,
             initialCount,
@@ -183,7 +198,12 @@ extension YouTubeWebFeedBridge {
             let videos = Self.videoItems(from: payload)
             let diagnostics = "\(videos.count) cards; server data \(payload.initialCount), DOM cards \(payload.domCount)"
             logger.info("\(self.requestLabel, privacy: .public) extraction: \(diagnostics, privacy: .public); signed in: \(payload.signedIn, privacy: .public)")
-            return YouTubeWebFeedResult(videos: videos, isSignedIn: payload.signedIn, diagnostics: diagnostics)
+            return YouTubeWebFeedResult(
+                videos: videos,
+                isSignedIn: payload.signedIn,
+                profileImageURL: payload.profileImageURL.flatMap(URL.init(string:)),
+                diagnostics: diagnostics
+            )
         } catch {
             logger.error("\(self.requestLabel, privacy: .public) extraction failed: \(error.localizedDescription, privacy: .public)")
             return .empty

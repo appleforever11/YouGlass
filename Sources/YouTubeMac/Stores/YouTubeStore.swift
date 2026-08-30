@@ -201,17 +201,20 @@ final class YouTubeStore: ObservableObject {
                 let profileURL = (notification.userInfo?[YouTubeAuthBridge.profileImageURLKey] as? String)
                     .flatMap(URL.init(string:))
                 Task { @MainActor in
-                    self?.isSignedIn = true
-                    self?.connectionMessage = "Signed in to YouTube"
-                    self?.defaults.set(true, forKey: DefaultsKey.isSignedIn)
+                    guard let self else { return }
+                    self.isSignedIn = true
+                    self.connectionMessage = "Signed in to YouTube"
+                    self.defaults.set(true, forKey: DefaultsKey.isSignedIn)
                     if let url = profileURL {
-                        self?.profileImageURL = url
-                        self?.defaults.set(url.absoluteString, forKey: DefaultsKey.profileImageURL)
+                        self.profileImageURL = url
+                        self.defaults.set(url.absoluteString, forKey: DefaultsKey.profileImageURL)
+                    } else {
+                        await self.refreshProfileImage()
                     }
-                    self?.lastAccountSyncDate = nil
-                    self?.invalidateAccountSignalCache()
-                    self?.scheduleSubscriptionsLoad(force: true)
-                    self?.scheduleHomeReload(force: true)
+                    self.lastAccountSyncDate = nil
+                    self.invalidateAccountSignalCache()
+                    self.scheduleSubscriptionsLoad(force: true)
+                    self.scheduleHomeReload(force: true)
                 }
             },
             NotificationCenter.default.addObserver(
@@ -240,6 +243,12 @@ final class YouTubeStore: ObservableObject {
                 }
             }
         ]
+
+        if isSignedIn {
+            Task { @MainActor [weak self] in
+                await self?.refreshProfileImage()
+            }
+        }
 
         YouTubeBrowserWindow.shared.checkAuthenticationState()
     }

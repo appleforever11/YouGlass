@@ -32,11 +32,11 @@ struct YouTubeAPIClient: Sendable {
     }
 
     static func resolveAPIKey() -> String? {
-        if let key = ProcessInfo.processInfo.environment["YOUTUBE_API_KEY"], !key.isEmpty {
+        if let key = ProcessInfo.processInfo.environment["YOUTUBE_API_KEY"],
+           !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return key
         }
 
-        return KeychainStore.read(service: "com.kevinhowe.YouGlass", account: "YOUTUBE_API_KEY")
-            ?? KeychainStore.read(service: "com.kevinhowe.YouTubeMac", account: "YOUTUBE_API_KEY")
+        return YouGlassCredentialStore.readDataAPIKey()
     }
 }

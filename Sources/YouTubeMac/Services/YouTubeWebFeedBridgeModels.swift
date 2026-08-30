@@ -3,6 +3,7 @@ import Foundation
 struct WebFeedPayload: Decodable {
     let items: [WebFeedEntry]
     let signedIn: Bool
+    let profileImageURL: String?
     let title: String
     let url: String
     let initialCount: Int

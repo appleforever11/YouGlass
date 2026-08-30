@@ -2,6 +2,12 @@ import XCTest
 @testable import YouTubeMac
 
 final class ModelsTests: XCTestCase {
+    func testDataAPIKeyUsesStablePrivateCredentialIdentity() {
+        XCTAssertEqual(YouGlassCredentialStore.service, "com.kevinhowe.YouGlass")
+        XCTAssertEqual(YouGlassCredentialStore.legacyService, "com.kevinhowe.YouTubeMac")
+        XCTAssertEqual(YouGlassCredentialStore.dataAPIKeyAccount, "YOUTUBE_API_KEY")
+    }
+
     func testThemeCatalogProvidesPairedLightAndDarkFamilies() throws {
         let themes = YouGlassThemeFamily.allCases
 
@@ -186,6 +192,38 @@ final class ModelsTests: XCTestCase {
 
         XCTAssertEqual(decoded, item)
         XCTAssertEqual(decoded.canonicalChannelID, item.canonicalChannelID)
+    }
+
+    func testAccountChannelResponseDecodesProfileThumbnail() throws {
+        let json = """
+        {
+          "items": [
+            {
+              "id": "UC1234567890123456789012",
+              "snippet": {
+                "title": "Example Channel",
+                "description": "",
+                "customUrl": "@example",
+                "thumbnails": {
+                  "default": { "url": "https://yt3.ggpht.com/example=s88" },
+                  "medium": { "url": "https://yt3.ggpht.com/example=s240" },
+                  "high": { "url": "https://yt3.ggpht.com/example=s800" }
+                }
+              }
+            }
+          ]
+        }
+        """
+
+        let response = try JSONDecoder().decode(
+            ChannelListResponse.self,
+            from: Data(json.utf8)
+        )
+
+        XCTAssertEqual(
+            response.items.first?.snippet.thumbnails.high?.url,
+            "https://yt3.ggpht.com/example=s800"
+        )
     }
 
     func testParsesShortLiveAndEmbedURLs() {

@@ -79,6 +79,7 @@ extension YouTubeStore {
                     isSignedIn = true
                     defaults.set(true, forKey: DefaultsKey.isSignedIn)
                     connectionMessage = "Connected with YouTube OAuth"
+                    await refreshProfileImage()
                     await loadHome(force: true)
                 } catch {
                     connectionMessage = error.localizedDescription

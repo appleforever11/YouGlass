@@ -6,7 +6,20 @@ import OSLog
 struct YouTubeWebFeedResult {
     let videos: [VideoItem]
     let isSignedIn: Bool
+    let profileImageURL: URL?
     let diagnostics: String
+
+    init(
+        videos: [VideoItem],
+        isSignedIn: Bool,
+        profileImageURL: URL? = nil,
+        diagnostics: String
+    ) {
+        self.videos = videos
+        self.isSignedIn = isSignedIn
+        self.profileImageURL = profileImageURL
+        self.diagnostics = diagnostics
+    }
 
     static let empty = YouTubeWebFeedResult(
         videos: [],
