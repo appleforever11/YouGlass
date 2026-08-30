@@ -303,9 +303,12 @@ extension YouGlassSettingsView {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Save API key") {
-                        store.saveDataAPIKey(apiKey)
-                        apiKey = ""
-                        status = "YouTube Data API key saved."
+                        if store.saveDataAPIKey(apiKey) {
+                            apiKey = ""
+                            status = "YouTube Data API key saved."
+                        } else {
+                            status = "Could not save the API key in Keychain. Try again."
+                        }
                     }
                     .buttonStyle(.bordered)
                     .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

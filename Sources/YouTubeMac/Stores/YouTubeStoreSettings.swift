@@ -87,13 +87,19 @@ extension YouTubeStore {
 
         var hasOAuthClientSecret: Bool { oauth.hasClientSecret }
 
-        func saveDataAPIKey(_ value: String) {
+        @discardableResult
+        func saveDataAPIKey(_ value: String) -> Bool {
             let clean = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !clean.isEmpty else { return }
-            YouGlassCredentialStore.writeDataAPIKey(clean)
+            guard !clean.isEmpty else { return false }
+            guard YouGlassCredentialStore.writeDataAPIKey(clean) else {
+                connectionMessage = "Could not save YouTube Data API key in Keychain"
+                return false
+            }
+
             client = YouTubeAPIClient(apiKey: clean, oauth: oauth)
             invalidateAccountSignalCache()
             connectionMessage = "YouTube Data API key saved"
+            return true
         }
 
         func saveOAuthClientID(_ value: String) {

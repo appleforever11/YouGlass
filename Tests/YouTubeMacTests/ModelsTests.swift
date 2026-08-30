@@ -6,6 +6,7 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(YouGlassCredentialStore.service, "com.kevinhowe.YouGlass")
         XCTAssertEqual(YouGlassCredentialStore.legacyService, "com.kevinhowe.YouTubeMac")
         XCTAssertEqual(YouGlassCredentialStore.dataAPIKeyAccount, "YOUTUBE_API_KEY")
+        XCTAssertEqual(KeychainStore.StorageMode.allCases, [.dataProtection, .login])
     }
 
     func testThemeCatalogProvidesPairedLightAndDarkFamilies() throws {

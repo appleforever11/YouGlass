@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-30 — keep the YouTube Data API key across rebuilds
+
+- Hardened `KeychainStore` so each credential is read from both preferred data-protection storage and the login-Keychain compatibility path, and written to both when available. This covers macOS SwiftPM/ad-hoc rebuilds where one Keychain storage class can reject or lose access while the other remains available.
+- Removed the persistent missing-credential migration marker that could suppress a later compatible lookup after an initially empty read. Legacy `com.kevinhowe.YouTubeMac` credentials still migrate into the stable `com.kevinhowe.YouGlass` identity.
+- Keychain write success now reaches Settings. A failed save no longer claims success, replaces the active client, or clears the entered draft. No credential value is recorded here or anywhere else in the repository.
+- Regression coverage verifies the stable credential identity and the two storage modes; the targeted test passed after rebuilding the package.
+
 ## 2026-08-30 — advance autoplay to the next queued video
 
 - Fixed queue preparation so opening a video that is already in `playbackQueue` preserves its existing order. Previously, selecting the next item moved it to index zero, causing the queue cursor to point back at an earlier video when the item finished.

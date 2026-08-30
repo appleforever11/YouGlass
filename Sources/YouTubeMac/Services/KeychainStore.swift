@@ -2,6 +2,15 @@ import Foundation
 import Security
 
 enum KeychainStore {
+    enum StorageMode: CaseIterable, Equatable {
+        case dataProtection
+        case login
+
+        var usesDataProtectionKeychain: Bool {
+            self == .dataProtection
+        }
+    }
+
     private enum CachedValue {
         case value(String)
         case missing
@@ -9,7 +18,6 @@ enum KeychainStore {
 
     private static let cacheLock = NSLock()
     nonisolated(unsafe) private static var cache: [String: CachedValue] = [:]
-    private static let legacyMigrationPrefix = "YouGlass.KeychainMigration.v1"
 
     static func read(service: String, account: String) -> String? {
         let cacheKey = "\(service)\u{0}\(account)"
@@ -28,48 +36,53 @@ enum KeychainStore {
             }
         }
 
-        // The data-protection keychain uses the modern iOS-style access model on
-        // macOS. It avoids binding a credential to the code hash of an ad-hoc or
-        // frequently rebuilt development bundle.
-        if let value = readValue(query(service: service, account: account, dataProtection: true)) {
+        // Prefer the data-protection keychain, but always retain the login
+        // keychain compatibility path. Some SwiftPM/ad-hoc macOS bundles can
+        // reject one storage class after a rebuild while still allowing the
+        // other. Both paths remain protected by Keychain.
+        for mode in StorageMode.allCases {
+            guard let value = readValue(
+                query(
+                    service: service,
+                    account: account,
+                    dataProtection: mode.usesDataProtectionKeychain
+                )
+            ) else {
+                continue
+            }
+
             cache[cacheKey] = .value(value)
             return value
         }
 
-        // Existing YouGlass releases used the legacy login keychain. Give each
-        // old item one migration attempt so an update can preserve the account,
-        // then never query that ACL again after the item has been copied.
-        let migrationKey = legacyMigrationKey(service: service, account: account)
-        guard !UserDefaults.standard.bool(forKey: migrationKey) else {
-            cache[cacheKey] = .missing
-            return nil
-        }
-        UserDefaults.standard.set(true, forKey: migrationKey)
-
-        guard let value = readValue(query(service: service, account: account, dataProtection: false)) else {
-            cache[cacheKey] = .missing
-            return nil
-        }
-
-        _ = upsert(
-            Data(value.utf8),
-            query: query(service: service, account: account, dataProtection: true)
-        )
-        cache[cacheKey] = .value(value)
-        return value
+        cache[cacheKey] = .missing
+        return nil
     }
 
-    static func write(_ value: String, service: String, account: String) {
+    @discardableResult
+    static func write(_ value: String, service: String, account: String) -> Bool {
         let cacheKey = "\(service)\u{0}\(account)"
         let data = Data(value.utf8)
-        let query = query(service: service, account: account, dataProtection: true)
 
         cacheLock.lock()
         defer { cacheLock.unlock() }
 
-        if upsert(data, query: query) == errSecSuccess {
+        let statuses = StorageMode.allCases.map { mode in
+            upsert(
+                data,
+                query: query(
+                    service: service,
+                    account: account,
+                    dataProtection: mode.usesDataProtectionKeychain
+                )
+            )
+        }
+        let didPersist = statuses.contains(errSecSuccess)
+
+        if didPersist {
             cache[cacheKey] = .value(value)
         }
+        return didPersist
     }
 
     static func remove(service: String, account: String) {
@@ -82,7 +95,6 @@ enum KeychainStore {
         cache.removeValue(forKey: cacheKey)
         _ = SecItemDelete(dataProtectionQuery as CFDictionary)
         _ = SecItemDelete(legacyQuery as CFDictionary)
-        UserDefaults.standard.removeObject(forKey: legacyMigrationKey(service: service, account: account))
     }
 
     private static func query(service: String, account: String, dataProtection: Bool) -> [String: Any] {
@@ -126,7 +138,4 @@ enum KeychainStore {
         return SecItemAdd(item as CFDictionary, nil)
     }
 
-    private static func legacyMigrationKey(service: String, account: String) -> String {
-        "\(legacyMigrationPrefix).\(service).\(account)"
-    }
 }

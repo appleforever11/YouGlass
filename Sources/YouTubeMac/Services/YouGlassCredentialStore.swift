@@ -25,7 +25,8 @@ enum YouGlassCredentialStore {
         return legacyValue
     }
 
-    static func writeDataAPIKey(_ value: String) {
+    @discardableResult
+    static func writeDataAPIKey(_ value: String) -> Bool {
         KeychainStore.write(value, service: service, account: dataAPIKeyAccount)
     }
 

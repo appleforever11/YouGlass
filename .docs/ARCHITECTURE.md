@@ -75,7 +75,7 @@ The Appearance page is deliberately taller than the default window because it co
 
 - `Services/YouTubeAPIClient*`: public/account-scoped YouTube Data API requests split by search, video, channel, comments, live chat, account, playlists, and transport responsibilities; response models and quota/transient error classification are separate files.
 - `YouTubeOAuthClient`: client ID/secret/token persistence and Google authorization exchange.
-- `YouGlassCredentialStore`: stable Keychain service/account identity for the YouTube Data API key, including one-way legacy-service migration and reset cleanup.
+- `YouGlassCredentialStore`: stable Keychain service/account identity for the YouTube Data API key, including legacy-service migration and reset cleanup. `KeychainStore` prefers the data-protection keychain while reading and writing a login-Keychain compatibility copy as well, because a rebuilt SwiftPM/ad-hoc bundle can lose access to one storage class without losing the other. Save reports the Keychain result to Settings instead of clearing an unsaved draft.
 - `YouTubeBrowserWindow`: visible authentication/session window, sign-out/reset behavior, and bounded capture of the signed-in account thumbnail for the Home toolbar.
 - `Services/YouTubeWebFeedBridge*` and `Services/YouTubeCommentsBridge*`: WebKit-backed compatibility/data extraction paths split into request, navigation, extraction, script, and payload responsibilities. `Services/YouTubeSubscriptionBridge`, `YouTubeChannelBridge`, and `YouTubeLiveChatBridge` remain focused standalone bridges. They are intentionally isolated from the main SwiftUI view tree.
 - `Services/YouGlassPictureInPicture` and `YouGlassDesktopPIPWindow`: desktop PIP state/window management.

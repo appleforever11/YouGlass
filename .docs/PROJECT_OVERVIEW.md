@@ -11,7 +11,7 @@ The repository is a SwiftPM executable package. The product is `YouGlass`; the e
 ## Runtime boundaries
 
 - YouTube Data API calls are handled by `YouTubeAPIClient`.
-- OAuth client credentials and tokens are handled by `YouTubeOAuthClient` and stored through the macOS Keychain path used by the app. `YouGlassCredentialStore` owns the stable YouTube Data API key identity and migrates the legacy service without placing the key in source, diagnostics, Git, Sparkle, or project documentation.
+- OAuth client credentials and tokens are handled by `YouTubeOAuthClient` and stored through the macOS Keychain path used by the app. `YouGlassCredentialStore` owns the stable YouTube Data API key identity, uses both preferred data-protection and login-Keychain compatibility storage, and migrates the legacy service without placing the key in source, diagnostics, Git, Sparkle, or project documentation.
 - Visible browser sign-in and session behavior are handled by `YouTubeBrowserWindow`.
 - WebKit is used for the visible playback surface and selected compatibility bridges. Hidden metadata bridges are controlled by the runtime stability policy and are disabled by default on macOS 26 and later.
 - Local preferences, caches, playback checkpoints, saved videos, and account flags use `UserDefaults` through `YouTubeStore`.
