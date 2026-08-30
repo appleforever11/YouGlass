@@ -369,6 +369,47 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(currentIndex.map { queueAfterAutoplay[$0 + 1].id }, third.id)
     }
 
+    func testPlaybackQueueBackfillsAOneItemPersistedQueue() {
+        let first = VideoItem(
+            id: "persisted-video",
+            title: "Persisted video",
+            channel: "Example",
+            views: "",
+            age: "",
+            duration: "",
+            imageURL: nil,
+            verified: false
+        )
+        let second = VideoItem(
+            id: "next-video",
+            title: "Next video",
+            channel: "Example",
+            views: "",
+            age: "",
+            duration: "",
+            imageURL: nil,
+            verified: false
+        )
+        let third = VideoItem(
+            id: "following-video",
+            title: "Following video",
+            channel: "Example",
+            views: "",
+            age: "",
+            duration: "",
+            imageURL: nil,
+            verified: false
+        )
+
+        let queue = YouGlassPlaybackQueuePolicy.prepare(
+            for: first,
+            existingQueue: [first],
+            source: [first, second, third]
+        )
+
+        XCTAssertEqual(queue.map(\.id), [first.id, second.id, third.id])
+    }
+
     func testRecommendationRankerAlwaysExcludesShortFormWithoutDroppingLongForm() {
         let longForm = VideoItem(
             id: "long-form-1",

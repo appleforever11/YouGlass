@@ -55,6 +55,9 @@ extension YouTubeInlinePlayerView {
         const media = findMediaElement();
         if (!media) return;
         resetFrameStateIfNeeded(media);
+        // YouGlass owns queue navigation. Never let the YouTube page restart
+        // the current media when the native queue has no next item yet.
+        media.loop = false;
         if (media.dataset.youglassEvents !== '1') {
           media.dataset.youglassEvents = '1';
           const statusForEvent = name => {

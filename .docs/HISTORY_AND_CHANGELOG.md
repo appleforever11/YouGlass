@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-30 — complete native queue autoplay after video completion
+
+- Fixed the playback bridge dropping the JavaScript `ended` field before it reached the native controller, which prevented the SwiftUI auto-advance observer from running even though the WebKit listener was installed.
+- Queue preparation now preserves an existing cursor while backfilling a one-item persisted queue and appending recommendations that finish loading after the player starts. The native media element is explicitly kept out of loop mode so a missing next item cannot replay the current video.
+- Added regression coverage for ended-message propagation, one-item queue backfill, and the no-loop script contract. No API keys or account data are recorded.
+
 ## 2026-08-30 — keep the YouTube Data API key across rebuilds
 
 - Hardened `KeychainStore` so each credential is read from both preferred data-protection storage and the login-Keychain compatibility path, and written to both when available. This covers macOS SwiftPM/ad-hoc rebuilds where one Keychain storage class can reject or lose access while the other remains available.

@@ -10,6 +10,7 @@ extension YouTubeInlinePlayerView {
             let captionsEnabled: Bool?
             let captionText: String?
             let playing: Bool?
+            let ended: Bool?
             let currentTime: Double?
             let duration: Double?
             let frameReady: Bool?
@@ -25,6 +26,7 @@ extension YouTubeInlinePlayerView {
                 captionsEnabled = payload["captionsEnabled"] as? Bool
                 captionText = payload["captionText"] as? String
                 playing = payload["playing"] as? Bool
+                ended = payload["ended"] as? Bool
                 currentTime = (payload["currentTime"] as? NSNumber)?.doubleValue
                 duration = (payload["duration"] as? NSNumber)?.doubleValue
                 frameReady = payload["frameReady"] as? Bool
@@ -32,7 +34,7 @@ extension YouTubeInlinePlayerView {
                 pipActive = payload["pipActive"] as? Bool
                 status = payload["status"] as? String
 
-                guard videoID != nil || muted != nil || captionsEnabled != nil || captionText != nil || playing != nil || currentTime != nil || duration != nil || frameReady != nil || pipAvailable != nil || pipActive != nil || status != nil else {
+                guard videoID != nil || muted != nil || captionsEnabled != nil || captionText != nil || playing != nil || ended != nil || currentTime != nil || duration != nil || frameReady != nil || pipAvailable != nil || pipActive != nil || status != nil else {
                     return nil
                 }
             }
@@ -44,6 +46,7 @@ extension YouTubeInlinePlayerView {
                 if let captionsEnabled { result["captionsEnabled"] = captionsEnabled }
                 if let captionText { result["captionText"] = captionText }
                 if let playing { result["playing"] = playing }
+                if let ended { result["ended"] = ended }
                 if let currentTime { result["currentTime"] = currentTime }
                 if let duration { result["duration"] = duration }
                 if let frameReady { result["frameReady"] = frameReady }

@@ -137,6 +137,7 @@ final class BridgeTests: XCTestCase {
         XCTAssertTrue(script.contains("captionText: text"))
         XCTAssertTrue(script.contains("__youglassLastCaptionState"))
         XCTAssertTrue(script.contains("'ended'"))
+        XCTAssertTrue(script.contains("media.loop = false"))
         XCTAssertFalse(script.contains("Captions unavailable for this video"))
     }
 
@@ -145,12 +146,29 @@ final class BridgeTests: XCTestCase {
             "videoID": "video-one",
             "captionsEnabled": true,
             "captionText": "Hello from the active track",
+            "ended": false,
             "frameReady": true
         ])
 
         XCTAssertEqual(message?.captionText, "Hello from the active track")
         XCTAssertEqual(message?.captionsEnabled, true)
+        XCTAssertEqual(message?.ended, false)
         XCTAssertEqual(message?.dictionary["captionText"] as? String, "Hello from the active track")
+        XCTAssertEqual(message?.dictionary["ended"] as? Bool, false)
+    }
+
+    func testPlaybackEndedMessageReachesNativeAutoAdvanceState() {
+        let message = YouTubeInlinePlayerView.PlaybackMessage(body: [
+            "videoID": "video-one",
+            "playing": false,
+            "ended": true
+        ])
+        let controller = YouTubePlaybackController()
+        controller.activeVideoID = "video-one"
+
+        controller.update(from: message!.dictionary)
+
+        XCTAssertTrue(controller.didFinish)
     }
 
     func testCaptionOnlyPlaybackMessagePreservesReadySurface() {

@@ -135,7 +135,11 @@ extension NativeWatchScreen {
                 commentPage = await loadedComments
                 commentChannelID = commentPage.channelID
                 commentsLoading = false
-                recommendations = await loadedRecommendations
+                let nextRecommendations = await loadedRecommendations
+                guard !Task.isCancelled, store.selectedVideo?.id == video.id else { return }
+                recommendations = nextRecommendations
+                store.appendPlaybackCandidates(nextRecommendations)
+                advanceAfterPlaybackFinishesIfPossible()
                 details = await loadedDetails
                 let channelID = details?.channelID ?? commentChannelID ?? video.channelID
                 if channelID != video.channelID {
@@ -213,14 +217,8 @@ extension NativeWatchScreen {
                 syncNativeNowPlaying()
             }
             .onChange(of: playbackController.didFinish) { _, didFinish in
-                guard didFinish, !didAutoAdvance else { return }
-                didAutoAdvance = true
-                playbackController.didFinish = false
-                guard store.queueAutoplay else {
-                    syncNativeNowPlaying()
-                    return
-                }
-                store.playNextInQueue()
+                guard didFinish else { return }
+                advanceAfterPlaybackFinishesIfPossible()
             }
             .onChange(of: store.subscriptions) { _, _ in
                 guard subscriptionStatusResolved else { return }
@@ -248,5 +246,24 @@ extension NativeWatchScreen {
                 playbackCommandHandlerToken = nil
                 store.resetAmbientPalette()
             }
+    }
+
+    func advanceAfterPlaybackFinishesIfPossible() {
+        guard playbackController.didFinish, !didAutoAdvance else { return }
+        guard store.queueAutoplay else {
+            playbackController.didFinish = false
+            syncNativeNowPlaying()
+            return
         }
+        guard store.nextQueuedVideo != nil else {
+            // Recommendation loading may still be in flight. Keep the ended
+            // state latched so the append callback above can advance as soon
+            // as a valid next item is available.
+            syncNativeNowPlaying()
+            return
+        }
+        didAutoAdvance = true
+        playbackController.didFinish = false
+        store.playNextInQueue()
+    }
 }
