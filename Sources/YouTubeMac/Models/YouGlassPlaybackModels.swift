@@ -33,4 +33,37 @@ enum YouGlassPlaybackQueuePolicy {
         }
         return prepared
     }
+
+    /// Insert a user-selected video immediately after the active queue cursor.
+    /// When the queue is full, discard the oldest item before the cursor (or
+    /// the far tail when playback is at the start) so "Play Next" never lands
+    /// behind unrelated videos or disappears beyond the bounded queue.
+    static func insertingNext(
+        _ video: VideoItem,
+        into queue: [VideoItem],
+        currentVideoID: String?
+    ) -> [VideoItem] {
+        guard YouGlassContentPolicy.allows(video) else { return queue }
+
+        var updated = queue.filter { $0.id != video.id }
+        if let currentVideoID,
+           let currentIndex = updated.firstIndex(where: { $0.id == currentVideoID }) {
+            updated.insert(video, at: updated.index(after: currentIndex))
+        } else {
+            updated.append(video)
+        }
+
+        while updated.count > maxEntries {
+            if let currentVideoID,
+               let currentIndex = updated.firstIndex(where: { $0.id == currentVideoID }),
+               currentIndex > updated.startIndex {
+                updated.removeFirst()
+            } else if currentVideoID == nil {
+                updated.removeFirst()
+            } else {
+                updated.removeLast()
+            }
+        }
+        return updated
+    }
 }

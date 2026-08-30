@@ -3,23 +3,54 @@ import SwiftUI
 
 struct SearchField: View {
     @Binding var text: String
+    let focusRequestID: UUID
     let palette: Palette
     let onSubmit: () -> Void
+    @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isFocused ? palette.accent : palette.secondaryText)
+
             TextField("Search videos, channels, topics...", text: $text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 14))
+                .focused($isFocused)
                 .onSubmit(onSubmit)
                 .accessibilityLabel("Search YouTube")
+                .accessibilityIdentifier("home-search-field")
+
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                    isFocused = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(palette.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            } else if !isFocused {
+                Text("⌘L")
+                    .font(.caption2.monospaced())
+                    .foregroundStyle(palette.tertiaryText)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(palette.pill, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+            }
 
             Button(action: onSubmit) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 17, weight: .medium))
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? palette.tertiaryText
+                        : palette.accent)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Search")
+            .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityLabel("Run search")
         }
         .padding(.horizontal, 20)
         .frame(height: 42)
@@ -32,8 +63,12 @@ struct SearchField: View {
         }
         .overlay {
             Capsule()
-                .stroke(palette.stroke, lineWidth: 1)
+                .stroke(isFocused ? palette.accent.opacity(0.72) : palette.stroke, lineWidth: 1)
                 .allowsHitTesting(false)
+        }
+        .shadow(color: isFocused ? palette.accent.opacity(0.12) : .clear, radius: 10)
+        .onChange(of: focusRequestID) { _, _ in
+            isFocused = true
         }
     }
 }
@@ -204,10 +239,38 @@ struct IconButtonStyle: ButtonStyle {
     let palette: Palette
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .foregroundStyle(palette.text)
+        IconButtonStyleBody(
+            label: configuration.label,
+            isPressed: configuration.isPressed,
+            palette: palette
+        )
+    }
+}
+
+private struct IconButtonStyleBody<Label: View>: View {
+    let label: Label
+    let isPressed: Bool
+    let palette: Palette
+    @State private var isHovered = false
+
+    var body: some View {
+        label
+            .foregroundStyle(isHovered ? palette.accent : palette.text)
             .frame(width: 34, height: 34)
-            .background(configuration.isPressed ? palette.selected : .clear)
-            .clipShape(Circle())
+            .background {
+                Circle()
+                    .fill(isPressed
+                        ? palette.selected
+                        : (isHovered ? palette.selected.opacity(0.46) : .clear))
+            }
+            .overlay {
+                Circle()
+                    .stroke(isHovered ? palette.stroke : .clear, lineWidth: 1)
+            }
+            .scaleEffect(isPressed ? 0.92 : (isHovered ? 1.04 : 1))
+            .animation(.easeOut(duration: 0.13), value: isHovered)
+            .animation(.easeOut(duration: 0.10), value: isPressed)
+            .contentShape(Circle())
+            .onHover { isHovered = $0 }
     }
 }

@@ -2,8 +2,10 @@ import SwiftUI
 
 struct HeroSection: View {
     @EnvironmentObject private var store: YouTubeStore
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let palette: Palette
     let compact: Bool
+    @State private var imageHovered = false
 
     var body: some View {
         let hasQueue = !compact && !store.feed.queue.isEmpty
@@ -31,9 +33,9 @@ struct HeroSection: View {
                 HStack(spacing: 0) {
                     VStack(alignment: .leading, spacing: 0) {
                         HStack(spacing: 6) {
-                            Image(systemName: palette.isDark ? "star.fill" : "apple.logo")
+                            Image(systemName: "sparkles")
                                 .font(.system(size: 10, weight: .medium))
-                            Text("Featured")
+                            Text("Featured for you")
                                 .font(.system(size: 11, weight: .medium))
                         }
                         .foregroundStyle(palette.tertiaryText)
@@ -43,26 +45,67 @@ struct HeroSection: View {
                             .lineLimit(2)
                             .padding(.top, narrow ? 10 : 16)
 
-                        Text("From your YouTube homepage and subscribed channels.")
-                            .font(.system(size: narrow ? 12 : 14))
-                            .foregroundStyle(palette.secondaryText)
-                            .lineSpacing(4)
-                            .padding(.top, narrow ? 8 : 14)
-
-                        Button(action: { store.openFromUserInteraction(store.feed.hero) }) {
-                            HStack(spacing: 9) {
-                                Image(systemName: "play.circle.fill")
-                                    .font(.system(size: 21))
-                                Text("Play Video")
-                                    .font(.system(size: 14, weight: .semibold))
+                        HStack(spacing: 6) {
+                            Text(store.feed.hero.channel)
+                                .fontWeight(.semibold)
+                            if !store.feed.hero.age.isEmpty {
+                                Text("•")
+                                Text(store.feed.hero.age)
                             }
-                            .foregroundStyle(palette.playText)
-                            .padding(.horizontal, 20)
-                            .frame(height: 44)
-                            .background(palette.playButton)
-                            .clipShape(Capsule())
+                            if !store.feed.hero.duration.isEmpty {
+                                Text("•")
+                                Text(store.feed.hero.duration)
+                            }
                         }
-                        .buttonStyle(.plain)
+                        .font(.system(size: narrow ? 11 : 12))
+                        .foregroundStyle(palette.secondaryText)
+                        .lineLimit(1)
+                        .padding(.top, narrow ? 8 : 12)
+
+                        Text("Selected from your personalized YouTube feed.")
+                            .font(.system(size: narrow ? 11 : 12))
+                            .foregroundStyle(palette.tertiaryText)
+                            .lineLimit(2)
+                            .padding(.top, 6)
+
+                        HStack(spacing: 9) {
+                            Button(action: { store.openFromUserInteraction(store.feed.hero) }) {
+                                HStack(spacing: 9) {
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text("Play")
+                                        .font(.system(size: 14, weight: .semibold))
+                                }
+                                .foregroundStyle(palette.playText)
+                                .padding(.horizontal, 20)
+                                .frame(height: 42)
+                                .background(palette.playButton)
+                                .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                store.enqueue(store.feed.hero)
+                            } label: {
+                                Image(systemName: "text.badge.plus")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .frame(width: 36, height: 36)
+                            }
+                            .buttonStyle(GlassIconButtonStyle(palette: palette))
+                            .help("Add to playback queue")
+                            .accessibilityLabel("Add featured video to playback queue")
+
+                            Button {
+                                store.toggleSaved(store.feed.hero)
+                            } label: {
+                                Image(systemName: store.isSaved(store.feed.hero) ? "bookmark.fill" : "bookmark")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .frame(width: 36, height: 36)
+                            }
+                            .buttonStyle(GlassIconButtonStyle(palette: palette))
+                            .help(store.isSaved(store.feed.hero) ? "Remove from Watch Later" : "Save to Watch Later")
+                            .accessibilityLabel(store.isSaved(store.feed.hero) ? "Remove featured video from Watch Later" : "Save featured video to Watch Later")
+                        }
                         .padding(.top, narrow ? 20 : 28)
 
                         Spacer()
@@ -71,26 +114,38 @@ struct HeroSection: View {
                     .padding(.top, narrow ? 22 : 30)
                     .frame(width: copyWidth)
 
-                    ZStack(alignment: .bottomLeading) {
-                        RemoteImage(url: store.feed.hero.thumbnailURL)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .clipped()
+                    Button {
+                        store.openFromUserInteraction(store.feed.hero)
+                    } label: {
+                        ZStack {
+                            RemoteImage(url: store.feed.hero.thumbnailURL)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .clipped()
 
-                        LinearGradient(
-                            colors: [.clear, .black.opacity(0.26)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
+                            LinearGradient(
+                                colors: [.clear, .black.opacity(imageHovered ? 0.18 : 0.30)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
 
-                        HStack(spacing: 8) {
-                            ForEach(Array(0..<4), id: \.self) { index in
-                                Circle()
-                                    .fill(index == 0 ? .white : .white.opacity(0.35))
-                                    .frame(width: 8, height: 8)
+                            if imageHovered {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 22, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 58, height: 58)
+                                    .background(.black.opacity(0.58), in: Circle())
+                                    .overlay(Circle().stroke(.white.opacity(0.62), lineWidth: 1))
                             }
                         }
-                        .padding(16)
                     }
+                    .buttonStyle(.plain)
+                    .scaleEffect(accessibilityReduceMotion ? 1 : (imageHovered ? 1.008 : 1))
+                    .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: imageHovered)
+                    .onHover { hovering in
+                        imageHovered = hovering
+                        if hovering { store.prewarmPlayback(for: store.feed.hero) }
+                    }
+                    .accessibilityLabel("Play featured video: \(store.feed.hero.title)")
                 }
                 .frame(width: heroWidth, height: heroHeight)
                 .background {

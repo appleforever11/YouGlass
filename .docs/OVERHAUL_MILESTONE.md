@@ -51,3 +51,20 @@ The checkpoint records:
 ### Next review targets
 
 Continue the overhaul in small verified batches: player interaction polish and frame stability, settings consistency, bounded network/image work, local-data resilience, and release-quality packaging. Each batch should preserve the restore point, run focused tests, rebuild the staged app, and add a local-only commit before moving on.
+
+## 2026-08-30 — desktop experience revamp
+
+- Replaced borrowed YouTube sidebar branding with the packaged YouGlass icon and product identity.
+- Made the featured Home card an actual command surface with Play, Queue, and Save actions; removed inert carousel indicators; added richer section context and consistent pointer feedback to video, continue-watching, navigation, and subscription surfaces.
+- Added explicit global-search focus with `Command-L`, a visible focused state, clear/run controls, richer no-results and empty-section recovery, and stable accessibility identifiers for runtime verification.
+- Expanded the command palette with Search, Settings, and Resume commands, made it claim modal focus after mounting, guaranteed Escape dismissal, and deferred each action until after the overlay is removed.
+- Added feature-keyword search across all ten Settings pages, including recoverable unmatched-query states that do not mutate settings.
+- Added a distinct Play Next queue operation that inserts directly after the active cursor and preserves the insertion at the bounded queue limit.
+- Added focused policy/search regression coverage in `DesktopExperienceTests` rather than enlarging the general model-test suite.
+
+### Validation evidence
+
+- `DesktopExperienceTests`: 4 focused queue/search tests passed.
+- `./script/test.sh`: all 57 tests passed, including the established captions, autoplay, no-Shorts, credential-identity, bridge, and crash-diagnostic coverage.
+- `./script/build_and_run.sh --verify`: passed and produced the staged `dist/YouGlass.app`; `codesign --verify --deep --strict` accepted the bundle and the rebuilt process remained running with no error/fault log entries during the post-build diagnostic window.
+- The final visible Home/command/Settings/player interaction pass could not run because the Mac locked before Computer Use attached. These surfaces remain intentionally unclaimed as runtime-verified until an unlocked session is available.

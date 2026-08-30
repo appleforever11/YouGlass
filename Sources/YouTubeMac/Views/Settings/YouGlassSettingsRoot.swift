@@ -40,6 +40,14 @@ extension YouGlassSettingsView {
                     isDark: effectiveColorScheme == .dark
                 )
             )
+            .onChange(of: settingsQuery) { _, _ in
+                let matches = filteredSettingsPages
+                if matches.isEmpty {
+                    selection = nil
+                } else if selection.map({ matches.contains($0) }) != true {
+                    selection = matches.first
+                }
+            }
             .alert("Reset YouTube connection?", isPresented: $showingResetConfirmation) {
                 Button("Reset", role: .destructive) {
                     store.resetYouTubeCredentials()
@@ -80,6 +88,34 @@ extension YouGlassSettingsView {
                     .foregroundStyle(.secondary)
 
                 Spacer(minLength: 0)
+
+                HStack(spacing: 7) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                    TextField("Search settings", text: $settingsQuery)
+                        .textFieldStyle(.plain)
+                        .font(.subheadline)
+                        .accessibilityIdentifier("settings-search-field")
+                    if !settingsQuery.isEmpty {
+                        Button {
+                            settingsQuery = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear settings search")
+                    }
+                }
+                .padding(.horizontal, 10)
+                .frame(width: 240, height: 28)
+                .background(palette.search, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(palette.stroke, lineWidth: 1)
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Search settings")
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -112,6 +148,25 @@ extension YouGlassSettingsView {
                 settingsSidebarSection("YouTube", pages: [.account, .recommendations, .playback])
                 settingsSidebarSection("Community", pages: [.commentsAndChat, .notifications])
                 settingsSidebarSection("System", pages: [.privacy, .advanced, .about])
+
+                if filteredSettingsPages.isEmpty {
+                    Section {
+                        VStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
+                            Text("No settings found")
+                                .font(.subheadline.weight(.semibold))
+                            Text("Try a feature name such as captions, queue, privacy, or theme.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .listRowSeparator(.hidden)
+                    }
+                }
             }
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
@@ -135,47 +190,69 @@ extension YouGlassSettingsView {
 
         @ViewBuilder
         func settingsSidebarSection(_ title: String, pages: [YouGlassSettingsPage]) -> some View {
-            Section(title) {
-                ForEach(pages) { page in
-                    HStack(spacing: 10) {
-                        SettingsIconBadge(systemName: page.systemName, tint: page.tint, size: 29)
-                        Text(page.title)
-                            .font(.system(size: 13, weight: .semibold))
-                            .lineLimit(1)
-                        Spacer(minLength: 0)
+            let matchingPages = pages.filter { filteredSettingsPages.contains($0) }
+            if !matchingPages.isEmpty {
+                Section(title) {
+                    ForEach(matchingPages) { page in
+                        HStack(spacing: 10) {
+                            SettingsIconBadge(systemName: page.systemName, tint: page.tint, size: 29)
+                            Text(page.title)
+                                .font(.system(size: 13, weight: .semibold))
+                                .lineLimit(1)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, 3)
+                        .contentShape(Rectangle())
+                        .tag(page)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel(page.title)
                     }
-                    .padding(.vertical, 3)
-                    .contentShape(Rectangle())
-                    .tag(page)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(page.title)
                 }
             }
         }
 
         @ViewBuilder
         var settingsDetail: some View {
-            switch selection ?? .general {
-            case .general:
-                generalPage
-            case .appearance:
-                appearancePage
-            case .account:
-                accountPage
-            case .recommendations:
-                recommendationsPage
-            case .playback:
-                playbackPage
-            case .commentsAndChat:
-                commentsAndChatPage
-            case .notifications:
-                notificationsPage
-            case .privacy:
-                privacyPage
-            case .advanced:
-                advancedPage
-            case .about:
-                aboutPage
+            if filteredSettingsPages.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 34, weight: .medium))
+                        .foregroundStyle(palette.accent)
+                    Text("No matching settings")
+                        .font(.title2.weight(.bold))
+                    Text("Search by page, feature, or behavior. Your current settings have not changed.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    Button("Clear Search") {
+                        settingsQuery = ""
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                .frame(maxWidth: .infinity, minHeight: 360, alignment: .center)
+            } else {
+                switch selection ?? filteredSettingsPages[0] {
+                case .general:
+                    generalPage
+                case .appearance:
+                    appearancePage
+                case .account:
+                    accountPage
+                case .recommendations:
+                    recommendationsPage
+                case .playback:
+                    playbackPage
+                case .commentsAndChat:
+                    commentsAndChatPage
+                case .notifications:
+                    notificationsPage
+                case .privacy:
+                    privacyPage
+                case .advanced:
+                    advancedPage
+                case .about:
+                    aboutPage
+                }
             }
         }
 }

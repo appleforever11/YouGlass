@@ -29,10 +29,24 @@ struct VideoRow: View {
                             )
                         )
                         .frame(width: 4, height: 18)
-                    Text(title)
-                        .font(.system(size: 19, weight: .bold))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 8) {
+                            Text(title)
+                                .font(.system(size: 19, weight: .bold))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Text("\(videos.count)")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(palette.secondaryText)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(palette.pill, in: Capsule())
+                        }
+                        Text(sectionSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(palette.secondaryText)
+                            .lineLimit(1)
+                    }
                 }
                 .layoutPriority(1)
 
@@ -56,6 +70,8 @@ struct VideoRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
 
             LazyVGrid(
                 columns: columns,
@@ -69,6 +85,18 @@ struct VideoRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var sectionSubtitle: String {
+        switch title {
+        case "For You": "Fresh picks shaped by your subscriptions and local viewing"
+        case "Trending": "Popular videos from the channels and topics you follow"
+        case "More to watch": "A deeper mix from your current recommendation catalog"
+        case "Watch Later": "Saved locally and ready when you are"
+        case "Liked on this Mac": "Videos you marked as favorites in YouGlass"
+        case "Search results": "Long-form YouTube matches with Shorts removed"
+        default: "Videos selected for this collection"
+        }
     }
 }
 
@@ -92,6 +120,16 @@ struct VideoCard: View {
                             startPoint: .top,
                             endPoint: .bottom
                         )
+
+                        if isHovered {
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 44, height: 44)
+                                .background(.black.opacity(0.62), in: Circle())
+                                .overlay(Circle().stroke(.white.opacity(0.58), lineWidth: 1))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                        }
 
                         if !video.duration.isEmpty {
                             Text(video.duration)
@@ -135,7 +173,16 @@ struct VideoCard: View {
                     .foregroundStyle(palette.secondaryText)
                     .lineLimit(1)
             }
+            .padding(8)
             .frame(maxWidth: .infinity, alignment: .topLeading)
+            .background {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(isHovered ? palette.card.opacity(palette.isDark ? 0.82 : 0.72) : .clear)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .stroke(isHovered ? palette.stroke : .clear, lineWidth: 1)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .buttonStyle(.plain)
@@ -144,14 +191,20 @@ struct VideoCard: View {
             if hovering { store.prewarmPlayback(for: video) }
         }
         .scaleEffect(accessibilityReduceMotion ? 1 : (isHovered ? 1.012 : 1))
+        .shadow(color: isHovered ? .black.opacity(palette.isDark ? 0.30 : 0.10) : .clear, radius: 14, y: 7)
         .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: isHovered)
         .accessibilityLabel("\(video.title), by \(video.channel)")
+        .accessibilityHint("Open in the YouGlass player. Use the context menu to save or queue this video.")
         .contextMenu {
             Button(store.isSaved(video) ? "Remove from Watch Later" : "Save to Watch Later") {
                 store.toggleSaved(video)
             }
-            Button("Play Next") {
-                store.enqueue(video)
+            Button(store.selectedVideo == nil ? "Add to Queue" : "Play Next") {
+                if store.selectedVideo == nil {
+                    store.enqueue(video)
+                } else {
+                    store.enqueueNext(video)
+                }
             }
             if store.customCollections.isEmpty {
                 Button("Create a collection in Library") {

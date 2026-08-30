@@ -2,6 +2,15 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-30 — revamp the desktop discovery experience
+
+- Reworked Home around the YouGlass identity, actionable featured content, richer section context, and consistent pointer/accessibility feedback without changing the local-first ordering or no-Shorts policy.
+- Added `Command-L` global-search focus, clear/run controls, richer search/empty recovery, and feature-keyword filtering across all Settings pages.
+- Hardened the command palette's modal focus, Escape dismissal, and action sequencing, and added Search, Settings, and Resume commands.
+- Added a true Play Next queue policy that inserts after the active cursor and survives the bounded queue limit; Add to Queue remains a tail append.
+- Added focused desktop-experience regression tests. No credentials, account data, player bridge behavior, or persistence identity changed.
+- Validation: all 57 tests and `./script/build_and_run.sh --verify` passed; strict deep code-signature verification accepted `dist/YouGlass.app`, the rebuilt process remained running, and no error/fault entries appeared in the post-build app log window. The Mac locked before Computer Use could perform the final visible Home/command/Settings/player interaction pass, so that runtime UI evidence remains explicitly pending.
+
 ## 2026-08-30 — complete native queue autoplay after video completion
 
 - Fixed the playback bridge dropping the JavaScript `ended` field before it reached the native controller, which prevented the SwiftUI auto-advance observer from running even though the WebKit listener was installed.

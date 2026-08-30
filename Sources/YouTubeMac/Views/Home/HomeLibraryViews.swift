@@ -15,8 +15,22 @@ struct ContinueWatchingRow: View {
             HStack(spacing: 9) {
                 Image(systemName: "play.circle.fill")
                     .foregroundStyle(palette.accent)
-                Text("Continue Watching")
-                    .font(.system(size: 19, weight: .bold))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 8) {
+                        Text("Continue Watching")
+                            .font(.system(size: 19, weight: .bold))
+                        Text("\(store.continueWatching.count)")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(palette.secondaryText)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(palette.pill, in: Capsule())
+                    }
+                    Text("Resume only videos with a real local playback checkpoint")
+                        .font(.caption)
+                        .foregroundStyle(palette.secondaryText)
+                        .lineLimit(1)
+                }
                 Spacer()
                 Button("View Library") {
                     store.showSection("Library")
@@ -40,8 +54,10 @@ struct ContinueWatchingRow: View {
 
 struct ContinueWatchingCard: View {
     @EnvironmentObject private var store: YouTubeStore
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     let video: VideoItem
     let palette: Palette
+    @State private var isHovered = false
 
     var body: some View {
         Button {
@@ -59,6 +75,16 @@ struct ContinueWatchingCard: View {
                         startPoint: .top,
                         endPoint: .bottom
                     )
+
+                    if isHovered {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 42, height: 42)
+                            .background(.black.opacity(0.62), in: Circle())
+                            .overlay(Circle().stroke(.white.opacity(0.56), lineWidth: 1))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    }
 
                     if store.hasResumeCheckpoint(for: video.id) {
                         GeometryReader { geometry in
@@ -89,9 +115,25 @@ struct ContinueWatchingCard: View {
                 .foregroundStyle(palette.secondaryText)
                 .lineLimit(1)
             }
+            .padding(8)
             .frame(maxWidth: .infinity, alignment: .topLeading)
+            .background {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(isHovered ? palette.card.opacity(palette.isDark ? 0.82 : 0.72) : .clear)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .stroke(isHovered ? palette.stroke : .clear, lineWidth: 1)
+            }
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+            if hovering { store.prewarmPlayback(for: video) }
+        }
+        .scaleEffect(accessibilityReduceMotion ? 1 : (isHovered ? 1.012 : 1))
+        .shadow(color: isHovered ? .black.opacity(palette.isDark ? 0.30 : 0.10) : .clear, radius: 14, y: 7)
+        .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: isHovered)
         .accessibilityLabel("Resume \(video.title) from \(resumeLabel)")
         .contextMenu {
             Button("Remove from Continue Watching") {

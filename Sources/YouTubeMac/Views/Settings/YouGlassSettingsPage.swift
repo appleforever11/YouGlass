@@ -73,4 +73,42 @@ enum YouGlassSettingsPage: String, CaseIterable, Identifiable, Hashable {
         case .about: .pink
         }
     }
+
+    var searchKeywords: [String] {
+        switch self {
+        case .general:
+            ["connection", "identity", "version", "mac", "refresh", "status"]
+        case .appearance:
+            ["theme", "color", "light", "dark", "glass", "motion", "accent", "environment"]
+        case .account:
+            ["google", "youtube", "api", "key", "oauth", "credentials", "sign in", "avatar"]
+        case .recommendations:
+            ["feed", "personalized", "signals", "subscriptions", "refresh", "shorts"]
+        case .playback:
+            ["player", "mute", "autoplay", "queue", "picture in picture", "pip", "compact", "captions", "speed"]
+        case .commentsAndChat:
+            ["comments", "replies", "community", "live chat", "authorization"]
+        case .notifications:
+            ["alerts", "bell", "updates", "activity"]
+        case .privacy:
+            ["cache", "history", "keychain", "storage", "data", "reset", "credentials"]
+        case .advanced:
+            ["diagnostics", "logging", "debug", "webkit", "recovery", "export"]
+        case .about:
+            ["help", "support", "version", "release", "sparkle", "updates"]
+        }
+    }
+
+    func matches(_ query: String) -> Bool {
+        let terms = query
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+        guard !terms.isEmpty else { return true }
+
+        let searchableText = ([title, subtitle] + searchKeywords)
+            .joined(separator: " ")
+        return terms.allSatisfy {
+            searchableText.localizedCaseInsensitiveContains($0)
+        }
+    }
 }

@@ -18,6 +18,7 @@ struct YouGlassSettingsView: View {
     @State var showingCacheResetConfirmation = false
     @State var accentHexDraft = ""
     @State var themeQuery = ""
+    @State var settingsQuery = ""
     @State var themeCollection: YouGlassThemeCollection = .all
     @State var debugStatus: String?
     @AppStorage(YouGlassVisualDefaults.reduceAmbientMotion) var reduceAmbientMotion = false
@@ -51,5 +52,9 @@ struct YouGlassSettingsView: View {
                 || theme.collection.title.localizedCaseInsensitiveContains(query)
             return matchesCollection && matchesQuery
         }
+    }
+
+    var filteredSettingsPages: [YouGlassSettingsPage] {
+        YouGlassSettingsPage.allCases.filter { $0.matches(settingsQuery) }
     }
 }

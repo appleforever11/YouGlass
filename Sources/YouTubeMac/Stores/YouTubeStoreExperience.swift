@@ -37,6 +37,14 @@ extension YouTubeStore {
         commandPalettePresented.toggle()
     }
 
+    func requestSearchFocus() {
+        if selectedVideo != nil {
+            dismissPlayer()
+        }
+        selectedChannelItem = nil
+        searchFocusRequestID = UUID()
+    }
+
     func resumeLastVideo() {
         guard let video = continueWatching.first ?? recentlyWatched.first else {
             showSection("Library")

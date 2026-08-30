@@ -38,6 +38,11 @@ struct YouTubeMacApp: App {
                 }
                 .keyboardShortcut("k", modifiers: [.command])
 
+                Button("Search YouTube") {
+                    store.requestSearchFocus()
+                }
+                .keyboardShortcut("l", modifiers: [.command])
+
                 Divider()
 
                 Button("Refresh YouTube Account") {

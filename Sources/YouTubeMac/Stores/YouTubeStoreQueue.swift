@@ -63,6 +63,17 @@ extension YouTubeStore {
         persistPlaybackQueue()
     }
 
+    func enqueueNext(_ video: VideoItem) {
+        let nextQueue = YouGlassPlaybackQueuePolicy.insertingNext(
+            video,
+            into: playbackQueue,
+            currentVideoID: selectedVideo?.id
+        )
+        guard nextQueue.map(\.id) != playbackQueue.map(\.id) else { return }
+        playbackQueue = nextQueue
+        persistPlaybackQueue()
+    }
+
     func removeFromPlaybackQueue(_ video: VideoItem) {
         playbackQueue.removeAll { $0.id == video.id }
         if playbackQueue.isEmpty, let selectedVideo {

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SidebarView: View {
@@ -24,20 +25,25 @@ struct SidebarView: View {
                 Task { @MainActor in store.showSection("Home") }
             } label: {
                 HStack(spacing: 8) {
-                    Image(systemName: "apple.logo")
-                        .font(.system(size: 20, weight: .semibold))
+                    Image(nsImage: NSApp.applicationIconImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: compact ? 30 : 32, height: compact ? 30 : 32)
                     if !compact {
-                        Text("YouTube")
-                            .font(.system(size: 21, weight: .bold))
-                        Text("Premium")
-                            .font(.system(size: 8, weight: .medium))
-                            .foregroundStyle(palette.tertiaryText)
-                            .padding(.top, 6)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("YouGlass")
+                                .font(.system(size: 19, weight: .bold, design: .rounded))
+                            Text("YouTube for Mac")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(palette.tertiaryText)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("YouGlass Home")
+            .help("Go to Home")
             .padding(.horizontal, compact ? 12 : 22)
             .padding(.top, compact ? 22 : 28)
             .padding(.bottom, compact ? 24 : 34)
@@ -61,36 +67,13 @@ struct SidebarView: View {
                 // exposes a small subset at once.
                 LazyVStack(spacing: 11) {
                     ForEach(store.sidebarSubscriptionsSnapshot) { item in
-                        Button {
+                        SidebarSubscriptionRow(
+                            item: item,
+                            palette: palette,
+                            compact: compact
+                        ) {
                             Task { @MainActor in store.openChannel(item) }
-                        } label: {
-                            HStack(spacing: 12) {
-                                AsyncAvatar(url: item.avatarURL)
-                                    .frame(width: 28, height: 28)
-                                    .overlay {
-                                        if item.avatarURL == nil {
-                                            Text(String(item.name.prefix(2)))
-                                                .font(.system(size: 9, weight: .heavy))
-                                                .foregroundStyle(.white)
-                                        }
-                                    }
-                                if !compact {
-                                    Text(item.name)
-                                        .font(.system(size: 13))
-                                        .lineLimit(1)
-                                    Spacer()
-                                }
-                                if item.isLive {
-                                    Circle()
-                                        .fill(Color.blue)
-                                        .frame(width: 5, height: 5)
-                                }
-                            }
-                            .foregroundStyle(palette.text)
-                            .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
-                            .padding(.horizontal, compact ? 12 : 22)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     if store.sidebarSubscriptionsSnapshot.isEmpty {

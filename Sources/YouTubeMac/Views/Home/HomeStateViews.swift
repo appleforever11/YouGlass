@@ -128,7 +128,18 @@ struct SearchContentView: View {
         }
 
         if let message = store.sectionEmptyMessage {
-            return AnyView(SearchEmptyStateView(message: message))
+            return AnyView(
+                SearchEmptyStateView(
+                    query: store.query,
+                    message: message,
+                    palette: palette,
+                    clear: {
+                        store.query = ""
+                        store.requestSearchFocus()
+                    },
+                    retry: { store.startSearch() }
+                )
+            )
         }
 
         return AnyView(EmptyView())
@@ -136,9 +147,81 @@ struct SearchContentView: View {
 }
 
 struct SearchEmptyStateView: View {
+    let query: String
     let message: String
+    let palette: Palette
+    let clear: () -> Void
+    let retry: () -> Void
 
     var body: some View {
-        Text(message)
+        VStack(spacing: 14) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 34, weight: .medium))
+                .foregroundStyle(palette.accent)
+                .frame(width: 64, height: 64)
+                .background(palette.selected.opacity(0.42), in: Circle())
+
+            Text(query.isEmpty ? "Search YouTube" : "No long-form videos found")
+                .font(.title2.weight(.bold))
+
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(palette.secondaryText)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 460)
+
+            if !query.isEmpty {
+                Text("Try a broader title, channel, or topic. YouTube Shorts remain excluded throughout YouGlass.")
+                    .font(.caption)
+                    .foregroundStyle(palette.tertiaryText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 430)
+
+                HStack(spacing: 10) {
+                    Button("Clear Search", action: clear)
+                        .buttonStyle(.bordered)
+                    Button(action: retry) {
+                        Label("Try Again", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 300, alignment: .center)
+        .padding(24)
+        .youGlassSurface(palette: palette, cornerRadius: 18)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Search results unavailable. \(message)")
+    }
+}
+
+struct HomeSectionEmptyState: View {
+    let title: String
+    let message: String
+    let palette: Palette
+    let returnHome: () -> Void
+
+    var body: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "tray.fill")
+                .font(.system(size: 32, weight: .medium))
+                .foregroundStyle(palette.accent)
+            Text("Nothing in \(title) yet")
+                .font(.title2.weight(.bold))
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(palette.secondaryText)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 460)
+            Button(action: returnHome) {
+                Label("Return to Home", systemImage: "house.fill")
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, minHeight: 300, alignment: .center)
+        .padding(24)
+        .youGlassSurface(palette: palette, cornerRadius: 18)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(title) has no content. \(message)")
     }
 }

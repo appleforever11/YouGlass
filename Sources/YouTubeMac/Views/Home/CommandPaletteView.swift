@@ -11,6 +11,7 @@ private struct YouGlassPaletteCommand: Identifiable {
 
 struct CommandPaletteView: View {
     @EnvironmentObject private var store: YouTubeStore
+    @Environment(\.openSettings) private var openSettings
     let palette: Palette
     let dismiss: () -> Void
     @State private var query = ""
@@ -25,13 +26,24 @@ struct CommandPaletteView: View {
     private var commands: [YouGlassPaletteCommand] {
         var result: [YouGlassPaletteCommand] = [
             command("home", "Go to Home", "Open your personalized home feed", "house.fill") { store.showSection("Home") },
+            command("search", "Search YouTube", "Move keyboard focus to the global search field", "magnifyingglass", "⌘L") { store.requestSearchFocus() },
             command("library", "Open Library", "Collections, notes, and local history", "books.vertical") { store.showSection("Library") },
             command("watch-later", "Open Watch Later", "Show videos saved for later", "bookmark.fill") { store.showSection("Watch Later") },
             command("history", "Open History", "Show videos watched on this Mac", "clock.fill") { store.showSection("History") },
             command("subscriptions", "Open Subscriptions", "See recent uploads from subscribed channels", "person.2.fill") { store.showSection("Subscriptions") },
             command("refresh", "Refresh recommendations", "Fetch fresh feed data", "arrow.clockwise", "⌘R") { Task { await store.loadHome(force: true) } },
-            command("theme", "Cycle visual theme", "Move to the next Theme Center environment", "paintbrush.pointed.fill") { store.cycleVisualTheme() }
+            command("theme", "Cycle visual theme", "Move to the next Theme Center environment", "paintbrush.pointed.fill") { store.cycleVisualTheme() },
+            command("settings", "Open Settings", "Adjust appearance, playback, account, and privacy", "gearshape.fill", "⌘,") { openSettings() }
         ]
+
+        if !store.continueWatching.isEmpty {
+            result.insert(
+                command("resume", "Resume last video", "Continue from your latest local checkpoint", "play.circle.fill") {
+                    store.resumeLastVideo()
+                },
+                at: 2
+            )
+        }
 
         if store.selectedVideo != nil {
             result.insert(
@@ -105,6 +117,7 @@ struct CommandPaletteView: View {
                     .font(.system(size: 16, weight: .medium))
                     .focused($searchFocused)
                     .onSubmit(runSelectedCommand)
+                    .accessibilityIdentifier("command-palette-search-field")
                 Text("Esc")
                     .font(.caption.monospaced())
                     .foregroundStyle(palette.secondaryText)
@@ -133,8 +146,7 @@ struct CommandPaletteView: View {
                             let isHighlighted = item.id == highlightedCommandID
 
                             Button {
-                                item.action()
-                                dismiss()
+                                execute(item)
                             } label: {
                                 HStack(spacing: 11) {
                                     Image(systemName: item.systemImage)
@@ -225,7 +237,12 @@ struct CommandPaletteView: View {
         }
         .clipShape(surfaceShape)
         .shadow(color: .black.opacity(0.34), radius: 30, y: 14)
-        .onAppear {
+        .task {
+            // Wait until the modal overlay is mounted before moving focus.
+            // Without this yield, macOS can leave focus in Home's search
+            // field and route Escape/arrow keys to the obscured page.
+            searchFocused = false
+            await Task.yield()
             searchFocused = true
         }
         .onChange(of: query) { _, _ in
@@ -236,6 +253,7 @@ struct CommandPaletteView: View {
             dismiss()
             return .handled
         }
+        .onExitCommand(perform: dismiss)
         .onKeyPress(.downArrow) {
             guard !commands.isEmpty else { return .ignored }
             selectedIndex = min(selectedIndex + 1, commands.count - 1)
@@ -270,7 +288,17 @@ struct CommandPaletteView: View {
 
     private func runSelectedCommand() {
         guard commands.indices.contains(selectedIndex) else { return }
-        commands[selectedIndex].action()
+        execute(commands[selectedIndex])
+    }
+
+    private func execute(_ command: YouGlassPaletteCommand) {
+        // Remove the modal first so actions that replace the player, open
+        // Settings, or request search focus cannot race the overlay's focus
+        // teardown in the same AttributeGraph transaction.
         dismiss()
+        Task { @MainActor in
+            await Task.yield()
+            command.action()
+        }
     }
 }

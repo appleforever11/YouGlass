@@ -20,24 +20,20 @@ extension YouTubeHomeView {
                     if store.selectedSection == "Library" {
                         PersonalLibraryView(palette: palette, compact: compact)
                             .environmentObject(store)
+                    } else if store.selectedSection == "Search" {
+                        SearchContentView(store: store, palette: palette, compact: compact)
                     } else if let message = store.sectionEmptyMessage {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Image(systemName: "tray")
-                                .font(.system(size: 28, weight: .medium))
-                                .foregroundStyle(palette.secondaryText)
-                            Text(message)
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("Your feed will appear here when this section has content.")
-                                .font(.system(size: 13))
-                                .foregroundStyle(palette.secondaryText)
+                        HomeSectionEmptyState(
+                            title: store.selectedSection,
+                            message: message,
+                            palette: palette
+                        ) {
+                            store.showSection("Home")
                         }
-                        .frame(maxWidth: .infinity, minHeight: 260, alignment: .center)
                     } else if let playlist = store.selectedPlaylist {
                         PlaylistDetailView(playlist: playlist, palette: palette)
                     } else if store.selectedSection == "Playlists" {
                         PlaylistLibraryView(palette: palette)
-                    } else if store.selectedSection == "Search" {
-                        SearchContentView(store: store, palette: palette, compact: compact)
                     } else {
                         if store.feed.forYou.isEmpty && store.feed.trending.isEmpty && store.feed.more.isEmpty {
                             if store.isLoading {
@@ -163,7 +159,11 @@ extension YouTubeHomeView {
 
     private func topBarContent(compact: Bool, minimal: Bool) -> some View {
         HStack(spacing: minimal ? 6 : (compact ? 10 : 22)) {
-            SearchField(text: $store.query, palette: palette) {
+            SearchField(
+                text: $store.query,
+                focusRequestID: store.searchFocusRequestID,
+                palette: palette
+            ) {
                 store.startSearch()
             }
             .frame(

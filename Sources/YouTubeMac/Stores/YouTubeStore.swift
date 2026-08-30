@@ -17,6 +17,7 @@ final class YouTubeStore: ObservableObject {
     @Published var backgroundGlow = 0.78
     @Published var glassIntensity = 0.72
     @Published var query = ""
+    @Published var searchFocusRequestID = UUID()
     @Published var feed = VideoItem.loadingFeed
     @Published var isLoading = false
     @Published var connectionMessage = "Sample feed"
