@@ -14,7 +14,7 @@ extension YouTubeStore {
             }
         }
 
-        func personalizedVideos(maxResults: Int) async -> [VideoItem] {
+        func personalizedVideos(maxResults: Int, forceFresh: Bool = false) async -> [VideoItem] {
             guard !recommendationSeeds.isEmpty else { return [] }
 
             let results = await withTaskGroup(of: [VideoItem].self, returning: [VideoItem].self) { group in
@@ -23,7 +23,8 @@ extension YouTubeStore {
                         (try? await self.client.searchVideos(
                             query: seed,
                             maxResults: max(4, maxResults / 3),
-                            order: "relevance"
+                            order: "relevance",
+                            forceFresh: forceFresh
                         )) ?? []
                     }
                 }
@@ -37,7 +38,10 @@ extension YouTubeStore {
             return Array(mergeVideos(results).prefix(maxResults))
         }
 
-        func personalizedAccountFeed(webHomepageVideos: [VideoItem] = []) async -> [VideoItem] {
+        func personalizedAccountFeed(
+            webHomepageVideos: [VideoItem] = [],
+            forceFresh: Bool = false
+        ) async -> [VideoItem] {
             // Keep the authenticated YouTube homepage as the highest-fidelity
             // source. The Data API cannot reproduce YouTube's private model, so it
             // supplements this list rather than replacing it.
@@ -69,11 +73,18 @@ extension YouTubeStore {
                 }
 
                 if hasCredentials {
-                    group.addTask { await self.accountSignalVideos(maxResults: 16) }
-                    group.addTask { await self.personalizedVideos(maxResults: 12) }
+                    group.addTask {
+                        await self.accountSignalVideos(maxResults: 16, forceRefresh: forceFresh)
+                    }
+                    group.addTask {
+                        await self.personalizedVideos(maxResults: 12, forceFresh: forceFresh)
+                    }
                     if client.canConnect {
                         group.addTask {
-                            (try? await self.client.mostPopularVideos(maxResults: 6)) ?? []
+                            (try? await self.client.mostPopularVideos(
+                                maxResults: 6,
+                                forceFresh: forceFresh
+                            )) ?? []
                         }
                     }
                 }
@@ -112,10 +123,11 @@ extension YouTubeStore {
             return []
         }
 
-        func accountSignalVideos(maxResults: Int) async -> [VideoItem] {
+        func accountSignalVideos(maxResults: Int, forceRefresh: Bool = false) async -> [VideoItem] {
             let requestedCount = max(1, maxResults)
             let cachedCandidates = YouGlassContentPolicy.nonShortVideos(from: cachedAccountSignalVideos)
-            if cachedCandidates.count >= requestedCount,
+            if !forceRefresh,
+               cachedCandidates.count >= requestedCount,
                let lastAccountSignalLoadDate,
                !YouGlassFeedRefreshPolicy.needsRefresh(
                     lastUpdated: lastAccountSignalLoadDate,

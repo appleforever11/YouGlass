@@ -98,6 +98,7 @@ final class YouTubeStore: ObservableObject {
     var cachedSubscriptionsUpdatedAt: Date?
     var cachedAccountSignalVideos: [VideoItem] = []
     var lastAccountSignalLoadDate: Date?
+    var recentlyPresentedRecommendationIDs: [String] = []
     var subscriptionLoadInProgress = false
     var subscriptionReloadPending = false
     var subscriptionLoadWaiters: [CheckedContinuation<Void, Never>] = []
@@ -147,6 +148,7 @@ final class YouTubeStore: ObservableObject {
             subscriptions = decodeSubscriptions()
         }
         recommendationSeeds = decodeRecommendationSeeds()
+        recentlyPresentedRecommendationIDs = decodeRecentlyPresentedRecommendationIDs()
         recentlyWatched = decodeVideos(forKey: DefaultsKey.recentlyWatched)
         savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
         locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
@@ -230,6 +232,7 @@ final class YouTubeStore: ObservableObject {
                     self?.profileImageURL = nil
                     self?.lastAccountSyncDate = nil
                     self?.invalidateAccountSignalCache()
+                    self?.clearRecentlyPresentedRecommendations()
                     self?.cachedSubscriptionsUpdatedAt = nil
                     self?.defaults.set(false, forKey: DefaultsKey.isSignedIn)
                     self?.defaults.removeObject(forKey: DefaultsKey.profileImageURL)
@@ -258,6 +261,7 @@ final class YouTubeStore: ObservableObject {
         static let isSignedIn = "YouGlass.isSignedIn"
         static let profileImageURL = "YouGlass.profileImageURL"
         static let recommendationSeeds = "YouGlass.recommendationSeeds"
+        static let recentlyPresentedRecommendationIDs = "YouGlass.recentlyPresentedRecommendationIDs"
         static let cachedFeed = "YouGlass.cachedFeed"
         static let cachedPersonalizedFeed = "YouGlass.cachedPersonalizedFeed"
         static let cachedFeedDate = "YouGlass.cachedFeedDate"

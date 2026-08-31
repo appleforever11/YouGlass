@@ -11,8 +11,13 @@ extension YouTubeStore {
                 return
             }
 
-            if !force {
-                let now = Date()
+            let now = Date()
+            if force {
+                if let lastHomeLoadDate,
+                   now.timeIntervalSince(lastHomeLoadDate) < YouGlassFeedRefreshPolicy.manualRefreshMinimumInterval {
+                    return
+                }
+            } else {
                 if let lastHomeLoadDate,
                    now.timeIntervalSince(lastHomeLoadDate) < 15,
                    !feed.forYou.isEmpty || !feed.trending.isEmpty || !feed.more.isEmpty || !feed.queue.isEmpty {
@@ -81,7 +86,9 @@ extension YouTubeStore {
             }
 
             guard canPublishSectionLoad(sectionGeneration) else { return }
-            connectionMessage = "Loading YouTube homepage recommendations..."
+            connectionMessage = force
+                ? "Refreshing fresh YouTube recommendations..."
+                : "Loading YouTube homepage recommendations..."
             let hasOAuthSession = (try? await oauth.validAccessToken()) != nil
             guard canPublishSectionLoad(sectionGeneration) else { return }
             if hasOAuthSession && !isSignedIn {
@@ -118,16 +125,18 @@ extension YouTubeStore {
                 // The hidden YouTube homepage can return a Shorts-only public
                 // surface even when the account session is valid. Build the
                 // account feed from the user's actual subscriptions first.
-                await loadSubscriptions(force: false)
+                await loadSubscriptions(force: force)
                 guard canPublishSectionLoad(sectionGeneration) else { return }
                 let personalized = await personalizedAccountFeed(
-                    webHomepageVideos: webResult.isSignedIn ? webResult.videos : []
+                    webHomepageVideos: webResult.isSignedIn ? webResult.videos : [],
+                    forceFresh: force
                 )
                 guard canPublishSectionLoad(sectionGeneration) else { return }
                 if !personalized.isEmpty,
                    applyPrimaryHomeVideos(
                         personalized,
-                        message: "Personalized feed from your YouTube account"
+                        message: "Personalized feed from your YouTube account",
+                        favorFresh: true
                    ) {
                     cachePersonalizedFeed(personalized)
                     return
@@ -138,7 +147,7 @@ extension YouTubeStore {
                 let message = webResult.isSignedIn
                     ? "Using signed-in YouTube homepage recommendations"
                     : "Using YouTube homepage recommendations"
-                if applyPrimaryHomeVideos(webResult.videos, message: message) {
+                if applyPrimaryHomeVideos(webResult.videos, message: message, favorFresh: true) {
                     return
                 }
             }
@@ -151,7 +160,8 @@ extension YouTubeStore {
                 if !safariSignals.isEmpty,
                    applyPrimaryHomeVideos(
                         safariSignals,
-                        message: "Safari Home-style channel recommendations (\(safariSignals.count) fresh uploads)"
+                        message: "Safari Home-style channel recommendations (\(safariSignals.count) fresh uploads)",
+                        favorFresh: true
                    ) {
                     return
                 }
@@ -163,20 +173,31 @@ extension YouTubeStore {
             }
 
             do {
-                let personalized = await personalizedVideos(maxResults: 12)
+                let personalized = await personalizedVideos(maxResults: 12, forceFresh: force)
                 guard canPublishSectionLoad(sectionGeneration) else { return }
-                let accountSignals = await accountSignalVideos(maxResults: 12)
+                let accountSignals = await accountSignalVideos(maxResults: 12, forceRefresh: force)
                 guard canPublishSectionLoad(sectionGeneration) else { return }
-                let popular = try await client.mostPopularVideos(maxResults: 8)
+                let popular = try await client.mostPopularVideos(maxResults: 8, forceFresh: force)
                 guard canPublishSectionLoad(sectionGeneration) else { return }
-                let appleTech = try await client.searchVideos(query: "Apple Vision Pro technology creators", maxResults: 6, order: "relevance", videoCategoryId: "28")
+                let appleTech = try await client.searchVideos(
+                    query: "Apple Vision Pro technology creators",
+                    maxResults: 6,
+                    order: "relevance",
+                    videoCategoryId: "28",
+                    forceFresh: force
+                )
                 guard canPublishSectionLoad(sectionGeneration) else { return }
                 let candidates = accountSignals + personalized + popular + appleTech
                 if !applyPrimaryHomeVideos(
                     candidates,
-                    message: "Recommended by YouTube API account signals"
+                    message: "Recommended by YouTube API account signals",
+                    favorFresh: true
                 ) {
-                    _ = applyPrimaryHomeVideos(popular + appleTech, message: "Popular on YouTube")
+                    _ = applyPrimaryHomeVideos(
+                        popular + appleTech,
+                        message: "Popular on YouTube",
+                        favorFresh: true
+                    )
                 }
             } catch {
                 guard canPublishSectionLoad(sectionGeneration) else { return }

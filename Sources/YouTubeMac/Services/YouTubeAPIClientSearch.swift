@@ -8,7 +8,8 @@ extension YouTubeAPIClient {
         topicId: String? = nil,
         videoCategoryId: String? = nil,
         videoDuration: String? = nil,
-        regionCode: String = "US"
+        regionCode: String = "US",
+        forceFresh: Bool = false
     ) async throws -> [VideoItem] {
         guard !YouGlassContentPolicy.isShortsSearch(query) else { return [] }
 
@@ -34,7 +35,7 @@ extension YouTubeAPIClient {
         }
         components.queryItems = queryItems
 
-        let data = try await data(from: components, cacheTTL: 45)
+        let data = try await data(from: components, cacheTTL: 45, bypassCache: forceFresh)
         let response = try JSONDecoder().decode(SearchResponse.self, from: data)
         let ids = response.items.map(\.id.videoId).filter { !$0.isEmpty }
         let resources = (try? await videoResources(ids: ids)) ?? []
@@ -59,7 +60,12 @@ extension YouTubeAPIClient {
         }.filter(YouGlassContentPolicy.allows)
     }
 
-    func mostPopularVideos(maxResults: Int = 12, regionCode: String = "US", videoCategoryId: String? = nil) async throws -> [VideoItem] {
+    func mostPopularVideos(
+        maxResults: Int = 12,
+        regionCode: String = "US",
+        videoCategoryId: String? = nil,
+        forceFresh: Bool = false
+    ) async throws -> [VideoItem] {
         var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/videos")!
         var queryItems = [
             URLQueryItem(name: "part", value: "snippet,statistics,contentDetails"),
@@ -72,7 +78,7 @@ extension YouTubeAPIClient {
         }
         components.queryItems = queryItems
 
-        let data = try await data(from: components, preferOAuth: false)
+        let data = try await data(from: components, preferOAuth: false, bypassCache: forceFresh)
         let response = try JSONDecoder().decode(VideoListResponse.self, from: data)
         return response.items.map(videoItem(from:)).filter(YouGlassContentPolicy.allows)
     }

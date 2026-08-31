@@ -48,6 +48,18 @@ extension YouTubeStore {
             return filtered
         }
 
+        func decodeRecentlyPresentedRecommendationIDs() -> [String] {
+            let ids = defaults.stringArray(forKey: DefaultsKey.recentlyPresentedRecommendationIDs) ?? []
+            let filtered = Array(
+                ids.filter { !$0.isEmpty }
+                    .prefix(RecommendationRotationPolicy.rememberedRecommendationLimit)
+            )
+            if filtered != ids {
+                defaults.set(filtered, forKey: DefaultsKey.recentlyPresentedRecommendationIDs)
+            }
+            return filtered
+        }
+
         func nonShortVideos(_ videos: [VideoItem]) -> [VideoItem] {
             let filtered = YouGlassContentPolicy.nonShortVideos(from: videos)
             excludedShortFormIDs.formUnion(
@@ -239,7 +251,8 @@ extension YouTubeStore {
         func applyPrimaryHomeVideos(
             _ videos: [VideoItem],
             message: String,
-            cacheFeed: Bool = true
+            cacheFeed: Bool = true,
+            favorFresh: Bool = false
         ) -> Bool {
             let ranked = RecommendationRanker.rank(
                 videos,
@@ -248,11 +261,32 @@ extension YouTubeStore {
                 liked: locallyLikedVideos,
                 seeds: recommendationSeeds,
                 saved: savedVideos,
+                recentlyPresentedIDs: favorFresh ? recentlyPresentedRecommendationIDs : [],
+                favorFresh: favorFresh,
                 limit: 40
             )
             guard !ranked.isEmpty else { return false }
             applyHomeVideos(ranked, message: message, cacheFeed: cacheFeed)
+            if favorFresh {
+                rememberPresentedRecommendations(feed.forYou)
+            }
             return true
+        }
+
+        func rememberPresentedRecommendations(_ videos: [VideoItem]) {
+            recentlyPresentedRecommendationIDs = RecommendationRotationPolicy.updatedRecentlyPresentedIDs(
+                previous: recentlyPresentedRecommendationIDs,
+                displayed: videos
+            )
+            defaults.set(
+                recentlyPresentedRecommendationIDs,
+                forKey: DefaultsKey.recentlyPresentedRecommendationIDs
+            )
+        }
+
+        func clearRecentlyPresentedRecommendations() {
+            recentlyPresentedRecommendationIDs = []
+            defaults.removeObject(forKey: DefaultsKey.recentlyPresentedRecommendationIDs)
         }
 
         func cachePersonalizedFeed(_ videos: [VideoItem]) {

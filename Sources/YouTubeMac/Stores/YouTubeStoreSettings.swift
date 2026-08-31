@@ -135,6 +135,7 @@ extension YouTubeStore {
             defaults.set(false, forKey: DefaultsKey.isSignedIn)
             defaults.removeObject(forKey: DefaultsKey.profileImageURL)
             defaults.removeObject(forKey: DefaultsKey.recommendationSeeds)
+            clearRecentlyPresentedRecommendations()
             defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeed)
             defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
             defaults.removeObject(forKey: DefaultsKey.lastAccountSyncDate)
@@ -149,6 +150,7 @@ extension YouTubeStore {
             defaults.removeObject(forKey: DefaultsKey.cachedFeedDate)
             defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeed)
             defaults.removeObject(forKey: DefaultsKey.cachedPersonalizedFeedDate)
+            clearRecentlyPresentedRecommendations()
             cachedFeedUpdatedAt = nil
             cachedPersonalizedFeedUpdatedAt = nil
             feedLastRefreshedDate = nil

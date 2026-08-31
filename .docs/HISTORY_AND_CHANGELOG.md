@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-31 — improve Home recommendation freshness and rotation
+
+- Kept the automatic foreground refresh at a quota-safe one-minute cadence, added a 15-second manual-refresh safety throttle, and made deliberate API-backed refreshes bypass the short-lived response cache.
+- Deliberate refreshes now refresh account signals and subscriptions, while live Home ranking favors candidates outside a bounded window of the 24 most recently presented `For You` IDs. Only those non-secret IDs are persisted locally; watched history, library data, queue state, credentials, and account data remain unchanged.
+- Added model coverage for freshness ordering and bounded rotation-state persistence. Validation: the targeted ModelsTests and full `./script/test.sh` workflow passed (59 tests, 0 failures); `./script/build_and_run.sh --verify` produced the signed 2.0.0 staged bundle and the rebuilt app remained running. Computer Use confirmed the rebuilt Home surface, the `For You`/Continue Watching ordering, and that a manual refresh completed and replaced the visible personalized candidates.
+
 ## 2026-08-30 — blend the player halo beneath the title shelf
 
 - Changed the expanded watch layout so its AppKit page viewport continues behind the translucent title shelf instead of starting in a clipped sibling row below it.

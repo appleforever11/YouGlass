@@ -507,6 +507,7 @@ final class ModelsTests: XCTestCase {
 
     func testFeedRefreshPolicyKeepsForegroundAccountDataFresh() {
         XCTAssertEqual(YouGlassFeedRefreshPolicy.activeRefreshInterval, 60)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.manualRefreshMinimumInterval, 15)
         XCTAssertEqual(YouGlassFeedRefreshPolicy.accountSignalRefreshInterval, 90)
         XCTAssertEqual(YouGlassFeedRefreshPolicy.subscriptionRefreshInterval, 5 * 60)
         XCTAssertLessThan(
@@ -657,6 +658,73 @@ final class ModelsTests: XCTestCase {
 
         XCTAssertEqual(ranked.first?.id, "fresh-1")
         XCTAssertEqual(ranked.dropFirst().first?.id, "other-channel")
+    }
+
+    func testRecommendationRankerFavorsCandidatesNotRecentlyPresented() {
+        let previouslyPresented = VideoItem(
+            id: "previously-presented",
+            title: "Older subscribed upload",
+            channel: "Subscribed Channel",
+            views: "",
+            age: "1 day ago",
+            duration: "",
+            imageURL: nil,
+            verified: false,
+            channelID: "UC1234567890123456789012"
+        )
+        let freshCandidate = VideoItem(
+            id: "fresh-candidate",
+            title: "New upload from another channel",
+            channel: "Another Channel",
+            views: "",
+            age: "just now",
+            duration: "",
+            imageURL: nil,
+            verified: false,
+            channelID: "UC9999999999999999999999"
+        )
+        let subscription = SubscriptionItem(
+            id: "UC1234567890123456789012",
+            name: "Subscribed Channel",
+            avatarURL: nil,
+            isLive: false
+        )
+
+        let ranked = RecommendationRanker.rank(
+            [previouslyPresented, freshCandidate],
+            subscriptions: [subscription],
+            history: [],
+            liked: [],
+            seeds: [],
+            recentlyPresentedIDs: [previouslyPresented.id],
+            favorFresh: true,
+            limit: 2
+        )
+
+        XCTAssertEqual(ranked.map(\.id), [freshCandidate.id, previouslyPresented.id])
+    }
+
+    func testRecommendationRotationPolicyKeepsNewestPresentedIDsBounded() {
+        let displayed = (1...3).map { index in
+            VideoItem(
+                id: "displayed-\(index)",
+                title: "Video \(index)",
+                channel: "Channel",
+                views: "",
+                age: "",
+                duration: "",
+                imageURL: nil,
+                verified: false
+            )
+        }
+
+        let result = RecommendationRotationPolicy.updatedRecentlyPresentedIDs(
+            previous: ["old-1", "displayed-2", "old-2"],
+            displayed: displayed,
+            limit: 4
+        )
+
+        XCTAssertEqual(result, ["displayed-1", "displayed-2", "displayed-3", "old-1"])
     }
 
 }

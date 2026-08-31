@@ -8,6 +8,26 @@ struct HomeFeed {
     var more: [VideoItem]
 }
 
+enum RecommendationRotationPolicy {
+    static let rememberedRecommendationLimit = 24
+
+    static func updatedRecentlyPresentedIDs(
+        previous: [String],
+        displayed: [VideoItem],
+        limit: Int = rememberedRecommendationLimit
+    ) -> [String] {
+        guard limit > 0 else { return [] }
+
+        var result: [String] = []
+        for id in displayed.map(\.id) + previous where !id.isEmpty {
+            guard !result.contains(id) else { continue }
+            result.append(id)
+            if result.count == limit { break }
+        }
+        return result
+    }
+}
+
 /// A small, deterministic ranking layer for the sources YouGlass can access.
 /// YouTube does not expose its private homepage ranking model through the Data
 /// API, so this preserves the signed-in web feed when available and then
@@ -20,6 +40,8 @@ struct RecommendationRanker {
         liked: [VideoItem],
         seeds: [String],
         saved: [VideoItem] = [],
+        recentlyPresentedIDs: [String] = [],
+        favorFresh: Bool = false,
         limit: Int = 40
     ) -> [VideoItem] {
         guard limit > 0 else { return [] }
@@ -33,6 +55,7 @@ struct RecommendationRanker {
         )
         let likedIDs = Set(liked.map(\.id))
         let savedIDs = Set(saved.map(\.id))
+        let recentlyPresentedIDSet = Set(recentlyPresentedIDs)
         let seedText = seeds.map(normalized).filter { !$0.isEmpty }
         let signalTokens = Set(
             (history + liked + saved)
@@ -90,6 +113,13 @@ struct RecommendationRanker {
 
         let sorted = best.values
             .sorted {
+                if favorFresh {
+                    let leftWasRecentlyPresented = recentlyPresentedIDSet.contains($0.video.id)
+                    let rightWasRecentlyPresented = recentlyPresentedIDSet.contains($1.video.id)
+                    if leftWasRecentlyPresented != rightWasRecentlyPresented {
+                        return !leftWasRecentlyPresented
+                    }
+                }
                 if $0.score == $1.score { return $0.index < $1.index }
                 return $0.score > $1.score
             }

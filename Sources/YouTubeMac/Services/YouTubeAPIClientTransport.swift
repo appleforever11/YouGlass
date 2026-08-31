@@ -4,7 +4,8 @@ extension YouTubeAPIClient {
     func data(
         from components: URLComponents,
         preferOAuth: Bool = true,
-        cacheTTL: TimeInterval = 20
+        cacheTTL: TimeInterval = 20,
+        bypassCache: Bool = false
     ) async throws -> Data {
         guard let url = components.url else {
             throw YouTubeAPIError.invalidRequest("YouTube request URL could not be constructed.")
@@ -15,7 +16,7 @@ extension YouTubeAPIClient {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             // OAuth responses can be account-specific, so do not share them
             // through the public response cache.
-            return try await requestData(request)
+            return try await requestData(request, bypassCache: bypassCache)
         }
 
         guard let apiKey else {
@@ -30,7 +31,8 @@ extension YouTubeAPIClient {
         return try await requestData(
             URLRequest(url: authenticated.url!),
             cacheKey: url.absoluteString,
-            cacheTTL: cacheTTL
+            cacheTTL: cacheTTL,
+            bypassCache: bypassCache
         )
     }
 
@@ -43,9 +45,10 @@ extension YouTubeAPIClient {
     func requestData(
         _ request: URLRequest,
         cacheKey: String? = nil,
-        cacheTTL: TimeInterval = 20
+        cacheTTL: TimeInterval = 20,
+        bypassCache: Bool = false
     ) async throws -> Data {
-        if let cacheKey, let cached = await responseCache.data(forKey: cacheKey) {
+        if !bypassCache, let cacheKey, let cached = await responseCache.data(forKey: cacheKey) {
             YouGlassDiagnostics.api.debug("Using cached YouTube response for \(request.url?.path ?? "/", privacy: .public)")
             return cached
         }

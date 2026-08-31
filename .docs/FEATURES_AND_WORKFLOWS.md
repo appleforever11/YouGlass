@@ -32,6 +32,8 @@ Collections store video IDs and remain independent of YouTube account playlists.
 
 The Data API does not expose a reliable Shorts flag, so API results use the shared title marker policy; WebKit and channel extraction additionally reject `/shorts/` and reel renderer entries before they become `VideoItem` values.
 
+Home refreshes are deliberately split into two paths. The active-window task checks once per minute, which keeps the feed current without repeatedly spending Data API quota. A user-requested refresh has a 15-second safety throttle, bypasses the in-memory API-key response cache, and refreshes account signals and subscriptions rather than replaying their short-lived cached values. Every successful live refresh records only the IDs of the latest 24 visible `For You` candidates in `UserDefaults`; the local ranker then favors other valid candidates on the next refresh while retaining its subscription, recency, history, and diversity signals. If the available source pool is smaller than the rotation window, the prior candidates remain available as a safe fallback.
+
 Home uses the packaged YouGlass application icon and product name rather than imitating YouTube branding. The featured card exposes real Play, Queue, and Save actions; inert carousel dots are intentionally absent. Video cards and subscription/sidebar rows share explicit pointer hover feedback, readable section context, and accessibility labels. `Command-L` requests focus for the global search field, which exposes clear/run controls and a visible focused state. Settings provides independent tokenized page/feature search, including terms such as captions, API key, queue, privacy, and theme; filtering does not alter preferences.
 
 ## 6. Reliability and performance
