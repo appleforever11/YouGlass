@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-08-30 — blend the player halo beneath the title shelf
+
+- Changed the expanded watch layout so its AppKit page viewport continues behind the translucent title shelf instead of starting in a clipped sibling row below it.
+- The scroll document now reserves the shelf's measured runtime height plus media-halo breathing room. The player and Up Next content stay below the controls, while the centered glow can fade upward through the header material without becoming a flat horizontal band.
+- The playback queue panel follows the measured header height, and the existing AppKit scroll ownership, WebKit media boundary, captions, and compact/PIP behavior remain unchanged.
+- Validation: `swift build --product YouGlass`, all 57 tests in `./script/test.sh`, `./script/build_and_run.sh --verify`, and strict deep code-signature verification passed. Computer Use opened the same featured video before and after rebuilding; the post-fix player retained its header and Up Next layout while the previously clipped horizontal halo edge continued behind the title shelf as a soft fade.
+
 ## 2026-08-30 — revamp the desktop discovery experience
 
 - Reworked Home around the YouGlass identity, actionable featured content, richer section context, and consistent pointer/accessibility feedback without changing the local-first ordering or no-Shorts policy.

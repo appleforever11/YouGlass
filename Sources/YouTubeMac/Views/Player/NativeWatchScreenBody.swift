@@ -2,11 +2,7 @@ import SwiftUI
 
 extension NativeWatchScreen {
         var body: some View {
-            VStack(spacing: 0) {
-                if !isCompact {
-                    header
-                }
-
+            Group {
                 if isCompact {
                     // The desktop PIP host already enforces a 16:9 window. Let
                     // the player consume the complete proposed content rect
@@ -35,7 +31,15 @@ extension NativeWatchScreen {
                     // GeometryReader copy crash that occurs when this page is
                     // presented with its AppKit-backed scroll view.
                     ZStack(alignment: .topLeading) {
-                        responsiveWatchLayout(availableSize: watchAvailableSize)
+                        // Keep the page viewport behind the translucent title
+                        // shelf. The document reserves the measured shelf height,
+                        // while the media halo can continue upward through that
+                        // reserved area instead of being clipped into a straight
+                        // line at the shelf's lower edge.
+                        responsiveWatchLayout(
+                            availableSize: watchAvailableSize,
+                            topContentInset: watchHeaderHeight
+                        )
 
                         YouGlassSizeReader { size in
                             guard size != watchAvailableSize else { return }
@@ -43,6 +47,21 @@ extension NativeWatchScreen {
                         }
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
+
+                        header
+                            .frame(maxWidth: .infinity, alignment: .top)
+                            .overlay {
+                                YouGlassSizeReader { size in
+                                    let measuredHeight = ceil(size.height)
+                                    guard measuredHeight > 1,
+                                          abs(measuredHeight - watchHeaderHeight) > 0.5 else {
+                                        return
+                                    }
+                                    watchHeaderHeight = measuredHeight
+                                }
+                                .allowsHitTesting(false)
+                                .accessibilityHidden(true)
+                            }
                     }
                 }
             }
@@ -68,7 +87,7 @@ extension NativeWatchScreen {
             .overlay(alignment: .topTrailing) {
                 if !isCompact, queuePresented {
                     PlayerQueuePanel(store: store, palette: palette)
-                        .padding(.top, 60)
+                        .padding(.top, watchHeaderHeight + 8)
                         .padding(.trailing, 14)
                         .zIndex(40)
                 }

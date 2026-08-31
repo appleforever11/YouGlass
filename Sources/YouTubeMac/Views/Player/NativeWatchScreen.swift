@@ -28,6 +28,7 @@ struct NativeWatchScreen: View {
     @State var didAutoAdvance = false
     @State var playerTransportVisible = false
     @State var watchAvailableSize = CGSize(width: 900, height: 680)
+    @State var watchHeaderHeight: CGFloat = 72
     @StateObject var playbackController = YouTubePlaybackController()
     @FocusState var commentFieldFocused: Bool
     let video: VideoItem

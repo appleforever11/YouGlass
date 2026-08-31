@@ -1,7 +1,10 @@
 import SwiftUI
 
 extension NativeWatchScreen {
-        func responsiveWatchLayout(availableSize: CGSize) -> some View {
+        func responsiveWatchLayout(
+            availableSize: CGSize,
+            topContentInset: CGFloat
+        ) -> some View {
             let isWide = availableSize.width >= 900
             let horizontalPadding: CGFloat = isWide ? 18 : 12
             let columnSpacing: CGFloat = isWide ? 18 : 0
@@ -46,10 +49,11 @@ extension NativeWatchScreen {
                 // a viewport-sized height that can swallow the page's scroll range.
                 .frame(width: documentWidth, alignment: .topLeading)
                 .padding(.horizontal, horizontalPadding)
-                // Leave the media halo room above the fixed watch header. The
-                // scroll viewport clips at its bounds; without this breathing
-                // room a centered shadow is still cut off along the top edge.
-                .padding(.top, 16)
+                // The scroll viewport extends beneath the overlaid header. Keep
+                // content below the measured shelf while leaving enough overlap
+                // for the centered media halo to fade upward behind its material.
+                // Clipping now occurs at the window edge, not at the header seam.
+                .padding(.top, max(16, topContentInset + 16))
                 // Leave a small amount of document space after the comments
                 // viewport so the outer page can continue moving when the
                 // pointer is outside the inner comments scroller.
