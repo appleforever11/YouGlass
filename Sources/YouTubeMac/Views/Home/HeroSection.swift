@@ -128,20 +128,23 @@ struct HeroSection: View {
                                 endPoint: .bottom
                             )
 
-                            if imageHovered {
-                                Image(systemName: "play.fill")
-                                    .font(.system(size: 22, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 58, height: 58)
-                                    .background(.black.opacity(0.58), in: Circle())
-                                    .overlay(Circle().stroke(.white.opacity(0.62), lineWidth: 1))
-                            }
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(.white)
+                                .frame(width: 58, height: 58)
+                                .background(.black.opacity(0.58), in: Circle())
+                                .overlay(Circle().stroke(.white.opacity(0.62), lineWidth: 1))
+                                .opacity(imageHovered ? 1 : 0)
+                                .scaleEffect(imageHovered ? 1 : 0.82)
+                                .allowsHitTesting(false)
                         }
+                        .scaleEffect(accessibilityReduceMotion ? 1 : (imageHovered ? 1.008 : 1))
                     }
                     .buttonStyle(.plain)
-                    .scaleEffect(accessibilityReduceMotion ? 1 : (imageHovered ? 1.008 : 1))
+                    .contentShape(Rectangle())
                     .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: imageHovered)
                     .onHover { hovering in
+                        guard imageHovered != hovering else { return }
                         imageHovered = hovering
                         if hovering { store.prewarmPlayback(for: store.feed.hero) }
                     }

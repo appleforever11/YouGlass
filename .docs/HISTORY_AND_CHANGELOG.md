@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-03 — stabilize Home hover-to-play feedback
+
+- Kept Home card hit targets at their layout bounds while animating only the inner card visuals. Hover play badges remain mounted and ignore pointer events, preventing their appearance or the card scale effect from stealing the next hover transition.
+- Applied the same boundary stabilization to the featured card, Continue Watching cards, and the macOS 26 stable-hover thumbnail wrapper. The card action, prewarm trigger, and accessibility behavior remain unchanged.
+- Validation: `swift build --product YouGlass` and `./script/build_and_run.sh --verify` passed; the rebuilt staged bundle showed the expected Home card and featured-card layout in Computer Use after relaunch. The final repeated pointer-hover pass is limited by the current Computer Use surface exposing drag/click but no direct pointer-move action.
+
 ## 2026-09-03 — speed up Home feed refresh
 
 - Prevented repeated Home pulls from blocking on a redundant full subscription sync: a persisted subscription snapshot is reused immediately and refreshed in the background when it is missing or outside the five-minute freshness window, while account signals still refresh in the foreground.

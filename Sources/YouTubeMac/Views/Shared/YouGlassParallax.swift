@@ -27,19 +27,24 @@ private struct YouGlassThumbnailParallax: ViewModifier {
     }
 
     private func stableHoverBody(content: Content) -> some View {
-        content
-            .scaleEffect(isHovering ? 1.012 : 1)
-            .shadow(
-                color: .black.opacity(isHovering ? 0.18 : 0),
-                radius: isHovering ? 10 : 0,
-                y: isHovering ? 5 : 0
-            )
-            .animation(.easeOut(duration: 0.18), value: isHovering)
-            .contentShape(Rectangle())
-            .onHover { hovering in
-                guard isHovering != hovering else { return }
-                isHovering = hovering
-            }
+        ZStack {
+            // Keep the tracking surface at its layout size. Scaling the
+            // tracked view itself can make AppKit report an exit while the
+            // pointer is still over a card that is animating into place.
+            content
+                .scaleEffect(isHovering ? 1.012 : 1)
+                .shadow(
+                    color: .black.opacity(isHovering ? 0.18 : 0),
+                    radius: isHovering ? 10 : 0,
+                    y: isHovering ? 5 : 0
+                )
+        }
+        .animation(.easeOut(duration: 0.18), value: isHovering)
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            guard isHovering != hovering else { return }
+            isHovering = hovering
+        }
     }
 
     private func pointerParallaxBody(content: Content) -> some View {

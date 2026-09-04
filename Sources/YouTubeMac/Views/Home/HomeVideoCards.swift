@@ -121,15 +121,16 @@ struct VideoCard: View {
                             endPoint: .bottom
                         )
 
-                        if isHovered {
-                            Image(systemName: "play.fill")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 44, height: 44)
-                                .background(.black.opacity(0.62), in: Circle())
-                                .overlay(Circle().stroke(.white.opacity(0.58), lineWidth: 1))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        }
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 44, height: 44)
+                            .background(.black.opacity(0.62), in: Circle())
+                            .overlay(Circle().stroke(.white.opacity(0.58), lineWidth: 1))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                            .opacity(isHovered ? 1 : 0)
+                            .scaleEffect(isHovered ? 1 : 0.82)
+                            .allowsHitTesting(false)
 
                         if !video.duration.isEmpty {
                             Text(video.duration)
@@ -183,14 +184,16 @@ struct VideoCard: View {
                 RoundedRectangle(cornerRadius: 13, style: .continuous)
                     .stroke(isHovered ? palette.stroke : .clear, lineWidth: 1)
             }
+            .scaleEffect(accessibilityReduceMotion ? 1 : (isHovered ? 1.012 : 1))
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .buttonStyle(.plain)
+        .contentShape(Rectangle())
         .onHover { hovering in
+            guard isHovered != hovering else { return }
             isHovered = hovering
             if hovering { store.prewarmPlayback(for: video) }
         }
-        .scaleEffect(accessibilityReduceMotion ? 1 : (isHovered ? 1.012 : 1))
         .shadow(color: isHovered ? .black.opacity(palette.isDark ? 0.30 : 0.10) : .clear, radius: 14, y: 7)
         .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: isHovered)
         .accessibilityLabel("\(video.title), by \(video.channel)")
