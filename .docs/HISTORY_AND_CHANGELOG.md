@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — restore Home header pointer actions
+
+- Bounded the featured image and hero interaction shapes to their visible frames. Pixel clipping alone allowed the scaled-to-fill image to intercept pointer input over the Home shortcuts and Custom Feed strip. The decorative hero border no longer participates in hit testing.
+- Removed investigation-only input probes and restored the original adaptive header and accessibility grouping; no navigation or credential changes were needed.
+- Rebuilt and launched the signed development bundle. Computer Use coordinate clicks verified Watch Later, Library, Subscriptions, Create (opened and cancelled without saving), and Analysis (opened its results), including Create and Analysis with a loaded hero below them.
+
 ## 2026-09-04 — preview-first Home spacing
 
 - Replaced the large welcome banner, decorative icon, and tall shortcut tiles with a compact Home heading and inline shortcuts (with a narrow-width fallback).

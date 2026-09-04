@@ -130,6 +130,7 @@ Use the commit and current worktree together; uncommitted changes are not repres
 
 ## UI and runtime validation
 
+- Featured image clipping must also bound hit testing with an explicit content shape; scaled-to-fill image bounds must never intercept Home shortcuts or Custom Feed controls above the hero. Decorative hero borders do not receive pointer events.
 - Home and Continue Watching play badges respond without an opacity/scale animation delay. In the AppKit Home container, `YouGlassCardPointerRegion` compares pointer positions with card frames in the explicitly named document coordinate space, not representable bounds or SwiftUI global coordinates. Synchronize its reported state after feed updates, remove event monitors on teardown, and never intercept clicks. Other containers retain SwiftUI hover handling. Keep decorative animation separate; speculative prewarming uses a cancellable 150 ms dwell and never delays pointer feedback.
 - Keep SwiftUI as the source of truth and use the smallest AppKit bridge necessary for behavior SwiftUI cannot provide reliably on this macOS release.
 - Settings uses a sidebar/detail layout. The Appearance page is intentionally taller than the default settings window and must open at the top while remaining scrollable. Its detail viewport uses a stock `NSScrollView` with an `NSHostingController` document measured by `sizeThatFits(in:)`; keep the document top-leading, do not add a max-height fill or custom scroll-view layout callback, and reset the scroll position only when the selected page changes.

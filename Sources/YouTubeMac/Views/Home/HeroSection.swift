@@ -15,6 +15,8 @@ struct HeroSection: View {
                     RemoteImage(url: store.feed.hero.thumbnailURL)
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
+                        // Clipping pixels does not bound a scaled image's pointer region.
+                        .contentShape(Rectangle())
                         .overlay {
                             LinearGradient(
                                 stops: [
@@ -76,9 +78,11 @@ struct HeroSection: View {
                 .padding(compact ? 22 : 32)
             }
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 26, style: .continuous)
                     .stroke(palette.stroke, lineWidth: 1)
+                    .allowsHitTesting(false)
             }
         }
         .frame(height: compact ? 340 : 380)
