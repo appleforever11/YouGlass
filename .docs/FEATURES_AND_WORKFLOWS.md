@@ -36,6 +36,8 @@ Home refreshes are deliberately split into two paths. The active-window task che
 
 Home uses the packaged YouGlass application icon and product name rather than imitating YouTube branding. The featured card exposes real Play, Queue, and Save actions; inert carousel dots are intentionally absent. Video cards and subscription/sidebar rows share explicit pointer hover feedback, readable section context, and accessibility labels. `Command-L` requests focus for the global search field, which exposes clear/run controls and a visible focused state. Settings provides independent tokenized page/feature search, including terms such as captions, API key, queue, privacy, and theme; filtering does not alter preferences.
 
+The normal Home scroll owner supports native pull/drag-down refresh. On macOS 27 and later, `Views/Home/YouGlassHomeRefreshController.swift` installs AppKit's `NSRefreshController` on the underlying scroll view; older systems use SwiftUI's `.refreshable` fallback. The gesture invokes the same forced Home load as the toolbar refresh, so the existing 15-second manual-refresh safety floor and feed rotation policy remain in force. The controller is mounted for Home only; Library, Search, and a selected Custom Feed do not accidentally reload the normal Home feed.
+
 ## 6. Reliability and performance
 
 `YouGlassNetworkMonitor` publishes online/offline status to the main-actor store. Home restores cached feed candidates before attempting a live refresh and reports an offline state without clearing local data. `RemoteImage` uses a bounded `NSCache` (count and cost limits) for thumbnails and avatars; failed requests keep a stable placeholder. Player auto-advance is guarded against duplicate ended events.

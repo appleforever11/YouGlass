@@ -9,7 +9,7 @@ extension YouTubeHomeView {
             // surface. Nested adaptive grids can otherwise consume the
             // available height without giving the user a reliable way to
             // reach the lower recommendation rows on smaller displays.
-            ScrollView(.vertical, showsIndicators: true) {
+            homeRefreshContainer {
                 VStack(alignment: .leading, spacing: 16) {
                     if store.selectedSection != "Library" {
                         Text(store.selectedSection)
@@ -104,8 +104,6 @@ extension YouTubeHomeView {
                 // Leave a real, reachable breathing room after the final row.
                 .padding(.bottom, compact ? 72 : 88)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .scrollBounceBehavior(.basedOnSize)
         }
         .background {
             ZStack {
@@ -119,6 +117,30 @@ extension YouTubeHomeView {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func homeRefreshContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        if #available(macOS 27.0, *) {
+            YouGlassHomeScrollView(
+                isRefreshEnabled: store.selectedSection == "Home" && store.selectedCustomFeed == nil,
+                refreshAction: {
+                    await store.loadHome(force: true)
+                },
+                content: content
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollView(.vertical, showsIndicators: true) {
+                content()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scrollBounceBehavior(.basedOnSize)
+            .refreshable {
+                guard store.selectedSection == "Home", store.selectedCustomFeed == nil else { return }
+                await store.loadHome(force: true)
             }
         }
     }

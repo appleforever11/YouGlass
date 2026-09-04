@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-03 — add Home pull-to-refresh
+
+- Added a Home pull-to-refresh bridge. On macOS 27+, AppKit's native `NSRefreshController` is attached to the existing single Home scroll owner; older systems use SwiftUI's `.refreshable` fallback. Pulling or dragging down at the top of Home runs the existing forced refresh path and its quota-safe manual-refresh floor.
+- The action is scoped to the normal Home feed; Library, Search, and selected Custom Feeds retain their separate boundaries. Validated with the targeted/full test workflow, the rebuilt staged bundle, a runtime top-edge drag that rotated the Home feed, and a Library navigation check with no refresh controller exposed.
+
 ## 2026-09-03 — add native prompt-driven Custom Feeds
 
 - Added a deterministic local prompt interpreter for topic keywords, subscription-only scope, recency, duration, and the always-on Shorts exclusion. The parser and custom-feed ranker are pure model-layer code with XCTest coverage.
