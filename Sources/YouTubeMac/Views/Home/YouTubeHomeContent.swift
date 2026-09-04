@@ -140,7 +140,11 @@ extension YouTubeHomeView {
                 refreshAction: {
                     await store.loadHome(force: true)
                 },
-                content: content
+                content: {
+                    content()
+                        .coordinateSpace(name: "youglass-card-document")
+                        .environment(\.cardPointerUsesDocumentSpace, true)
+                }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {

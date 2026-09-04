@@ -1,21 +1,43 @@
 import SwiftUI
 
+private struct CardPointerDocumentKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    var cardPointerUsesDocumentSpace: Bool {
+        get { self[CardPointerDocumentKey.self] }
+        set { self[CardPointerDocumentKey.self] = newValue }
+    }
+}
+
 /// Pointer feedback is immediate; speculative network work requires a short dwell.
 private struct YouGlassVideoCardHover: ViewModifier {
     @Binding var isHovered: Bool
     let videoID: String
     let prewarm: () -> Void
+    @State private var cardFrame: CGRect = .zero
+    @Environment(\.cardPointerUsesDocumentSpace) private var usesDocumentSpace
 
     func body(content: Content) -> some View {
-        content
-            .onContinuousHover { phase in
-                let active: Bool
-                switch phase {
-                case .active: active = true
-                case .ended: active = false
+        let documentSpace = usesDocumentSpace
+        return content
+            .onGeometryChange(for: CGRect.self) {
+                $0.frame(in: documentSpace ? .named("youglass-card-document") : .global)
+            } action: { cardFrame = $0 }
+            .background {
+                if usesDocumentSpace {
+                    YouGlassCardPointerRegion(cardFrame: cardFrame, isHovered: isHovered) { active in
+                        if isHovered != active { isHovered = active }
+                    }
                 }
-                // Movement repairs hover state, but never republishes each pixel.
-                if isHovered != active { isHovered = active }
+            }
+            .onContinuousHover { phase in
+                guard !usesDocumentSpace else { return }
+                switch phase {
+                case .active: isHovered = true
+                case .ended: isHovered = false
+                }
             }
             .task(id: isHovered ? videoID : nil) {
                 guard isHovered else { return }

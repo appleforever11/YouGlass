@@ -2,6 +2,15 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — native card pointer tracking
+
+- User confirmed the immediate-animation patch still missed hover transitions. Replaced SwiftUI `onContinuousHover` in the shared card modifier with `YouGlassCardPointerRegion`, an AppKit visible-rect tracking region at the unscaled button boundary.
+- Pointer enter/move/exit events update the boolean directly; layout/update reconciliation is deferred to avoid publishing inside SwiftUI layout. The region returns nil from hit testing, replaces old tracking areas, and drops callbacks on teardown. Tracking also works without requiring the app to be key.
+- Added tests for non-intercepting hit testing and tracking-area replacement/options. Fast physical pointer-sweep behavior remains a manual validation requirement, not something proven by unit tests.
+- Runtime iteration found that native representable bounds and SwiftUI global coordinates did not match the scrolled document. The AppKit Home container now names its document coordinate space explicitly; the tracker compares those card frames with native document-relative pointer positions. A local event monitor reconciles all mounted cards without consuming events and is removed on teardown. Non-AppKit browsing containers retain SwiftUI hover handling.
+- Synchronize the native reported-hover cache with SwiftUI on every update, so feed replacement cannot leave the badge hidden while the tracker incorrectly thinks it already reported entry. A 100-crossing test also covers this reset and offscreen clearing. Temporary geometry-only logging was removed.
+- Use the incoming event location, with one bounded shared sample and weak window reference, so newly mounted cards inherit the latest pointer position during a feed diff. Validation: all 69 tests and the signed bundle build/launch passed. Computer Use small-scroll pointer placements confirmed second-to-third card transfer with the old highlight clearing during a live feed replacement; this is not a measured rapid physical mouse sweep.
+
 ## 2026-09-04 — immediate card hover feedback
 
 - Home video cards and Continue Watching share `YouGlassVideoCardHover`: continuous pointer activity repairs hover state, duplicate state writes are suppressed, and disappearing cards clear their state.
