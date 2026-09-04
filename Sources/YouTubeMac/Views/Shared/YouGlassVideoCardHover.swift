@@ -28,15 +28,15 @@ private struct YouGlassVideoCardHover: ViewModifier {
             .background {
                 if usesDocumentSpace {
                     YouGlassCardPointerRegion(cardFrame: cardFrame, isHovered: isHovered) { active in
-                        if isHovered != active { isHovered = active }
+                        updateHover(active)
                     }
                 }
             }
             .onContinuousHover { phase in
                 guard !usesDocumentSpace else { return }
                 switch phase {
-                case .active: isHovered = true
-                case .ended: isHovered = false
+                case .active: updateHover(true)
+                case .ended: updateHover(false)
                 }
             }
             .task(id: isHovered ? videoID : nil) {
@@ -48,6 +48,14 @@ private struct YouGlassVideoCardHover: ViewModifier {
                 prewarm()
             }
             .onDisappear { isHovered = false }
+    }
+
+    private func updateHover(_ active: Bool) {
+        guard isHovered != active else { return }
+        // Pointer feedback must not inherit card or feed transition animations.
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { isHovered = active }
     }
 }
 

@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — atomic hover feedback
+
+- Shared card hover state now updates in an animation-disabled transaction, so the card highlight, scale, and play badge switch together rather than inheriting the card's 80 ms or a feed transition animation. Both native document tracking and the SwiftUI fallback use the same path.
+- Kept synchronous pointer tracking, stable hit bounds, and the separate 150 ms speculative prewarming dwell unchanged. Network prewarming does not gate the play badge.
+
 ## 2026-09-04 — restore Home header pointer actions
 
 - Bounded the featured image and hero interaction shapes to their visible frames. Pixel clipping alone allowed the scaled-to-fill image to intercept pointer input over the Home shortcuts and Custom Feed strip. The decorative hero border no longer participates in hit testing.
