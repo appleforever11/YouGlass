@@ -10,7 +10,7 @@ extension YouTubeHomeView {
             // available height without giving the user a reliable way to
             // reach the lower recommendation rows on smaller displays.
             homeRefreshContainer {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 16) {
                     if store.selectedSection == "Home" {
                         HomeDashboardHeader(palette: palette, compact: compact)
                     } else if store.selectedSection != "Library" {

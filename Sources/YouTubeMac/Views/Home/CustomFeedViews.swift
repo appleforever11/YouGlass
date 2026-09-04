@@ -5,7 +5,7 @@ struct CustomFeedStripView: View {
     let palette: Palette
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 10) {
                 Image(systemName: "wand.and.stars")
                     .foregroundStyle(palette.accent)
@@ -58,7 +58,7 @@ struct CustomFeedStripView: View {
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(isSelected ? palette.text : palette.secondaryText)
                                 .padding(.horizontal, 11)
-                                .padding(.vertical, 8)
+                                .padding(.vertical, 5)
                                 .background(
                                     isSelected ? palette.selected : palette.search,
                                     in: Capsule()
@@ -87,7 +87,8 @@ struct CustomFeedStripView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(palette.card.opacity(palette.isDark ? 0.62 : 0.70), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
         .overlay {

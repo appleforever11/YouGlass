@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — preview-first Home spacing
+
+- Replaced the large welcome banner, decorative icon, and tall shortcut tiles with a compact Home heading and inline shortcuts (with a narrow-width fallback).
+- Preserved Custom Feed creation, prompts, saved feed chips, selection, editing, and deletion. Tightened panel padding/chip spacing and reduced page section spacing from 28 to 16 points so the video preview appears much higher.
+- No feed, playback, credential, or hover behavior changes. All 69 tests and the signed build/launch workflow passed. Computer Use confirmed the compact header, both saved prompt-feed chips, full preview, and beginning of For You visible together at the top of the rebuilt Home window.
+
 ## 2026-09-04 — native card pointer tracking
 
 - User confirmed the immediate-animation patch still missed hover transitions. Replaced SwiftUI `onContinuousHover` in the shared card modifier with `YouGlassCardPointerRegion`, an AppKit visible-rect tracking region at the unscaled button boundary.
