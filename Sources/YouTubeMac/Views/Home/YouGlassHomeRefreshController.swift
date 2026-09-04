@@ -138,19 +138,49 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
             }
         }
 
+        private func scrollToTop(in scrollView: NSScrollView) {
+            guard let documentView = scrollView.documentView else { return }
+
+            let topY: CGFloat
+            if documentView.isFlipped {
+                topY = 0
+            } else {
+                topY = max(
+                    0,
+                    documentView.bounds.height - scrollView.contentView.bounds.height
+                )
+            }
+
+            scrollView.contentView.scroll(to: NSPoint(x: 0, y: topY))
+            scrollView.reflectScrolledClipView(scrollView.contentView)
+        }
+
+        private func finishRefresh() {
+            guard let scrollView = refreshScrollView else { return }
+
+            if #available(macOS 27.0, *), let controller = refreshController as? NSRefreshController {
+                controller.endRefreshing()
+            }
+            scrollToTop(in: scrollView)
+
+            // AppKit finishes its refresh animation on the next run loop. A
+            // second top anchor prevents that animation from leaving the
+            // document in the pulled state, which otherwise keeps the
+            // indicator visible until the next user scroll.
+            DispatchQueue.main.async { [weak self, weak scrollView] in
+                guard let self, let scrollView else { return }
+                self.scrollToTop(in: scrollView)
+            }
+        }
+
         @objc
         private func handleRefresh(_ sender: AnyObject?) {
             Task { @MainActor [weak self] in
                 guard let self else {
-                    if #available(macOS 27.0, *), let controller = sender as? NSRefreshController {
-                        controller.endRefreshing()
-                    }
                     return
                 }
                 await self.refreshAction()
-                if #available(macOS 27.0, *), let controller = sender as? NSRefreshController {
-                    controller.endRefreshing()
-                }
+                self.finishRefresh()
             }
         }
     }

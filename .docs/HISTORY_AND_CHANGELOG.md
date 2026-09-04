@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-03 — finish Home pull-to-refresh at the top
+
+- Corrected native Home refresh completion so the retained AppKit controller is explicitly ended after the async feed load and the document clip view is re-anchored at the top. A next-run-loop top anchor covers the macOS refresh animation that could otherwise leave the indicator visibly spinning until the next scroll.
+- Validated with a full async pull refresh: the Home status returned to connected, recommendations updated, and the indicator was absent while the document remained at the top.
+
 ## 2026-09-03 — add Home pull-to-refresh
 
 - Added a Home pull-to-refresh bridge. On macOS 27+, AppKit's native `NSRefreshController` is attached to the existing single Home scroll owner; older systems use SwiftUI's `.refreshable` fallback. Pulling or dragging down at the top of Home runs the existing forced refresh path and its quota-safe manual-refresh floor.
