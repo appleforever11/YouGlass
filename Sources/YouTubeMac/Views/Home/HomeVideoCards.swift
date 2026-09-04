@@ -126,6 +126,7 @@ struct VideoCard: View {
                             .opacity(isHovered ? 1 : 0)
                             .scaleEffect(isHovered ? 1 : 0.82)
                             .allowsHitTesting(false)
+                            .transaction { $0.animation = nil }
 
                         if !video.duration.isEmpty {
                             Text(video.duration)
@@ -140,7 +141,6 @@ struct VideoCard: View {
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                .videoThumbnailParallax()
                 .overlay {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .stroke(store.ambientPalette.primary.color.opacity(0.26), lineWidth: 1)
@@ -184,13 +184,11 @@ struct VideoCard: View {
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .buttonStyle(.plain)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            guard isHovered != hovering else { return }
-            isHovered = hovering
-            if hovering { store.prewarmPlayback(for: video) }
+        .videoCardHover(isHovered: $isHovered, videoID: video.id) {
+            store.prewarmPlayback(for: video)
         }
         .shadow(color: isHovered ? .black.opacity(palette.isDark ? 0.30 : 0.10) : .clear, radius: 14, y: 7)
-        .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: isHovered)
+        .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.08), value: isHovered)
         .accessibilityLabel("\(video.title), by \(video.channel)")
         .accessibilityHint("Open in the YouGlass player. Use the context menu to save or queue this video.")
         .contextMenu {

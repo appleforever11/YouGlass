@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — immediate card hover feedback
+
+- Home video cards and Continue Watching share `YouGlassVideoCardHover`: continuous pointer activity repairs hover state, duplicate state writes are suppressed, and disappearing cards clear their state.
+- Play badges bypass inherited animation, decorative card feedback is shortened from 160 ms to 80 ms, and regular cards no longer run a second thumbnail hover/parallax animation.
+- Prewarming waits for a cancellable 150 ms dwell instead of starting work for every card crossed during a pointer sweep. Playback actions and player/PIP controls are unchanged.
+- Validation: all 66 tests passed; `./script/build_and_run.sh --verify` passed; inspected the rebuilt Home grid in Computer Use. Rapid pointer-sweep timing remains a manual QA item because the available native UI control surface does not expose pointer movement without another action.
+
 ## 2026-09-04 — bold Home and Library redesign
 
 - Saved a local source/app restore point before implementing the user-selected bold visual direction.

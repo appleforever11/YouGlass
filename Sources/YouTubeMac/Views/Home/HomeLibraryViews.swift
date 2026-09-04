@@ -83,6 +83,7 @@ struct ContinueWatchingCard: View {
                         .opacity(isHovered ? 1 : 0)
                         .scaleEffect(isHovered ? 1 : 0.82)
                         .allowsHitTesting(false)
+                        .transaction { $0.animation = nil }
 
                     if store.hasResumeCheckpoint(for: video.id) {
                         GeometryReader { geometry in
@@ -127,13 +128,11 @@ struct ContinueWatchingCard: View {
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
-        .onHover { hovering in
-            guard isHovered != hovering else { return }
-            isHovered = hovering
-            if hovering { store.prewarmPlayback(for: video) }
+        .videoCardHover(isHovered: $isHovered, videoID: video.id) {
+            store.prewarmPlayback(for: video)
         }
         .shadow(color: isHovered ? .black.opacity(palette.isDark ? 0.30 : 0.10) : .clear, radius: 14, y: 7)
-        .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.16), value: isHovered)
+        .animation(accessibilityReduceMotion ? nil : .easeOut(duration: 0.08), value: isHovered)
         .accessibilityLabel("Resume \(video.title) from \(resumeLabel)")
         .contextMenu {
             Button("Remove from Continue Watching") {
