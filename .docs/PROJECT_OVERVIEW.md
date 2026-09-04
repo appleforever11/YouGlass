@@ -22,6 +22,8 @@ The repository is a SwiftPM executable package. The product is `YouGlass`; the e
 
 The main app uses a `WindowGroup` with a shell/sidebar and content surface. The app exposes a separate `Settings` scene with a native sidebar/detail layout. Settings pages are selected by `YouGlassSettingsPage` and rendered by `YouGlassSettingsView`.
 
+Home also includes a native Custom Feeds layer. Users can save up to eight local prompt definitions, inspect the interpreted scope, and retrieve fresh results through the existing YouTube API/OAuth/Atom boundaries. The default prompt parser is local and deterministic; candidate results remain transient, and the global Shorts exclusion still applies.
+
 The Appearance page contains:
 
 - a page header;

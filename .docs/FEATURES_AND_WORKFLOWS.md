@@ -54,6 +54,16 @@ The Theme Center now contains 24 selectable environment families. The original t
 
 Each family exposes a stable title, subtitle, SF Symbol, collection, and optional NEW/FEATURED badge. Appearance adds a collection menu, case-insensitive search over the title/subtitle/collection, a matching-result count, an empty state, and a Surprise me action. These controls only filter or choose the catalog; the store continues to persist the selected `visualTheme` through the existing preference key.
 
+## 10. Native Custom Feeds
+
+Home exposes a Custom Feeds strip beside the normal recommendation surfaces. A user can describe a feed in a sentence, optionally provide a name, and save up to eight feed definitions. Saved definitions contain only the bounded prompt, its interpreted intent, and creation/update dates; video candidates are fetched and ranked at runtime and are not persisted as a second feed cache.
+
+`Models/CustomFeedModels.swift` keeps the interpretation deterministic and testable. It extracts a search query, subscription-only scope, recency window, duration preference, and the always-on Shorts exclusion. `YouGlassCustomFeedRanker` applies those constraints before reusing `RecommendationRanker` for subscription, history, saved, local-like, freshness, and channel-diversity signals. Unknown duration or age metadata remains eligible so a sparse API response does not make the surface unusable.
+
+`Stores/YouTubeStoreCustomFeeds.swift` owns selection, cancellation/generation checks, persistence, and retrieval. API-key or OAuth sessions use the existing Data API search client with the deliberate-refresh cache bypass; subscription-scoped feeds also use the quota-light Atom channel client. API-less installs use the existing signed-in web search fallback when enabled and otherwise rank the local catalog. The result surface is `Views/Home/CustomFeedViews.swift`, with create/edit/delete actions available from the Home toolbar, command palette, chip context menus, and the focused feed detail.
+
+This is intentionally not a clone of YouTube's private experimental Custom Feed ranking. No documented Data API resource exposes that prompt-based feed, and no AI service is required for the native MVP. An AI interpreter can be added later only as an explicit opt-in enhancement with separately managed runtime credentials; it must not move prompts or API keys into source, UserDefaults, diagnostics, Git, or Sparkle artifacts.
+
 The approved YouGlass 2.0 Glass Prism artwork is packaged in the Icon Composer resource, the fallback ICNS, and the source preview PNG. Unrelated legacy artwork is not part of the YouGlass resource set.
 
 ## Validation checklist

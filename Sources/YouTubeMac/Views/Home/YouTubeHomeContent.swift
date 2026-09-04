@@ -17,11 +17,19 @@ extension YouTubeHomeView {
                             .padding(.top, 6)
                     }
 
+                    if store.selectedSection == "Home" {
+                        CustomFeedStripView(palette: palette)
+                            .environmentObject(store)
+                    }
+
                     if store.selectedSection == "Library" {
                         PersonalLibraryView(palette: palette, compact: compact)
                             .environmentObject(store)
                     } else if store.selectedSection == "Search" {
                         SearchContentView(store: store, palette: palette, compact: compact)
+                    } else if store.selectedCustomFeed != nil {
+                        CustomFeedDetailView(palette: palette, compact: compact)
+                            .environmentObject(store)
                     } else if let message = store.sectionEmptyMessage {
                         HomeSectionEmptyState(
                             title: store.selectedSection,
@@ -180,6 +188,14 @@ extension YouTubeHomeView {
             .accessibilityLabel("Open command palette")
             .help("Command palette (⌘K)")
 
+            Button(action: store.presentNewCustomFeedComposer) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .buttonStyle(IconButtonStyle(palette: palette))
+            .accessibilityLabel("Create a custom feed")
+            .help("Create a custom feed")
+
             Spacer(minLength: minimal ? 4 : (compact ? 6 : 12))
 
             if minimal {
@@ -193,7 +209,11 @@ extension YouTubeHomeView {
             }
 
             Button {
-                Task { await store.loadHome(force: true) }
+                if store.selectedCustomFeed != nil {
+                    store.refreshSelectedCustomFeed()
+                } else {
+                    Task { await store.loadHome(force: true) }
+                }
             } label: {
                 if store.isLoading {
                     ProgressView()
@@ -206,7 +226,7 @@ extension YouTubeHomeView {
             .buttonStyle(IconButtonStyle(palette: palette))
             .accessibilityLabel("Refresh recommendations")
             .help("Refresh recommendations")
-            .disabled(store.isLoading)
+            .disabled(store.isLoading || store.customFeedLoading)
 
             SettingsLink {
                 Image(systemName: "gearshape")

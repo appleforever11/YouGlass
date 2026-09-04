@@ -125,5 +125,15 @@ struct YouTubeHomeView: View {
         .onChange(of: store.selectedVideo?.id) { _, _ in
             compactDragOffset = .zero
         }
+        .sheet(isPresented: Binding(
+            get: { store.customFeedComposerPresented },
+            set: { store.customFeedComposerPresented = $0 }
+        )) {
+            CustomFeedComposerView(
+                palette: palette,
+                feed: store.editingCustomFeed
+            )
+            .environmentObject(store)
+        }
     }
 }

@@ -156,6 +156,8 @@ extension YouTubeStore {
             feedLastRefreshedDate = nil
             cachedAccountSignalVideos = []
             lastHomeLoadDate = nil
+            customFeedVideos = []
+            customFeedMessage = nil
             feed = VideoItem.loadingFeed
             sectionEmptyMessage = nil
             connectionMessage = "Cached recommendation data cleared"

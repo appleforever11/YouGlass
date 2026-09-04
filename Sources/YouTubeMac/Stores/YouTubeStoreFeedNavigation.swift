@@ -90,6 +90,7 @@ extension YouTubeStore {
             selectedPlaylist = nil
             playlistItems = []
             playlistError = nil
+            clearSelectedCustomFeed()
             selectedSection = title
             self.query = query ?? (title == "Home" ? "" : self.query)
             sectionEmptyMessage = nil

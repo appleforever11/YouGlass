@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-03 — add native prompt-driven Custom Feeds
+
+- Added a deterministic local prompt interpreter for topic keywords, subscription-only scope, recency, duration, and the always-on Shorts exclusion. The parser and custom-feed ranker are pure model-layer code with XCTest coverage.
+- Added a bounded store flow for creating, editing, selecting, refreshing, and deleting up to eight feed definitions. Only the prompt, interpreted intent, and timestamps persist in UserDefaults; candidate videos remain transient and use the existing Data API, Atom channel, signed-in web fallback, and local catalog boundaries.
+- Added the Home Custom Feeds strip, focused results surface, composer sheet, toolbar action, command-palette action, and context-menu management. This native MVP does not require an AI API and does not pretend YouTube's private experimental feed endpoint is public.
+- Validation: the targeted ModelsTests workflow and full `./script/test.sh` workflow pass with 40 and 63 tests respectively, both with 0 failures. The rebuilt signed staged bundle passed strict code-signature verification. Computer Use confirmed the Home Custom Feeds strip, composer interpretation, saved feed selection, 24 transient results, and the filtered command-palette `Create Custom Feed` action reopening the composer.
+
 ## 2026-08-31 — improve Home recommendation freshness and rotation
 
 - Kept the automatic foreground refresh at a quota-safe one-minute cadence, added a 15-second manual-refresh safety throttle, and made deliberate API-backed refreshes bypass the short-lived response cache.

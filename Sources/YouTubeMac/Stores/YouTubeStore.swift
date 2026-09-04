@@ -67,6 +67,13 @@ final class YouTubeStore: ObservableObject {
     @Published var feedLastRefreshedDate: Date?
     @Published var accountSyncInProgress = false
     @Published var accountSyncStatus: String?
+    @Published var customFeeds: [YouGlassCustomFeed] = []
+    @Published var selectedCustomFeedID: UUID?
+    @Published var customFeedVideos: [VideoItem] = []
+    @Published var customFeedLoading = false
+    @Published var customFeedMessage: String?
+    @Published var customFeedComposerPresented = false
+    @Published var editingCustomFeedID: UUID?
 
     var client = YouTubeAPIClient()
     let oauth = YouTubeOAuthClient.shared
@@ -112,6 +119,8 @@ final class YouTubeStore: ObservableObject {
     let defaults = UserDefaults.standard
     let playbackLogger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")
     var excludedShortFormIDs: Set<String> = []
+    var customFeedTask: Task<Void, Never>?
+    var customFeedGeneration = 0
 
     var isDesktopPIPTransitioning: Bool {
         pipTransitionState.isTransitioning
@@ -149,6 +158,7 @@ final class YouTubeStore: ObservableObject {
         }
         recommendationSeeds = decodeRecommendationSeeds()
         recentlyPresentedRecommendationIDs = decodeRecentlyPresentedRecommendationIDs()
+        customFeeds = decodeCustomFeeds()
         recentlyWatched = decodeVideos(forKey: DefaultsKey.recentlyWatched)
         savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
         locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
@@ -286,5 +296,6 @@ final class YouTubeStore: ObservableObject {
         static let lastAccountSyncDate = "YouGlass.lastAccountSyncDate"
         static let showContinueWatching = "YouGlass.showContinueWatching"
         static let themeCustomization = "YouGlass.themeCustomization"
+        static let customFeeds = "YouGlass.customFeeds"
     }
 }
