@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — simplify expanded-player title treatment
+
+- Replaced the expanded-player title gradient with one solid active-theme accent color and a subtler accent shadow.
+- Strengthened the title hierarchy with black weight, controlled two-line wrapping, reduced line spacing, and limited scaling so long titles remain prominent without becoming cramped. `NOW PLAYING` remains directly beneath the title with quieter accent opacity, while the channel stays tertiary.
+- Preserved the flexible title column, continuous header fade, and fixed rounded control shelf. Validation: `./script/test.sh` passed all 64 tests, `./script/build_and_run.sh --verify` passed, and the rebuilt staged player opened in Computer Use with the solid accent title hierarchy.
+
 ## 2026-09-03 — stabilize Home hover-to-play feedback
 
 - Kept Home card hit targets at their layout bounds while animating only the inner card visuals. Hover play badges remain mounted and ignore pointer events, preventing their appearance or the card scale effect from stealing the next hover transition.

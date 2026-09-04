@@ -189,14 +189,14 @@ enum YouGlassVideoTitlePlacement {
 
     var titleSize: CGFloat {
         switch self {
-        case .header: 22
+        case .header: 23
         case .detail: 25
         }
     }
 
     var titleWeight: Font.Weight {
         switch self {
-        case .header: .heavy
+        case .header: .black
         case .detail: .semibold
         }
     }
@@ -253,10 +253,10 @@ struct YouGlassVideoTitleBlock: View {
     private var titleLabel: some View {
         if placement == .header {
             titleBase
-                .foregroundStyle(titleGradient)
+                .foregroundStyle(palette.accent)
                 .shadow(
-                    color: palette.accent.opacity(palette.isDark ? 0.26 : 0.16),
-                    radius: 5,
+                    color: palette.accent.opacity(palette.isDark ? 0.18 : 0.10),
+                    radius: 3,
                     y: 1
                 )
         } else {
@@ -269,8 +269,9 @@ struct YouGlassVideoTitleBlock: View {
         Text(title)
             .font(.system(size: placement.titleSize, weight: placement.titleWeight, design: .rounded))
             .lineLimit(placement.titleLineLimit)
-            .lineSpacing(placement == .header ? -1 : 2)
-            .minimumScaleFactor(placement == .header ? 0.74 : 0.76)
+            .lineSpacing(placement == .header ? -2 : 2)
+            .minimumScaleFactor(placement == .header ? 0.84 : 0.76)
+            .allowsTightening(placement == .header)
             .fixedSize(horizontal: false, vertical: true)
             .layoutPriority(1)
     }
@@ -280,8 +281,12 @@ struct YouGlassVideoTitleBlock: View {
         if let eyebrow {
             Text(eyebrow.uppercased())
                 .font(.system(size: placement.eyebrowSize, weight: .bold, design: .rounded))
-                .foregroundStyle(placement == .header ? palette.accent : palette.secondaryText)
-                .tracking(placement == .header ? 1.25 : 0)
+                .foregroundStyle(
+                    placement == .header
+                        ? palette.accent.opacity(0.82)
+                        : palette.secondaryText
+                )
+                .tracking(placement == .header ? 1.4 : 0)
         }
     }
 
@@ -293,11 +298,4 @@ struct YouGlassVideoTitleBlock: View {
             .truncationMode(.tail)
     }
 
-    private var titleGradient: LinearGradient {
-        LinearGradient(
-            colors: [palette.pink, palette.purple, palette.accent],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
 }
