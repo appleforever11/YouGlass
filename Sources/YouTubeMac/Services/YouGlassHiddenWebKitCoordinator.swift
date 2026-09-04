@@ -86,10 +86,11 @@ final class YouGlassHiddenWebKitCoordinator {
 actor YouGlassRateLimitState {
     private var blockedUntil = Date.distantPast
 
-    func waitIfBlocked() async {
-        let delay = blockedUntil.timeIntervalSinceNow
-        guard delay > 0 else { return }
-        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+    /// Returns immediately when the shared cooldown is active. A foreground
+    /// feed load should fall back to its cached/local candidates instead of
+    /// parking an API request for the full cooldown window.
+    func isBlocked(now: Date = Date()) -> Bool {
+        blockedUntil > now
     }
 
     func markRateLimited(cooldown: TimeInterval = 30) {

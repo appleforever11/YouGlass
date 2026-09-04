@@ -68,6 +68,43 @@ struct SafariHomeFeedClient: Sendable {
         }
     }
 
+    func loadFeed(
+        channels: [Channel],
+        maxResultsPerChannel: Int = 5,
+        timeout: TimeInterval
+    ) async -> [VideoItem] {
+        guard timeout.isFinite, timeout > 0 else { return [] }
+
+        return await withTaskGroup(of: TimedFeedResult.self, returning: [VideoItem].self) { group in
+            group.addTask {
+                .videos(await self.loadFeed(
+                    channels: channels,
+                    maxResultsPerChannel: maxResultsPerChannel
+                ))
+            }
+            group.addTask {
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    return .timedOut
+                } catch {
+                    return .cancelled
+                }
+            }
+
+            guard let result = await group.next() else {
+                group.cancelAll()
+                return []
+            }
+            group.cancelAll()
+            switch result {
+            case .videos(let videos):
+                return videos
+            case .timedOut, .cancelled:
+                return []
+            }
+        }
+    }
+
     func loadChannelPage(
         for subscription: SubscriptionItem,
         maxResults: Int = 30
@@ -212,6 +249,12 @@ struct SafariHomeFeedClient: Sendable {
         if seconds < 604800 { return "\(max(1, Int(seconds / 86400)))d ago" }
         return date.formatted(.dateTime.month(.abbreviated).day())
     }
+}
+
+private enum TimedFeedResult {
+    case videos([VideoItem])
+    case timedOut
+    case cancelled
 }
 
 private final class AtomFeedParser: NSObject, XMLParserDelegate {

@@ -510,10 +510,27 @@ final class ModelsTests: XCTestCase {
         XCTAssertEqual(YouGlassFeedRefreshPolicy.manualRefreshMinimumInterval, 15)
         XCTAssertEqual(YouGlassFeedRefreshPolicy.accountSignalRefreshInterval, 90)
         XCTAssertEqual(YouGlassFeedRefreshPolicy.subscriptionRefreshInterval, 5 * 60)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.homeSubscriptionChannelLimit, 12)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.homeSubscriptionVideosPerChannel, 2)
+        XCTAssertEqual(YouGlassFeedRefreshPolicy.homeSubscriptionFeedTimeout, 4)
         XCTAssertLessThan(
             YouGlassFeedRefreshPolicy.activeRefreshInterval,
             YouGlassFeedRefreshPolicy.subscriptionRefreshInterval
         )
+    }
+
+    func testRateLimitStateReportsCooldownWithoutSleeping() async {
+        let state = YouGlassRateLimitState()
+        let now = Date()
+
+        let initiallyBlocked = await state.isBlocked(now: now)
+        XCTAssertFalse(initiallyBlocked)
+        await state.markRateLimited(cooldown: 30)
+        let blocked = await state.isBlocked(now: now)
+        XCTAssertTrue(blocked)
+        await state.reset()
+        let reset = await state.isBlocked()
+        XCTAssertFalse(reset)
     }
 
     func testLoadingFeedDoesNotExposeSampleRecommendations() {

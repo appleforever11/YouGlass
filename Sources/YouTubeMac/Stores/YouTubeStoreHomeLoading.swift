@@ -125,7 +125,25 @@ extension YouTubeStore {
                 // The hidden YouTube homepage can return a Shorts-only public
                 // surface even when the account session is valid. Build the
                 // account feed from the user's actual subscriptions first.
-                await loadSubscriptions(force: force)
+                // A Home refresh should not block on full subscription
+                // pagination when a persisted snapshot is already available.
+                // The account refresh action still forces it, and a stale Home
+                // snapshot is refreshed in the background by the subscription
+                // age policy.
+                let lastSubscriptionRefresh = cachedSubscriptionsUpdatedAt ?? lastAccountSyncDate
+                let needsSubscriptionRefresh = !subscriptionsLoaded
+                    || YouGlassFeedRefreshPolicy.needsRefresh(
+                        lastUpdated: lastSubscriptionRefresh,
+                        now: Date(),
+                        maxAge: YouGlassFeedRefreshPolicy.subscriptionRefreshInterval
+                    )
+                if needsSubscriptionRefresh {
+                    if subscriptions.isEmpty {
+                        await loadSubscriptions(force: force && !subscriptionsLoaded)
+                    } else {
+                        scheduleSubscriptionsLoad(force: false)
+                    }
+                }
                 guard canPublishSectionLoad(sectionGeneration) else { return }
                 let personalized = await personalizedAccountFeed(
                     webHomepageVideos: webResult.isSignedIn ? webResult.videos : [],
@@ -172,42 +190,45 @@ extension YouTubeStore {
                 return
             }
 
-            do {
-                let personalized = await personalizedVideos(maxResults: 12, forceFresh: force)
-                guard canPublishSectionLoad(sectionGeneration) else { return }
-                let accountSignals = await accountSignalVideos(maxResults: 12, forceRefresh: force)
-                guard canPublishSectionLoad(sectionGeneration) else { return }
-                let popular = try await client.mostPopularVideos(maxResults: 8, forceFresh: force)
-                guard canPublishSectionLoad(sectionGeneration) else { return }
-                let appleTech = try await client.searchVideos(
-                    query: "Apple Vision Pro technology creators",
-                    maxResults: 6,
-                    order: "relevance",
-                    videoCategoryId: "28",
-                    forceFresh: force
-                )
-                guard canPublishSectionLoad(sectionGeneration) else { return }
-                let candidates = accountSignals + personalized + popular + appleTech
-                if !applyPrimaryHomeVideos(
-                    candidates,
-                    message: "Recommended by YouTube API account signals",
+            // Start every independent API source together. The request gate
+            // still spaces the individual requests for quota safety, but no
+            // source waits for a previous source to finish before it can
+            // reserve its request slot. Search is intentionally limited to
+            // one seed here; the normal signed-in subscription path already
+            // has fresh RSS and account signals without spending a burst of
+            // expensive search requests.
+            async let personalized = personalizedVideos(
+                maxResults: 12,
+                forceFresh: force,
+                seedLimit: 1
+            )
+            async let accountSignals = accountSignalVideos(maxResults: 12, forceRefresh: force)
+            async let popular: [VideoItem] = (try? await client.mostPopularVideos(
+                maxResults: 8,
+                forceFresh: force
+            )) ?? []
+            let (personalizedVideos, accountSignalVideos, popularVideos) = await (
+                personalized,
+                accountSignals,
+                popular
+            )
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            let candidates = accountSignalVideos + personalizedVideos + popularVideos
+            if !applyPrimaryHomeVideos(
+                candidates,
+                message: "Recommended by YouTube API account signals",
+                favorFresh: true
+            ) {
+                _ = applyPrimaryHomeVideos(
+                    popularVideos,
+                    message: "Popular on YouTube",
                     favorFresh: true
-                ) {
-                    _ = applyPrimaryHomeVideos(
-                        popular + appleTech,
-                        message: "Popular on YouTube",
-                        favorFresh: true
-                    )
-                }
-            } catch {
-                guard canPublishSectionLoad(sectionGeneration) else { return }
-                // Keep a cached or signed-in web feed visible when the Data API
-                // project is temporarily rate-limited. Calling search again here
-                // only compounds the quota problem and can replace useful content
-                // with an error state.
+                )
+            }
+            if candidates.isEmpty {
                 connectionMessage = feed.forYou.isEmpty && feed.trending.isEmpty && feed.more.isEmpty
-                    ? error.localizedDescription
-                    : "Using saved recommendations. \(error.localizedDescription)"
+                    ? "Fresh YouTube recommendations are unavailable right now"
+                    : "Using saved recommendations; no fresh items were available"
             }
         }
 }

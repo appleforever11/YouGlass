@@ -62,7 +62,13 @@ extension YouTubeAPIClient {
             do {
                 // Keep bursts from the feed, search, comments, and channel
                 // paths below the quota/rate-limit threshold.
-                await youGlassSharedRateLimitState.waitIfBlocked()
+                if await youGlassSharedRateLimitState.isBlocked() {
+                    throw YouTubeAPIError.httpStatus(
+                        429,
+                        reason: "rateLimitExceeded",
+                        message: "The shared YouTube request cooldown is active."
+                    )
+                }
                 await requestGate.wait(minimumInterval: 0.35)
                 let requestPath = request.url?.path ?? "/"
                 YouGlassDiagnostics.api.debug("YouTube request \(requestPath, privacy: .public)")

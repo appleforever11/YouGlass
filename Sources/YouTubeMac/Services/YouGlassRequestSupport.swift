@@ -141,6 +141,9 @@ enum YouGlassFeedRefreshPolicy {
     static let manualRefreshMinimumInterval: TimeInterval = 15
     static let accountSignalRefreshInterval: TimeInterval = 90
     static let subscriptionRefreshInterval: TimeInterval = 5 * 60
+    static let homeSubscriptionChannelLimit = 12
+    static let homeSubscriptionVideosPerChannel = 2
+    static let homeSubscriptionFeedTimeout: TimeInterval = 4
 
     static func needsRefresh(
         lastUpdated: Date?,

@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-03 — speed up Home feed refresh
+
+- Prevented repeated Home pulls from blocking on a redundant full subscription sync: a persisted subscription snapshot is reused immediately and refreshed in the background when it is missing or outside the five-minute freshness window, while account signals still refresh in the foreground.
+- Bounded signed-in subscription RSS enrichment to twelve channels, two uploads per channel, and four seconds. Subscribed feeds now avoid a burst of expensive search requests and use one recommendation seed only when search is needed as a fallback; independent sources still overlap behind the shared request gate and Shorts filtering.
+- Changed the shared API cooldown to fail fast during YouTube HTTP 429 backoff instead of making each later request sleep for the full 30-second window. Cached/local recommendations therefore remain responsive while YouTube recovers.
+- Validation: the targeted ModelsTests workflow passed with 41 tests and 0 failures; the full `./script/test.sh` workflow passed with 64 tests and 0 failures; `./script/build_and_run.sh --verify` produced the signed staged bundle; Computer Use confirmed a manual Home refresh returned to a non-busy connected state in about one to two seconds of runtime load time and rotated the visible recommendations.
+
 ## 2026-09-03 — finish Home pull-to-refresh at the top
 
 - Corrected native Home refresh completion so the retained AppKit controller is explicitly ended after the async feed load and the document clip view is re-anchored at the top. A next-run-loop top anchor covers the macOS refresh animation that could otherwise leave the indicator visibly spinning until the next scroll.

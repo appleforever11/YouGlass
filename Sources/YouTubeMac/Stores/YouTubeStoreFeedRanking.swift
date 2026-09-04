@@ -14,11 +14,15 @@ extension YouTubeStore {
             }
         }
 
-        func personalizedVideos(maxResults: Int, forceFresh: Bool = false) async -> [VideoItem] {
+        func personalizedVideos(
+            maxResults: Int,
+            forceFresh: Bool = false,
+            seedLimit: Int = 3
+        ) async -> [VideoItem] {
             guard !recommendationSeeds.isEmpty else { return [] }
 
             let results = await withTaskGroup(of: [VideoItem].self, returning: [VideoItem].self) { group in
-                for seed in recommendationSeeds.prefix(3) {
+                for seed in recommendationSeeds.prefix(max(1, seedLimit)) {
                     group.addTask {
                         (try? await self.client.searchVideos(
                             query: seed,
@@ -62,12 +66,17 @@ extension YouTubeStore {
             }
 
             let hasCredentials = await client.hasCredentials()
+            let subscriptionChannels = Array(
+                subscribedChannels.prefix(YouGlassFeedRefreshPolicy.homeSubscriptionChannelLimit)
+            )
+            let needsSearchFallback = subscriptionChannels.isEmpty
             await withTaskGroup(of: [VideoItem].self) { group in
-                if !subscribedChannels.isEmpty {
+                if !subscriptionChannels.isEmpty {
                     group.addTask {
                         await self.safariHomeFeed.loadFeed(
-                            channels: Array(subscribedChannels.prefix(24)),
-                            maxResultsPerChannel: 3
+                            channels: subscriptionChannels,
+                            maxResultsPerChannel: YouGlassFeedRefreshPolicy.homeSubscriptionVideosPerChannel,
+                            timeout: YouGlassFeedRefreshPolicy.homeSubscriptionFeedTimeout
                         )
                     }
                 }
@@ -76,8 +85,14 @@ extension YouTubeStore {
                     group.addTask {
                         await self.accountSignalVideos(maxResults: 16, forceRefresh: forceFresh)
                     }
-                    group.addTask {
-                        await self.personalizedVideos(maxResults: 12, forceFresh: forceFresh)
+                    if needsSearchFallback {
+                        group.addTask {
+                            await self.personalizedVideos(
+                                maxResults: 12,
+                                forceFresh: forceFresh,
+                                seedLimit: 1
+                            )
+                        }
                     }
                     if client.canConnect {
                         group.addTask {
