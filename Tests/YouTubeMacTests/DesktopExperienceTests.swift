@@ -2,6 +2,19 @@ import XCTest
 @testable import YouTubeMac
 
 final class DesktopExperienceTests: XCTestCase {
+    func testLibrarySearchMatchesAcrossTitleAndChannelWithoutChangingOrder() {
+        let videos = (1...4).map(makeVideo)
+        XCTAssertEqual(YouGlassLibrarySearch.videos(matching: "example VIDEO", in: videos).map(\.id), videos.map(\.id))
+        XCTAssertEqual(YouGlassLibrarySearch.videos(matching: "Example 2", in: videos).map(\.id), ["video-2"])
+        XCTAssertTrue(YouGlassLibrarySearch.videos(matching: "missing", in: videos).isEmpty)
+    }
+
+    func testLibrarySearchTreatsWhitespaceAsNoFilter() {
+        let videos = (1...3).map(makeVideo)
+        XCTAssertEqual(YouGlassLibrarySearch.videos(matching: " \n\t ", in: videos), videos)
+        XCTAssertTrue(YouGlassLibrarySearch.videos(matching: "example", in: []).isEmpty)
+    }
+
     func testPlayNextInsertsImmediatelyAfterCurrentQueueCursor() {
         let queue = (1...4).map(makeVideo)
         let inserted = makeVideo(index: 99)

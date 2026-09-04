@@ -2,6 +2,14 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — bold Home and Library redesign
+
+- Saved a local source/app restore point before implementing the user-selected bold visual direction.
+- Replaced the split hero with a cinematic spotlight and dashboard shortcuts; added width-adaptive cards, stronger section hierarchy, and a useful end-of-feed refresh action.
+- Added Library tabs and offline local video search, removed preview caps in dedicated tabs, and corrected navigation scroll retention discovered during runtime QA.
+- Refined Settings branding/group spacing, queue readability/accessibility, and narrow-toolbar actions. Existing player/caption, Keychain, Shorts exclusion, and refresh policies remain unchanged.
+- Validation and remaining QA boundaries are recorded in `OVERHAUL_MILESTONE.md`.
+
 ## 2026-09-04 — simplify expanded-player title treatment
 
 - Replaced the expanded-player title gradient with one solid active-theme accent color and a subtler accent shadow.

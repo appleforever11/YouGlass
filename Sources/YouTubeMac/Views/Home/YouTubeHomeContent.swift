@@ -10,8 +10,10 @@ extension YouTubeHomeView {
             // available height without giving the user a reliable way to
             // reach the lower recommendation rows on smaller displays.
             homeRefreshContainer {
-                VStack(alignment: .leading, spacing: 16) {
-                    if store.selectedSection != "Library" {
+                VStack(alignment: .leading, spacing: 28) {
+                    if store.selectedSection == "Home" {
+                        HomeDashboardHeader(palette: palette, compact: compact)
+                    } else if store.selectedSection != "Library" {
                         Text(store.selectedSection)
                             .font(.system(size: 26, weight: .bold))
                             .padding(.top, 6)
@@ -88,9 +90,16 @@ extension YouTubeHomeView {
                                 showsSeeAll: false
                             )
 
-                            HStack(spacing: 8) {
-                                Image(systemName: "checkmark.circle")
-                                Text("You're all caught up")
+                            VStack(spacing: 10) {
+                                Text("Ready for something different?")
+                                    .font(.headline)
+                                Text("Refresh Home for another mix of videos.")
+                                Button("Discover more") {
+                                    store.showSection("Home")
+                                    Task { await store.loadHome(force: true) }
+                                }
+                                .buttonStyle(.bordered)
+                                .disabled(store.isLoading)
                             }
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(palette.secondaryText)
@@ -104,6 +113,8 @@ extension YouTubeHomeView {
                 // Leave a real, reachable breathing room after the final row.
                 .padding(.bottom, compact ? 72 : 88)
             }
+            // A navigation destination gets a fresh viewport; feed updates do not.
+            .id(store.selectedSection)
         }
         .background {
             ZStack {
@@ -210,13 +221,15 @@ extension YouTubeHomeView {
             .accessibilityLabel("Open command palette")
             .help("Command palette (⌘K)")
 
-            Button(action: store.presentNewCustomFeedComposer) {
-                Image(systemName: "wand.and.stars")
-                    .font(.system(size: 14, weight: .semibold))
+            if !minimal {
+                Button(action: store.presentNewCustomFeedComposer) {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .buttonStyle(IconButtonStyle(palette: palette))
+                .accessibilityLabel("Create a custom feed")
+                .help("Create a custom feed")
             }
-            .buttonStyle(IconButtonStyle(palette: palette))
-            .accessibilityLabel("Create a custom feed")
-            .help("Create a custom feed")
 
             Spacer(minLength: minimal ? 4 : (compact ? 6 : 12))
 
@@ -237,7 +250,7 @@ extension YouTubeHomeView {
                     Task { await store.loadHome(force: true) }
                 }
             } label: {
-                if store.isLoading {
+                if store.isLoading || store.customFeedLoading {
                     ProgressView()
                         .controlSize(.small)
                 } else {
@@ -257,6 +270,25 @@ extension YouTubeHomeView {
             .buttonStyle(IconButtonStyle(palette: palette))
             .accessibilityLabel("YouGlass settings")
             .help("YouGlass settings")
+
+            if minimal {
+                Menu {
+                    Button("Create custom feed", action: store.presentNewCustomFeedComposer)
+                    Button("Notifications") { store.showSection("Notifications") }
+                    Divider()
+                    Picker("Appearance", selection: Binding(
+                        get: { store.theme }, set: { store.setTheme($0) }
+                    )) {
+                        Text("Light").tag(AppTheme.light)
+                        Text("Dark").tag(AppTheme.dark)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .accessibilityLabel("More Home actions")
+            }
 
             if !minimal {
                 Picker("", selection: Binding(

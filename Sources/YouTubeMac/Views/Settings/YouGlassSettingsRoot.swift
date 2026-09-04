@@ -129,17 +129,20 @@ extension YouGlassSettingsView {
             List(selection: $selection) {
                 Section {
                     HStack(spacing: 11) {
-                        SettingsIconBadge(systemName: "play.rectangle.fill", tint: .red, size: 31)
+                        Image(nsImage: NSApp.applicationIconImage)
+                            .resizable()
+                            .frame(width: 42, height: 42)
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 1) {
                             Text("YouGlass")
-                                .font(.headline)
+                                .font(.system(size: 19, weight: .bold, design: .rounded))
                             Text("YouTube for Mac")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(.vertical, 5)
+                    .padding(.vertical, 12)
                     .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 7, trailing: 8))
                     .listRowSeparator(.hidden)
                 }

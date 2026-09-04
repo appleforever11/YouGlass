@@ -1,5 +1,14 @@
 # YouGlass overhaul milestone
 
+## 2026-09-04 — bold browsing redesign
+
+- User selected the bolder redesign direction. Local restore tag: `safety/before-redesign-20260904`, pointing to `7461193`. Source archive and staged app copy: `backups/YouGlass-before-redesign-20260904/`. This backup contains no exported runtime credentials; Keychain and user defaults were not copied or changed by the backup.
+- Home now has a dashboard with Watch Later, Library, and Subscriptions shortcuts, a full-width cinematic spotlight, and adaptive 260-point-minimum video grids. The old hero recommendation rail is removed from presentation only; queue ingestion and autoplay are unchanged.
+- Library provides Overview, Saved, Liked, Collections, and Notes tabs. Dedicated Saved/Liked/Notes tabs show all available items rather than preview caps. Local multiword title/channel search uses `YouGlassLibrarySearch` and preserves catalog order without network calls; unrelated feed candidates are excluded from its input.
+- Card typography, persistent themed surfaces, section headings, metadata separators, Settings branding/grouping, and the player queue surface were refined. Minimal-width Home puts secondary actions in an overflow menu. The empty Library note sheet now has a dismissal action.
+- Runtime QA caught cross-section scroll-position retention; feed viewport identity now follows the navigation section, not changing recommendations.
+- Validation: 66 tests passed; staged signed app build/launch verified. Computer Use confirmed Home in dark/light modes, adaptive cards at a smaller window size, Library tabs and matching local search results, Home-to-Library opening at the top, Settings General and Appearance top alignment, and theme-card access through the scrollbar. Wheel scrolling in Settings was not established by the automation; the scrollbar moved correctly. Queue visual verification was interrupted by concurrent live app interactions, so it remains an explicit follow-up. No remote publication performed.
+
 ## 2026-08-28 — reliability, responsiveness, and recovery baseline
 
 This milestone begins the broad app overhaul requested after the player/settings polish work. It deliberately starts with cross-cutting behavior that can make every surface feel unstable: stale asynchronous loads, unclear connection state, unnecessary image work, and motion that ignores accessibility preferences.

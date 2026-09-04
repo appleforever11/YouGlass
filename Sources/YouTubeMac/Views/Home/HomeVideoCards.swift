@@ -9,13 +9,8 @@ struct VideoRow: View {
     var showsSeeAll: Bool = true
 
     var body: some View {
-        // Four columns match the desktop composition. At compact widths,
-        // two larger cards remain readable instead of allowing an adaptive
-        // grid to create tiny cards and unused phantom columns.
-        let columns = Array(
-            repeating: GridItem(.flexible(minimum: 0), spacing: 18),
-            count: compact ? 2 : 4
-        )
+        // Width, not a shell breakpoint, decides how many readable cards fit.
+        let columns = [GridItem(.adaptive(minimum: 260), spacing: 18)]
 
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
@@ -32,7 +27,7 @@ struct VideoRow: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 8) {
                             Text(title)
-                                .font(.system(size: 19, weight: .bold))
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                             Text("\(videos.count)")
@@ -91,10 +86,10 @@ struct VideoRow: View {
         switch title {
         case "For You": "Fresh picks shaped by your subscriptions and local viewing"
         case "Trending": "Popular videos from the channels and topics you follow"
-        case "More to watch": "A deeper mix from your current recommendation catalog"
+        case "More to watch": "Keep exploring beyond your usual favorites"
         case "Watch Later": "Saved locally and ready when you are"
         case "Liked on this Mac": "Videos you marked as favorites in YouGlass"
-        case "Search results": "Long-form YouTube matches with Shorts removed"
+        case "Search results": "Find your next great watch"
         default: "Videos selected for this collection"
         }
     }
@@ -152,10 +147,10 @@ struct VideoCard: View {
                 }
 
                 Text(video.title)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(palette.text)
                     .lineLimit(2)
-                    .frame(height: 36, alignment: .topLeading)
+                    .frame(height: 40, alignment: .topLeading)
 
                 HStack(spacing: 4) {
                     Text(video.channel)
@@ -169,20 +164,20 @@ struct VideoCard: View {
                 .foregroundStyle(palette.secondaryText)
                 .lineLimit(1)
 
-                Text("\(video.views) • \(video.age)")
+                Text([video.views, video.age].filter { !$0.isEmpty }.joined(separator: " • "))
                     .font(.system(size: 12))
                     .foregroundStyle(palette.secondaryText)
                     .lineLimit(1)
             }
-            .padding(8)
+            .padding(12)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .background {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .fill(isHovered ? palette.card.opacity(palette.isDark ? 0.82 : 0.72) : .clear)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(isHovered ? palette.selected : palette.card.opacity(0.72))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                    .stroke(isHovered ? palette.stroke : .clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .stroke(isHovered ? palette.accent.opacity(0.65) : palette.stroke.opacity(0.5), lineWidth: 1)
             }
             .scaleEffect(accessibilityReduceMotion ? 1 : (isHovered ? 1.012 : 1))
         }

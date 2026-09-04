@@ -31,16 +31,16 @@ struct YouGlassSettingsGroup<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.title3.weight(.bold))
+                .font(.system(size: 19, weight: .bold, design: .rounded))
                 .padding(.horizontal, 2)
 
             VStack(alignment: .leading, spacing: 14) {
                 content()
             }
-            .padding(16)
-            .background(background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(20)
+            .background(background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(.quaternary, lineWidth: 1)
             }
 

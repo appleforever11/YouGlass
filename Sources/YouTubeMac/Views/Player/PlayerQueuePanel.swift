@@ -10,9 +10,14 @@ struct PlayerQueuePanel: View {
                 Image(systemName: "list.bullet.rectangle.portrait")
                     .foregroundStyle(palette.accent)
                 Text("Queue")
-                    .font(.headline)
+                    .font(.system(size: 21, weight: .bold, design: .rounded))
+                Text("\(store.playbackQueue.count)")
+                    .font(.caption.weight(.bold))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(palette.selected, in: Capsule())
                 Spacer()
-                Button("Clear") {
+                Button("Keep current") {
                     store.clearPlaybackQueue()
                 }
                 .buttonStyle(.plain)
@@ -30,7 +35,10 @@ struct PlayerQueuePanel: View {
             )
             .font(.caption)
 
-            Divider()
+            Text("Select a video to jump ahead. Add more from any video card.")
+                .font(.caption)
+                .foregroundStyle(palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
 
             if store.playbackQueue.isEmpty {
                 Text("Your queue is empty")
@@ -49,10 +57,10 @@ struct PlayerQueuePanel: View {
             }
         }
         .padding(14)
-        .frame(width: 300, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(width: 320, alignment: .leading)
+        .background(palette.window, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(palette.stroke, lineWidth: 1)
         }
         .shadow(color: .black.opacity(0.28), radius: 18, y: 8)
@@ -81,6 +89,11 @@ struct PlayerQueuePanel: View {
                             .font(.caption2)
                             .foregroundStyle(palette.secondaryText)
                             .lineLimit(1)
+                        if isCurrent {
+                            Text("NOW PLAYING")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(palette.accent)
+                        }
                     }
                     Spacer(minLength: 0)
                     if isCurrent {
@@ -100,7 +113,7 @@ struct PlayerQueuePanel: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Remove (video.title) from queue")
+            .accessibilityLabel("Remove \(video.title) from queue")
         }
         .padding(6)
         .background(isCurrent ? palette.selected : palette.queueCard, in: RoundedRectangle(cornerRadius: 10, style: .continuous))

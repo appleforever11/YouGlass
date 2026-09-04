@@ -6,10 +6,7 @@ struct ContinueWatchingRow: View {
     let compact: Bool
 
     var body: some View {
-        let columns = Array(
-            repeating: GridItem(.flexible(minimum: 0), spacing: 18),
-            count: compact ? 2 : 4
-        )
+        let columns = [GridItem(.adaptive(minimum: 260), spacing: 18)]
 
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 9) {
@@ -26,7 +23,7 @@ struct ContinueWatchingRow: View {
                             .padding(.vertical, 2)
                             .background(palette.pill, in: Capsule())
                     }
-                    Text("Resume only videos with a real local playback checkpoint")
+                    Text("Pick up right where you left off")
                         .font(.caption)
                         .foregroundStyle(palette.secondaryText)
                         .lineLimit(1)
@@ -164,81 +161,129 @@ struct PersonalLibraryView: View {
     @State private var showingNewCollection = false
     @State private var newCollectionName = ""
     @State private var showingNewNote = false
+    @State private var librarySection = "Overview"
+    @State private var libraryQuery = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Your Library")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
                     Text("Local collections, notes, and playback history stay available even when YouTube is offline.")
                         .font(.subheadline)
                         .foregroundStyle(palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 12)
-                Button {
-                    showingNewNote = true
-                } label: {
-                    Label("New note", systemImage: "note.text.badge.plus")
+                HStack(spacing: 12) {
+                    Button {
+                        showingNewNote = true
+                    } label: {
+                        Label("New note", systemImage: "note.text.badge.plus")
+                    }
+                    .buttonStyle(.bordered)
+                    Button {
+                        newCollectionName = ""
+                        showingNewCollection = true
+                    } label: {
+                        Label("New collection", systemImage: "folder.badge.plus")
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.bordered)
-                Button {
-                    newCollectionName = ""
-                    showingNewCollection = true
-                } label: {
-                    Label("New collection", systemImage: "folder.badge.plus")
+            }
+            .padding(.top, 20)
+
+            Picker("Library section", selection: $librarySection) {
+                ForEach(["Overview", "Saved", "Liked", "Collections", "Notes"], id: \.self) {
+                    Text($0).tag($0)
                 }
-                .buttonStyle(.borderedProminent)
             }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("library-section-picker")
 
-            if store.showContinueWatching, !store.continueWatching.isEmpty {
-                ContinueWatchingRow(palette: palette, compact: compact)
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundStyle(palette.secondaryText)
+                TextField("Find a video in your library", text: $libraryQuery)
+                    .textFieldStyle(.plain)
+                    .accessibilityLabel("Search local library")
+                if !libraryQuery.isEmpty {
+                    Button { libraryQuery = "" } label: { Image(systemName: "xmark.circle.fill") }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear library search")
+                }
             }
+            .padding(12)
+            .background(palette.search, in: RoundedRectangle(cornerRadius: 12))
 
-            if !store.savedVideos.isEmpty {
-                VideoRow(
-                    title: "Watch Later",
-                    videos: Array(store.savedVideos.prefix(8)),
-                    palette: palette,
-                    compact: compact,
-                    showsSeeAll: false
-                )
-            }
-
-            if !store.locallyLikedVideos.isEmpty {
-                VideoRow(
-                    title: "Liked on this Mac",
-                    videos: Array(store.locallyLikedVideos.prefix(8)),
-                    palette: palette,
-                    compact: compact,
-                    showsSeeAll: false
-                )
-            }
-
-            if !store.customCollections.isEmpty {
-                collectionsSection
-            }
-
-            notesSection
-
-            if store.savedVideos.isEmpty,
-               store.locallyLikedVideos.isEmpty,
-               store.customCollections.isEmpty,
-               store.videoNotes.isEmpty,
-               store.continueWatching.isEmpty {
-                VStack(spacing: 10) {
-                    Image(systemName: "books.vertical")
-                        .font(.system(size: 30))
+            if !libraryQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                let matches = YouGlassLibrarySearch.videos(matching: libraryQuery, in: personalVideos)
+                if matches.isEmpty {
+                    Text("No videos in your library match “\(libraryQuery)”.")
                         .foregroundStyle(palette.secondaryText)
-                    Text("Your library is ready")
-                        .font(.headline)
-                    Text("Save a video, create a collection, or add a note while watching.")
-                        .font(.subheadline)
-                        .foregroundStyle(palette.secondaryText)
-                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity, minHeight: 140)
+                } else {
+                    VideoRow(title: "In your library", videos: matches, palette: palette, compact: compact, showsSeeAll: false)
                 }
-                .frame(maxWidth: .infinity, minHeight: 180)
+            } else {
+
+                if librarySection == "Overview", store.showContinueWatching, !store.continueWatching.isEmpty {
+                    ContinueWatchingRow(palette: palette, compact: compact)
+                }
+
+                if librarySection == "Overview" || librarySection == "Saved", !store.savedVideos.isEmpty {
+                    VideoRow(
+                        title: "Watch Later",
+                        videos: librarySection == "Saved" ? store.savedVideos : Array(store.savedVideos.prefix(8)),
+                        palette: palette,
+                        compact: compact,
+                        showsSeeAll: false
+                    )
+                }
+
+                if librarySection == "Overview" || librarySection == "Liked", !store.locallyLikedVideos.isEmpty {
+                    VideoRow(
+                        title: "Liked on this Mac",
+                        videos: librarySection == "Liked" ? store.locallyLikedVideos : Array(store.locallyLikedVideos.prefix(8)),
+                        palette: palette,
+                        compact: compact,
+                        showsSeeAll: false
+                    )
+                }
+
+                if librarySection == "Overview" || librarySection == "Collections", !store.customCollections.isEmpty {
+                    collectionsSection
+                }
+
+                if librarySection == "Overview" || librarySection == "Notes" {
+                    notesSection
+                }
+
+                if (librarySection == "Saved" && store.savedVideos.isEmpty)
+                    || (librarySection == "Liked" && store.locallyLikedVideos.isEmpty)
+                    || (librarySection == "Collections" && store.customCollections.isEmpty) {
+                    Text("Nothing here yet. Save a video, like a video, or create your first collection.")
+                        .foregroundStyle(palette.secondaryText)
+                        .frame(maxWidth: .infinity, minHeight: 140)
+                }
+
+                if store.savedVideos.isEmpty,
+                   store.locallyLikedVideos.isEmpty,
+                   store.customCollections.isEmpty,
+                   store.videoNotes.isEmpty,
+                   store.continueWatching.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "books.vertical")
+                            .font(.system(size: 30))
+                            .foregroundStyle(palette.secondaryText)
+                        Text("Your library is ready")
+                            .font(.headline)
+                        Text("Save a video, create a collection, or add a note while watching.")
+                            .font(.subheadline)
+                            .foregroundStyle(palette.secondaryText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -255,6 +300,13 @@ struct PersonalLibraryView: View {
             LibraryNoteSheet(palette: palette)
                 .environmentObject(store)
         }
+    }
+
+    private var personalVideos: [VideoItem] {
+        let ids = Set((store.recentlyWatched + store.savedVideos + store.locallyLikedVideos + store.playbackQueue).map(\.id))
+            .union(store.customCollections.flatMap(\.videoIDs))
+            .union(store.videoNotes.map(\.videoID))
+        return store.libraryVideoCatalog.filter { ids.contains($0.id) }
     }
 
     private var collectionsSection: some View {
@@ -319,7 +371,7 @@ struct PersonalLibraryView: View {
                     .font(.subheadline)
                     .foregroundStyle(palette.secondaryText)
             } else {
-                ForEach(Array(store.videoNotes.prefix(12))) { note in
+                ForEach(librarySection == "Notes" ? store.videoNotes : Array(store.videoNotes.prefix(12))) { note in
                     let video = store.libraryVideoCatalog.first { $0.id == note.videoID }
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "note.text")
@@ -372,6 +424,7 @@ struct LibraryNoteSheet: View {
             if videos.isEmpty {
                 Text("Watch or save a video first, then you can attach a note to it.")
                     .foregroundStyle(palette.secondaryText)
+                Button("Done") { dismiss() }
             } else {
                 Picker("Video", selection: $selectedVideoID) {
                     ForEach(videos) { video in
