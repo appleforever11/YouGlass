@@ -53,6 +53,7 @@ struct YouTubeHomeView: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         } else {
                             mainContent(compact: compactContent)
+                                .disabled(fullPlayerPresented)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                         }
 

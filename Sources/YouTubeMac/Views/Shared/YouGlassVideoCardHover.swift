@@ -18,6 +18,7 @@ private struct YouGlassVideoCardHover: ViewModifier {
     let prewarm: () -> Void
     @State private var cardFrame: CGRect = .zero
     @Environment(\.cardPointerUsesDocumentSpace) private var usesDocumentSpace
+    @Environment(\.isEnabled) private var isEnabled
 
     func body(content: Content) -> some View {
         let documentSpace = usesDocumentSpace
@@ -26,28 +27,31 @@ private struct YouGlassVideoCardHover: ViewModifier {
                 $0.frame(in: documentSpace ? .named("youglass-card-document") : .global)
             } action: { cardFrame = $0 }
             .background {
-                if usesDocumentSpace {
+                if usesDocumentSpace && isEnabled {
                     YouGlassCardPointerRegion(cardFrame: cardFrame, isHovered: isHovered) { active in
                         updateHover(active)
                     }
                 }
             }
             .onContinuousHover { phase in
-                guard !usesDocumentSpace else { return }
+                guard !usesDocumentSpace, isEnabled else { return }
                 switch phase {
                 case .active: updateHover(true)
                 case .ended: updateHover(false)
                 }
             }
-            .task(id: isHovered ? videoID : nil) {
-                guard isHovered else { return }
+            .task(id: isHovered && isEnabled ? videoID : nil) {
+                guard isHovered, isEnabled else { return }
                 do {
                     try await Task.sleep(for: .milliseconds(150))
                 } catch { return }
-                guard !Task.isCancelled, isHovered else { return }
+                guard !Task.isCancelled, isHovered, isEnabled else { return }
                 prewarm()
             }
             .onDisappear { isHovered = false }
+            .onChange(of: isEnabled) { _, enabled in
+                if !enabled { updateHover(false) }
+            }
     }
 
     private func updateHover(_ active: Bool) {

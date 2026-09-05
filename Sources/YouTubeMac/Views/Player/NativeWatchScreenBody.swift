@@ -220,24 +220,13 @@ extension NativeWatchScreen {
                 )
                 store.setAmbientPalette(playbackController.ambientPalette)
             }
-            .onChange(of: playbackController.ambientPalette) { _, nextPalette in
-                store.setAmbientPalette(nextPalette)
-            }
-            .onChange(of: playbackController.currentTime) { _, _ in
-                syncNativeNowPlaying()
-            }
-            .onChange(of: playbackController.duration) { _, _ in
-                syncNativeNowPlaying()
-            }
-            .onChange(of: playbackController.isPlaying) { _, _ in
-                syncNativeNowPlaying()
-            }
-            .onChange(of: playbackController.playbackRate) { _, _ in
-                syncNativeNowPlaying()
-            }
-            .onChange(of: playbackController.didFinish) { _, didFinish in
-                guard didFinish else { return }
-                advanceAfterPlaybackFinishesIfPossible()
+            .background {
+                WatchPlaybackObservation(
+                    controller: playbackController,
+                    onAmbient: { store.setAmbientPalette($0) },
+                    onTransport: syncNativeNowPlaying,
+                    onFinish: advanceAfterPlaybackFinishesIfPossible
+                )
             }
             .onChange(of: store.subscriptions) { _, _ in
                 guard subscriptionStatusResolved else { return }

@@ -95,9 +95,9 @@ extension YouTubePlaybackController {
 
             let frameReady = payload["frameReady"] as? Bool
 
-            if let value = payload["muted"] as? Bool { isMuted = value }
+            if let value = payload["muted"] as? Bool, isMuted != value { isMuted = value }
             if let value = payload["captionsEnabled"] as? Bool {
-                isCaptionsEnabled = value
+                if isCaptionsEnabled != value { isCaptionsEnabled = value }
             }
             let captionStatus = (payload["status"] as? String)?.lowercased() ?? ""
             let explicitlyClearsCaption = captionStatus.contains("captions off") ||
@@ -109,15 +109,15 @@ extension YouTubePlaybackController {
                 // last visible line from that transient empty payload; an
                 // enabled empty update and explicit off/no-track status still
                 // clear it normally.
-                captionText = value
+                if captionText != value { captionText = value }
             }
-            if let value = payload["playing"] as? Bool { isPlaying = value }
+            if let value = payload["playing"] as? Bool, isPlaying != value { isPlaying = value }
             if let value = payload["ended"] as? Bool {
-                didFinish = value
+                if didFinish != value { didFinish = value }
             }
-            if let value = payload["pipAvailable"] as? Bool { isPictureInPictureAvailable = value }
+            if let value = payload["pipAvailable"] as? Bool, isPictureInPictureAvailable != value { isPictureInPictureAvailable = value }
             if let value = payload["pipActive"] as? Bool {
-                isPictureInPictureActive = value
+                if isPictureInPictureActive != value { isPictureInPictureActive = value }
                 if value { clearPictureInPictureFallback() }
             }
             if frameReady == true {
@@ -126,7 +126,7 @@ extension YouTubePlaybackController {
 
             var statusIndicatesFailure = false
             if let value = payload["status"] as? String, !value.isEmpty {
-                status = value
+                if status != value { status = value }
                 let lowercased = value.lowercased()
                 let isCaptionStatus = lowercased.contains("caption")
                 if lowercased.contains("captions off") || lowercased.contains("no captions available") {
@@ -152,20 +152,22 @@ extension YouTubePlaybackController {
                     cancelPlaybackBootstrap()
                 }
             }
-            if let value = payload["currentTime"] as? NSNumber { currentTime = max(0, value.doubleValue) }
-            if let value = payload["duration"] as? NSNumber { duration = max(0, value.doubleValue) }
+            if let value = payload["currentTime"] as? NSNumber, value.doubleValue.isFinite,
+               currentTime != max(0, value.doubleValue) { currentTime = max(0, value.doubleValue) }
+            if let value = payload["duration"] as? NSNumber, value.doubleValue.isFinite,
+               duration != max(0, value.doubleValue) { duration = max(0, value.doubleValue) }
             if let value = payload["playbackRate"] as? NSNumber,
                value.doubleValue.isFinite,
                value.doubleValue > 0 {
-                playbackRate = value.doubleValue
+                if playbackRate != value.doubleValue { playbackRate = value.doubleValue }
             }
             // Partial bridge messages, such as caption-text updates, do not
             // describe frame readiness. Preserve the last known media state
             // instead of swapping the live WebKit surface for its thumbnail.
             if let frameReady {
-                isSurfaceReady = frameReady
+                if isSurfaceReady != frameReady { isSurfaceReady = frameReady }
                 if frameReady {
-                    canRetry = false
+                    if canRetry { canRetry = false }
                     cancelLoadWatchdog()
                 }
             }

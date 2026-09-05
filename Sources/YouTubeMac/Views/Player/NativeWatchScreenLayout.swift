@@ -115,12 +115,11 @@ extension NativeWatchScreen {
                 // the representable; this wrapper remains above that layer even
                 // after the transport fades and only changes its resting inset.
                 .overlay(alignment: .bottom) {
-                    NativePlayerCaptionOverlay(
-                        text: playbackController.captionText,
+                    WatchCaptionOverlay(
+                        controller: playbackController,
                         bottomInset: playerTransportVisible
                             ? PlayerTransportLayout.normalCaptionControlInset
-                            : PlayerTransportLayout.normalCaptionRestingInset,
-                        isCompact: false
+                            : PlayerTransportLayout.normalCaptionRestingInset
                     )
                 }
 

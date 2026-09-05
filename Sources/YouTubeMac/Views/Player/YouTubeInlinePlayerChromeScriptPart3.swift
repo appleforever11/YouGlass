@@ -287,11 +287,17 @@ extension YouTubeInlinePlayerView {
       installMediaEvents();
       primePlayback();
       emitCaptionState();
+      let lastCaptionPoll = 0;
       const captionTimer = window.setInterval(() => {
         if (window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) {
           window.clearInterval(captionTimer);
           return;
         }
+        // Keep enabled captions responsive; disabled captions need only a
+        // low-frequency fallback because explicit toggles emit immediately.
+        const now = Date.now();
+        if (!window.__youglassCaptionsEnabled && now - lastCaptionPoll < 1000) return;
+        lastCaptionPoll = now;
         emitCaptionState();
       }, 120);
       window.__youglassCaptionTimer = captionTimer;

@@ -2,6 +2,14 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — playback update and layout overhead
+
+- Coalesced bounded-scroll measurements and removed forced synchronous subtree layout and unchanged frame assignments. The original runtime sample repeatedly entered `resizeDocument`; the subsequent three-second sample did not contain that path.
+- Introduced a stable non-forwarding playback owner plus small caption and side-effect observers, keeping transport ticks out of the full watch page. Preserved Now Playing, completion, and ambient callbacks. Equal bridge values no longer republish; regression coverage verifies duplicate updates and caption-only frame preservation.
+- Covered Home disables pointer monitors/prewarming and skips automatic refresh during expanded playback. Mini-player/PIP leave browsing active. Disabled captions use a one-second fallback poll; enabled captions retain the 120 ms cadence and existing text deduplication.
+- Retained the existing once-per-video ambient sampling and visual effects; no video-quality or credential changes. All 70 tests passed and the signed development bundle rebuilt. Computer Use verified playing video, changing native caption text, and separate outer/inner comment scrolling.
+- Resource validation is incomplete as an overall performance target: initial process CPU was about 80%, subsequent playback about 75%, on different playback sessions, not a controlled same-video benchmark. Window-region/compositor work remains prominent. Do not advertise a measured percentage reduction from these samples.
+
 ## 2026-09-04 — atomic hover feedback
 
 - Shared card hover state now updates in an animation-disabled transaction, so the card highlight, scale, and play badge switch together rather than inheriting the card's 80 ms or a feed transition animation. Both native document tracking and the SwiftUI fallback use the same path.

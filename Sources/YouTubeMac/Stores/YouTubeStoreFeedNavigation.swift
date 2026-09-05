@@ -4,6 +4,9 @@ import SwiftUI
 
 extension YouTubeStore {
         func refreshHomeIfNeeded(now: Date = Date()) async {
+            // The expanded watch screen completely covers Home. Deliberate
+            // refresh and visible mini-player/PIP browsing remain available.
+            guard selectedVideo == nil || isPlayerCompact || isDesktopPIPActive else { return }
             guard !homeLoadInProgress else { return }
             if let lastHomeLoadDate,
                now.timeIntervalSince(lastHomeLoadDate) < 15 {

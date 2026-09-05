@@ -47,8 +47,6 @@ struct YouGlassBoundedScrollView<Content: View>: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.hostingController.rootView = content
-        context.coordinator.hostingController.view.needsLayout = true
-        context.coordinator.resizeDocument(in: scrollView)
         context.coordinator.scheduleResize(in: scrollView)
     }
 
@@ -81,14 +79,14 @@ struct YouGlassBoundedScrollView<Content: View>: NSViewRepresentable {
                 ? max(measuredSize.height.isFinite ? measuredSize.height : 1, viewportHeight)
                 : (measuredSize.height.isFinite ? max(measuredSize.height, 1) : 1)
 
-            hostingController.view.frame = NSRect(
+            let frame = NSRect(
                 x: 0,
                 y: 0,
                 width: width,
                 height: height
             )
-            hostingController.view.needsLayout = true
-            hostingController.view.layoutSubtreeIfNeeded()
+            guard hostingController.view.frame != frame else { return }
+            hostingController.view.frame = frame
         }
 
         func scheduleResize(in scrollView: NSScrollView) {
@@ -98,7 +96,6 @@ struct YouGlassBoundedScrollView<Content: View>: NSViewRepresentable {
             DispatchQueue.main.async { [weak self, weak scrollView] in
                 guard let self, let scrollView else { return }
                 self.resizeScheduled = false
-                self.hostingController.view.layoutSubtreeIfNeeded()
                 self.resizeDocument(in: scrollView)
                 scrollView.reflectScrolledClipView(scrollView.contentView)
             }
