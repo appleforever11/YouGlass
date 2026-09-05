@@ -19,6 +19,7 @@ struct YouTubePlayerOverlay: View {
     let video: VideoItem
     let palette: Palette
     let isCompact: Bool
+    var initialAvailableSize: CGSize? = nil
     let onCompactDragChanged: ((CGSize) -> Void)?
     let onCompactDragEnded: ((CGSize) -> Void)?
 
@@ -31,6 +32,7 @@ struct YouTubePlayerOverlay: View {
             )
 
             NativeWatchScreen(
+                watchAvailableSize: initialAvailableSize ?? CGSize(width: 900, height: 680),
                 video: video,
                 palette: palette,
                 isCompact: isCompact,

@@ -73,6 +73,7 @@ struct YouTubeHomeView: View {
                                     video: video,
                                     palette: palette,
                                     isCompact: false,
+                                    initialAvailableSize: CGSize(width: mainContentWidth, height: geometry.size.height),
                                     onCompactDragChanged: nil,
                                     onCompactDragEnded: nil
                                 )

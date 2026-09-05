@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-04 — initial player geometry
+
+- Seed expanded watch-page dimensions from the existing Home geometry instead of first laying out a fixed 900-by-680 page. The AppKit size reader remains responsible for subsequent size corrections and live resizing; no new SwiftUI geometry reader was introduced into the watch hierarchy.
+- Skip redundant WebKit frame/layer writes when its host bounds have not changed. Preserve the first-frame thumbnail guard and the one-turn safe presentation deferral.
+- All 70 tests pass. This removes an avoidable initial layout correction, not YouTube network or decode latency; no instant-play timing claim is made.
+
 ## 2026-09-04 — playback update and layout overhead
 
 - Coalesced bounded-scroll measurements and removed forced synchronous subtree layout and unchanged frame assignments. The original runtime sample repeatedly entered `resizeDocument`; the subsequent three-second sample did not contain that path.

@@ -46,6 +46,7 @@ final class YouTubeInlinePlayerHostView: NSView {
 
     override func layout() {
         super.layout()
+        guard webView.frame != bounds else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         webView.frame = bounds
