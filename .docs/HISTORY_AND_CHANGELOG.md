@@ -2,6 +2,14 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-05 — shared decoded images and regression-suite organization
+
+- Clean starting restore point: local commit `4d7fd87`. No credentials, installed copies, or remote release state changed.
+- Extracted image networking/cache ownership from HomeImageViews into Services/YouGlassImageLoader. Concurrent consumers now share an eagerly decoded CGImage, not only downloaded bytes. ImageIO applies orientation and bounds previews to 1600 pixels; the actor-owned 180-entry/80-MiB advisory NSCache accounts actual decoded row bytes. Cancelled views never publish their old result; failed loads are not cached.
+- Split the 846-line ModelsTests into model, playback/feed-policy, recommendation, and custom-feed suites. All source and test Swift files are now below 500 lines (largest 459). Existing tests retained; three new tests cover shared image identity/cache reuse, aspect-preserving downsampling, and retry after decode failure.
+- Narrow image tests and all 73 tests passed. The staged signed app rebuilt/launched through the normal verification script. Computer Use showed Home hero/cards/account avatar and player recommendation images rendering correctly, followed by playing video and visible captions.
+- This is the first scoped refactoring milestone, not a completed whole-app overhaul. No controlled latency/CPU benchmark was performed; sustained playback/compositor profiling, startup measurement, and broader navigation/lifecycle regression coverage remain open.
+
 ## 2026-09-04 — initial player geometry
 
 - Seed expanded watch-page dimensions from the existing Home geometry instead of first laying out a fixed 900-by-680 page. The AppKit size reader remains responsible for subsequent size corrections and live resizing; no new SwiftUI geometry reader was introduced into the watch hierarchy.
