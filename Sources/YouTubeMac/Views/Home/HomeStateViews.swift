@@ -161,7 +161,7 @@ struct SearchEmptyStateView: View {
                 .frame(width: 64, height: 64)
                 .background(palette.selected.opacity(0.42), in: Circle())
 
-            Text(query.isEmpty ? "Search YouTube" : "No long-form videos found")
+            Text(query.isEmpty ? "Search YouTube" : "Search results unavailable")
                 .font(.title2.weight(.bold))
 
             Text(message)

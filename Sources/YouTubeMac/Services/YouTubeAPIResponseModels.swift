@@ -19,7 +19,7 @@ struct SearchResponse: Decodable {
 
 struct SearchItem: Decodable {
     struct ID: Decodable {
-        let videoId: String
+        let videoId: String?
     }
 
     let id: ID
@@ -108,11 +108,11 @@ struct Snippet: Decodable {
         return months == 1 ? "1 month ago" : "\(months) months ago"
     }
 
-    enum CodingKeys: CodingKey {
+    enum CodingKeys: String, CodingKey {
         case publishedAt
         case title
         case channelTitle
-        case channelID
+        case channelID = "channelId"
         case videoOwnerChannelTitle
         case description
         case thumbnails

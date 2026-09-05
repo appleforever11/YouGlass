@@ -36,18 +36,32 @@ extension YouTubeAPIClient {
         components.queryItems = queryItems
 
         let data = try await data(from: components, cacheTTL: 45, bypassCache: forceFresh)
-        let response = try JSONDecoder().decode(SearchResponse.self, from: data)
-        let ids = response.items.map(\.id.videoId).filter { !$0.isEmpty }
+        let response: SearchResponse
+        do {
+            response = try JSONDecoder().decode(SearchResponse.self, from: data)
+        } catch DecodingError.keyNotFound(let key, let context) {
+            // Record schema location only, never response contents or request URLs.
+            YouGlassDiagnostics.record(
+                .error, category: "search",
+                message: "Search response missing required field",
+                metadata: ["field": (context.codingPath.map(\.stringValue) + [key.stringValue]).joined(separator: ".")]
+            )
+            throw YouTubeAPIError.invalidResponse("YouTube search returned an incomplete response.")
+        }
+        let ids = response.items.compactMap(\.id.videoId).filter { !$0.isEmpty }
+        guard !ids.isEmpty else { return [] }
         let resources = (try? await videoResources(ids: ids)) ?? []
         let resourcesByID = Dictionary(uniqueKeysWithValues: resources.map { ($0.id, $0) })
 
         return response.items.compactMap { item in
-            if let resource = resourcesByID[item.id.videoId] {
+            // Search can contain non-video resources; one channel/playlist
+            // result must not invalidate every playable result in the response.
+            guard let videoID = item.id.videoId, !videoID.isEmpty else { return nil }
+            if let resource = resourcesByID[videoID] {
                 return videoItem(from: resource)
             }
-            guard !item.id.videoId.isEmpty else { return nil }
             return VideoItem(
-                id: item.id.videoId,
+                id: videoID,
                 title: item.snippet.title.htmlDecoded,
                 channel: item.snippet.channelTitle.htmlDecoded,
                 views: "YouTube",

@@ -150,8 +150,9 @@ extension YouTubeStore {
             feed.more = []
             feed.queue = []
             searchResults = []
-            sectionEmptyMessage = "YouTube search is temporarily unavailable. Try again shortly."
-            connectionMessage = searchFailureMessage(apiError: apiError, webDiagnostics: webResult.diagnostics)
+            let failure = searchFailureMessage(apiError: apiError, webDiagnostics: webResult.diagnostics)
+            sectionEmptyMessage = failure
+            connectionMessage = failure
         }
 
         func searchFailureMessage(apiError: Error?, webDiagnostics: String) -> String {

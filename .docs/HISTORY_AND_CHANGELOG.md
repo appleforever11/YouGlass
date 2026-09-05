@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-05 — search response decoding repair
+
+- Runtime reproduction identified a missing `items.Index 0.id.videoId` field as the cause of whole-search decoding failure. Search IDs now allow non-video resources; only nonempty video IDs advance to enrichment and result mapping. Empty ID lists skip enrichment. Corrected snippet channel identity mapping to the API's `channelId`.
+- Added mixed channel/video/playlist and empty-response regression fixtures. All 75 tests pass. The normal signed-bundle build/launch verification passed, and Computer Use observed 11 Chris Cuomo results followed by 11 results for the user's subsequent search.
+- Search failure UI no longer claims that no long-form videos exist and now surfaces the available failure explanation. Missing-field diagnostics record schema paths only, never response contents, query URLs, or credentials. The hidden-WebKit stability safeguard remains unchanged.
+
 ## 2026-09-05 — shared decoded images and regression-suite organization
 
 - Clean starting restore point: local commit `4d7fd87`. No credentials, installed copies, or remote release state changed.
