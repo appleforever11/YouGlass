@@ -10,31 +10,13 @@ struct ContinueWatchingRow: View {
 
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 9) {
-                Image(systemName: "play.circle.fill")
-                    .foregroundStyle(palette.accent)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 8) {
-                        Text("Continue Watching")
-                            .font(.system(size: 19, weight: .bold))
-                        Text("\(store.continueWatching.count)")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(palette.secondaryText)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(palette.pill, in: Capsule())
-                    }
-                    Text("Pick up right where you left off")
-                        .font(.caption)
-                        .foregroundStyle(palette.secondaryText)
-                        .lineLimit(1)
-                }
+                YouGlassSectionHeading(title: "Continue Watching", subtitle: "Pick up where you left off", palette: palette, count: store.continueWatching.count)
                 Spacer()
-                Button("View Library") {
-                    store.showSection("Library")
+                if store.selectedSection != "Library" {
+                    Button("View Library") { store.showSection("Library") }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                 }
-                .buttonStyle(.plain)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(palette.secondaryText)
             }
 
             LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
@@ -168,8 +150,8 @@ struct PersonalLibraryView: View {
             VStack(alignment: .leading, spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Your Library")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                    Text("Local collections, notes, and playback history stay available even when YouTube is offline.")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text("Your saved videos, collections, and notes. Always available on this Mac.")
                         .font(.subheadline)
                         .foregroundStyle(palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -189,6 +171,8 @@ struct PersonalLibraryView: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
+                .controlSize(.large)
+                .tint(palette.accent)
             }
             .padding(.top, 20)
 
@@ -198,6 +182,7 @@ struct PersonalLibraryView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .labelsHidden()
             .accessibilityIdentifier("library-section-picker")
 
             HStack {
@@ -217,9 +202,7 @@ struct PersonalLibraryView: View {
             if !libraryQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 let matches = YouGlassLibrarySearch.videos(matching: libraryQuery, in: personalVideos)
                 if matches.isEmpty {
-                    Text("No videos in your library match “\(libraryQuery)”.")
-                        .foregroundStyle(palette.secondaryText)
-                        .frame(maxWidth: .infinity, minHeight: 140)
+                    YouGlassEmptyState(title: "No matching videos", message: "Try another title or channel in your saved videos and history.", symbol: "magnifyingglass", palette: palette, actionTitle: "Clear search") { libraryQuery = "" }
                 } else {
                     VideoRow(title: "In your library", videos: matches, palette: palette, compact: compact, showsSeeAll: false)
                 }
@@ -260,12 +243,21 @@ struct PersonalLibraryView: View {
                 if (librarySection == "Saved" && store.savedVideos.isEmpty)
                     || (librarySection == "Liked" && store.locallyLikedVideos.isEmpty)
                     || (librarySection == "Collections" && store.customCollections.isEmpty) {
-                    Text("Nothing here yet. Save a video, like a video, or create your first collection.")
-                        .foregroundStyle(palette.secondaryText)
-                        .frame(maxWidth: .infinity, minHeight: 140)
+                    YouGlassEmptyState(
+                        title: librarySection == "Collections" ? "Make room for your favorites" : librarySection == "Saved" ? "Watch on your own time" : "Keep your favorites close",
+                        message: librarySection == "Collections" ? "Group videos by topic, project, or mood. Add videos using a card’s context menu." : librarySection == "Saved" ? "Save a video to Watch Later from its context menu or the player’s bookmark button." : "Like a video in the player to find it here again.",
+                        symbol: librarySection == "Collections" ? "folder" : librarySection == "Saved" ? "bookmark" : "heart",
+                        palette: palette,
+                        actionTitle: librarySection == "Collections" ? "New collection" : "Discover videos"
+                    ) {
+                        if librarySection == "Collections" {
+                            newCollectionName = ""
+                            showingNewCollection = true
+                        } else { store.showSection("Home") }
+                    }
                 }
 
-                if store.savedVideos.isEmpty,
+                if librarySection == "Overview", store.savedVideos.isEmpty,
                    store.locallyLikedVideos.isEmpty,
                    store.customCollections.isEmpty,
                    store.videoNotes.isEmpty,
@@ -291,6 +283,7 @@ struct PersonalLibraryView: View {
             Button("Create") {
                 _ = store.createCollection(named: newCollectionName)
             }
+            .disabled(newCollectionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("Use collections to organize saved videos locally on this Mac.")

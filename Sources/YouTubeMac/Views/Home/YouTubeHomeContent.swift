@@ -10,10 +10,10 @@ extension YouTubeHomeView {
             // available height without giving the user a reliable way to
             // reach the lower recommendation rows on smaller displays.
             homeRefreshContainer {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 22) {
                     if store.selectedSection == "Home" {
                         HomeDashboardHeader(palette: palette, compact: compact)
-                    } else if store.selectedSection != "Library" {
+                    } else if store.selectedSection != "Library" && store.selectedSection != "Search" {
                         Text(store.selectedSection)
                             .font(.system(size: 26, weight: .bold))
                             .padding(.top, 6)
@@ -247,9 +247,12 @@ extension YouTubeHomeView {
                 )
             }
 
+            if store.selectedSection != "Library" {
             Button {
                 if store.selectedCustomFeed != nil {
                     store.refreshSelectedCustomFeed()
+                } else if store.selectedSection == "Search" {
+                    store.startSearch()
                 } else {
                     Task { await store.loadHome(force: true) }
                 }
@@ -263,9 +266,10 @@ extension YouTubeHomeView {
                 }
             }
             .buttonStyle(IconButtonStyle(palette: palette))
-            .accessibilityLabel("Refresh recommendations")
-            .help("Refresh recommendations")
+            .accessibilityLabel(store.selectedSection == "Search" ? "Refresh search results" : "Refresh recommendations")
+            .help(store.selectedSection == "Search" ? "Refresh search results" : "Refresh recommendations")
             .disabled(store.isLoading || store.customFeedLoading)
+            }
 
             SettingsLink {
                 Image(systemName: "gearshape")
@@ -295,7 +299,7 @@ extension YouTubeHomeView {
             }
 
             if !minimal {
-                Picker("", selection: Binding(
+                Picker("Appearance", selection: Binding(
                     get: { store.theme },
                     set: { newTheme in store.setTheme(newTheme) }
                 )) {
@@ -303,6 +307,7 @@ extension YouTubeHomeView {
                     Text(AppTheme.dark.rawValue).tag(AppTheme.dark)
                 }
                 .pickerStyle(.segmented)
+                .labelsHidden()
                 .frame(width: compact ? 100 : 122)
             }
 

@@ -25,6 +25,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
+        scrollView.contentView = YouGlassHomeClipView()
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
         scrollView.hasVerticalScroller = true
@@ -34,6 +35,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.scrollerStyle = .overlay
         scrollView.documentView = context.coordinator.hostingController.view
+        context.coordinator.scrollView = scrollView
         context.coordinator.updateRefresh(on: scrollView, enabled: isRefreshEnabled)
         context.coordinator.resizeDocument(in: scrollView)
         context.coordinator.scheduleResize(in: scrollView)
@@ -42,7 +44,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.refreshAction = refreshAction
-        context.coordinator.hostingController.rootView = content
+        context.coordinator.setContent(content)
         context.coordinator.hostingController.view.needsLayout = true
         context.coordinator.updateRefresh(on: scrollView, enabled: isRefreshEnabled)
         context.coordinator.resizeDocument(in: scrollView)
@@ -55,7 +57,8 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject {
-        let hostingController: NSHostingController<Content>
+        let hostingController: NSHostingController<Document>
+        weak var scrollView: NSScrollView?
         var refreshAction: @MainActor () async -> Void
         weak var refreshScrollView: NSScrollView?
         private var refreshController: AnyObject?
@@ -65,9 +68,18 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
             content: Content,
             refreshAction: @escaping @MainActor () async -> Void
         ) {
-            hostingController = NSHostingController(rootView: content)
+            hostingController = NSHostingController(rootView: Document(content: content, sizeChanged: {}))
             hostingController.view.autoresizingMask = [.width]
             self.refreshAction = refreshAction
+            super.init()
+            setContent(content)
+        }
+
+        func setContent(_ content: Content) {
+            hostingController.rootView = Document(content: content) { [weak self] in
+                guard let self, let scrollView = self.scrollView else { return }
+                self.scheduleResize(in: scrollView)
+            }
         }
 
         func updateRefresh(on scrollView: NSScrollView, enabled: Bool) {
@@ -115,12 +127,15 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
             let proposedSize = CGSize(width: width, height: .greatestFiniteMagnitude)
             let measuredSize = hostingController.sizeThatFits(in: proposedSize)
             let height = measuredSize.height.isFinite ? max(measuredSize.height, 1) : 1
-            hostingController.view.frame = NSRect(
+            let frame = NSRect(
                 x: 0,
                 y: 0,
                 width: width,
                 height: height
             )
+            if hostingController.view.frame != frame {
+                hostingController.view.frame = frame
+            }
             hostingController.view.needsLayout = true
             hostingController.view.layoutSubtreeIfNeeded()
         }
@@ -183,5 +198,31 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
                 self.finishRefresh()
             }
         }
+    }
+
+    struct Document: View {
+        let content: Content
+        let sizeChanged: () -> Void
+
+        var body: some View {
+            content
+                .fixedSize(horizontal: false, vertical: true)
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { _ in
+                    sizeChanged()
+                }
+        }
+    }
+}
+
+/// AppKit otherwise bottom-aligns a short, unflipped hosting document. Keep
+/// empty Library tabs and search states anchored to the same top edge as feeds.
+final class YouGlassHomeClipView: NSClipView {
+    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
+        var bounds = super.constrainBoundsRect(proposedBounds)
+        if let documentView, documentView.frame.height < bounds.height {
+            bounds.origin.y = documentView.isFlipped
+                ? 0 : documentView.frame.height - bounds.height
+        }
+        return bounds
     }
 }

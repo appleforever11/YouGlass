@@ -157,7 +157,7 @@ struct DividerLine: View {
             .fill(palette.hairline)
             .frame(height: 1)
             .padding(.horizontal, 26)
-            .padding(.vertical, 22)
+            .padding(.vertical, 16)
     }
 }
 
@@ -178,6 +178,7 @@ private struct IconButtonStyleBody<Label: View>: View {
     let isPressed: Bool
     let palette: Palette
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         label
@@ -193,9 +194,9 @@ private struct IconButtonStyleBody<Label: View>: View {
                 Circle()
                     .stroke(isHovered ? palette.stroke : .clear, lineWidth: 1)
             }
-            .scaleEffect(isPressed ? 0.92 : (isHovered ? 1.04 : 1))
-            .animation(.easeOut(duration: 0.13), value: isHovered)
-            .animation(.easeOut(duration: 0.10), value: isPressed)
+            .scaleEffect(reduceMotion ? 1 : (isPressed ? 0.92 : (isHovered ? 1.04 : 1)))
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.13), value: isHovered)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.10), value: isPressed)
             .contentShape(Circle())
             .onHover { isHovered = $0 }
     }

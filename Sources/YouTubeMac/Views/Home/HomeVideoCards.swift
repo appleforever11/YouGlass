@@ -14,35 +14,7 @@ struct VideoRow: View {
 
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
-                HStack(spacing: 9) {
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                colors: [palette.pink, palette.purple],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                        .frame(width: 4, height: 18)
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 8) {
-                            Text(title)
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            Text("\(videos.count)")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(palette.secondaryText)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(palette.pill, in: Capsule())
-                        }
-                        Text(sectionSubtitle)
-                            .font(.caption)
-                            .foregroundStyle(palette.secondaryText)
-                            .lineLimit(1)
-                    }
-                }
+                YouGlassSectionHeading(title: title, subtitle: sectionSubtitle, palette: palette, count: videos.count)
                 .layoutPriority(1)
 
                 Spacer(minLength: 12)
@@ -54,19 +26,16 @@ struct VideoRow: View {
                             Image(systemName: "chevron.right")
                         }
                         .font(.system(size: 12, weight: .semibold))
-                        .frame(minWidth: 104)
-                        .frame(height: 36)
-                        .background(palette.accent.opacity(palette.isDark ? 0.12 : 0.08))
-                        .clipShape(Capsule())
-                        .overlay(Capsule().stroke(palette.stroke, lineWidth: 1))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(DashboardActionStyle(palette: palette))
+                    .accessibilityLabel("See all \(title) videos")
                     .layoutPriority(2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isHeader)
+            .accessibilityElement(children: .contain)
 
             LazyVGrid(
                 columns: columns,
@@ -169,15 +138,15 @@ struct VideoCard: View {
                     .foregroundStyle(palette.secondaryText)
                     .lineLimit(1)
             }
-            .padding(12)
+            .padding(10)
             .frame(maxWidth: .infinity, alignment: .topLeading)
             .background {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(isHovered ? palette.selected : palette.card.opacity(0.72))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(isHovered ? palette.selected : palette.card.opacity(0.35))
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(isHovered ? palette.accent.opacity(0.65) : palette.stroke.opacity(0.5), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(isHovered ? palette.accent.opacity(0.65) : palette.stroke.opacity(0.25), lineWidth: 1)
             }
             .scaleEffect(accessibilityReduceMotion ? 1 : (isHovered ? 1.012 : 1))
         }

@@ -45,8 +45,8 @@ struct SidebarView: View {
             .accessibilityLabel("YouGlass Home")
             .help("Go to Home")
             .padding(.horizontal, compact ? 12 : 22)
-            .padding(.top, compact ? 22 : 28)
-            .padding(.bottom, compact ? 24 : 34)
+            .padding(.top, 20)
+            .padding(.bottom, 22)
 
             SidebarGroup(items: topItems, palette: palette, compact: compact)
             DividerLine(palette: palette)
@@ -55,7 +55,8 @@ struct SidebarView: View {
 
             if !compact {
                 Text("Subscriptions")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(palette.secondaryText)
                     .padding(.horizontal, 22)
                     .padding(.bottom, 14)
             }
@@ -65,7 +66,7 @@ struct SidebarView: View {
                 // subscription list. A regular VStack constructs every row
                 // and starts every avatar load even though this viewport only
                 // exposes a small subset at once.
-                LazyVStack(spacing: 11) {
+                LazyVStack(spacing: 8) {
                     ForEach(store.sidebarSubscriptionsSnapshot) { item in
                         SidebarSubscriptionRow(
                             item: item,
@@ -105,15 +106,15 @@ struct SidebarView: View {
                     }
                 }
             }
-            .frame(height: compact ? 250 : 320)
+            .frame(minHeight: 60, maxHeight: .infinity)
 
             Button {
                 Task { @MainActor in store.showSection("Subscriptions") }
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "chevron.down")
+                    Image(systemName: "person.2")
                     if !compact {
-                        Text("Show More")
+                        Text("All subscriptions")
                     }
                 }
             }
@@ -121,9 +122,9 @@ struct SidebarView: View {
             .font(.system(size: 13))
             .foregroundStyle(palette.secondaryText)
             .padding(.horizontal, compact ? 26 : 27)
-            .padding(.top, compact ? 16 : 24)
-
-            Spacer()
+            .padding(.vertical, 16)
+            .accessibilityLabel("All subscriptions")
+            .help("Browse all subscribed channels")
         }
         .background {
             ZStack {

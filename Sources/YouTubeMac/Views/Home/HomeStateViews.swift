@@ -109,13 +109,22 @@ struct SearchContentView: View {
         .frame(maxWidth: .infinity, minHeight: 220, alignment: .center)
     }
 
-    private var searchContent: AnyView {
+    @ViewBuilder
+    private var searchContent: some View {
         if store.isLoading {
-            return AnyView(ProgressView("Searching YouTube..."))
-        }
-
-        if !store.searchResults.isEmpty {
-            return AnyView(
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Searching YouTube…")
+                    .font(.headline)
+                Text("Finding videos for “\(store.query)”")
+                    .foregroundStyle(palette.secondaryText)
+            }
+            .frame(maxWidth: .infinity, minHeight: 260)
+        } else if !store.searchResults.isEmpty {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("Search")
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .padding(.top, 16)
                 VideoRow(
                     title: "Search results",
                     videos: store.searchResults,
@@ -124,11 +133,8 @@ struct SearchContentView: View {
                     showsSeeAll: false
                 )
                 .environmentObject(store)
-            )
-        }
-
-        if let message = store.sectionEmptyMessage {
-            return AnyView(
+            }
+        } else if let message = store.sectionEmptyMessage {
                 SearchEmptyStateView(
                     query: store.query,
                     message: message,
@@ -139,10 +145,11 @@ struct SearchContentView: View {
                     },
                     retry: { store.startSearch() }
                 )
-            )
+        } else {
+            YouGlassEmptyState(title: "Find your next watch", message: "Search for a video title, channel, or topic.", symbol: "magnifyingglass", palette: palette, actionTitle: "Search YouTube") {
+                store.requestSearchFocus()
+            }
         }
-
-        return AnyView(EmptyView())
     }
 }
 

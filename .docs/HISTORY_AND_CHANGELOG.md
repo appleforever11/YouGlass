@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-05 — everyday experience, navigation and Library milestone
+
+- Compact sidebar rows and flexible subscription height keep all navigation and the subscription footer reachable. Shared section typography, quieter video-card surfaces, independent accessible section actions, and Reduce Motion-aware toolbar feedback establish a consistent media-first direction.
+- Fixed a live Library defect where switching to an empty tab moved the page halfway down the window: child-local geometry changes now coalesce natural document remeasurement, and a narrow clip view top-aligns short documents. Long-document scroll positions and Home refresh/pointer contracts remain intact.
+- Library has specific Saved, Liked, Collections, and no-match guidance with useful actions; blank collection names cannot be submitted. Local Library no longer exposes a network refresh; Search refresh reruns the search.
+- All 77 tests passed, including short-document alignment and preserved long-document scrolling. Signed staged bundle rebuilt and launched; Computer Use verified populated-to-empty Library transitions, collection action/blank-name validation, reachable sidebar footer, and real YouTube search results. No user collections were created during validation.
+
 ## 2026-09-05 — search response decoding repair
 
 - Runtime reproduction identified a missing `items.Index 0.id.videoId` field as the cause of whole-search decoding failure. Search IDs now allow non-video resources; only nonempty video IDs advance to enrichment and result mapping. Empty ID lists skip enrichment. Corrected snippet channel identity mapping to the API's `channelId`.

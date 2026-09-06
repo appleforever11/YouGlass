@@ -8,14 +8,14 @@ struct SidebarGroup: View {
     @State private var hoveredSection: String?
 
     var body: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 4) {
             ForEach(items, id: \.1) { symbol, title, selected, section, query in
                 let active = selected || store.selectedSection == title
                 let hovered = hoveredSection == section
                 Button(action: { store.showSection(section, query: query) }) {
                     HStack(spacing: 13) {
                         Image(systemName: symbol)
-                            .font(.system(size: 18, weight: active ? .bold : .regular))
+                            .font(.system(size: 16, weight: active ? .semibold : .regular))
                             .foregroundStyle(active ? palette.accent : palette.text)
                             .frame(width: 20)
                         if !compact {
@@ -29,7 +29,7 @@ struct SidebarGroup: View {
                     .foregroundStyle(palette.text)
                     .frame(maxWidth: .infinity, alignment: compact ? .center : .leading)
                     .padding(.horizontal, compact ? 8 : 14)
-                    .frame(height: 42)
+                    .frame(height: 36)
                     .background {
                         if active {
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
