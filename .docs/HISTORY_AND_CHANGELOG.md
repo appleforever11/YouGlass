@@ -360,3 +360,7 @@ Compare the committed version with the current dirty worktree. A commit cannot s
 ## Historical release context
 
 The repository contains tagged release commits through `v1.13.2`, public release notes under `RELEASE_NOTES/`, and local build/recovery artifacts under `backups/` and `dist/`. Release artifacts are useful for comparison or recovery, but the Git source tree and current worktree are the source of truth.
+
+## 2026-09-05 — Instruction cleanup
+
+Reduced AGENTS.md to shared workflow and invariants. Moved existing Home, player, appearance, and state contracts into task-specific references without changing application code. Removed the completed initial-setup commit instruction and replaced drift-prone current-version/toolchain snapshots with source lookup guidance. Documentation-only edits use documentation validation; affected GUI changes still require rebuilt-bundle live verification. Local-only commit and explicit remote-publication boundaries remain.

@@ -14,10 +14,18 @@ This directory is the tracked, non-skill reference layer for the project. `AGENT
 - [OVERHAUL_MILESTONE.md](OVERHAUL_MILESTONE.md) — the current app-overhaul baseline, safety restore point, validation evidence, and next review targets.
 - [HISTORY_AND_CHANGELOG.md](HISTORY_AND_CHANGELOG.md) — local Git baseline, dirty-worktree notes, durable investigations, and instructions for recalling or reverting work.
 
+## Agent contracts by affected behavior
+
+- [AGENT_HOME_CONTRACTS.md](AGENT_HOME_CONTRACTS.md) — Home, Library, navigation, refresh, and hover.
+- [AGENT_PLAYER_CONTRACTS.md](AGENT_PLAYER_CONTRACTS.md) — playback ownership, captions, queue, WebKit, and player layout.
+- [AGENT_APPEARANCE_CONTRACTS.md](AGENT_APPEARANCE_CONTRACTS.md) — themes, command palette, icons, settings, and shared appearance.
+- [AGENT_STATE_CONTRACTS.md](AGENT_STATE_CONTRACTS.md) — content policy, credentials, persistence, images, and recovery.
+- [AGENT_SOURCE_MAP.md](AGENT_SOURCE_MAP.md) — source responsibilities when locating a subsystem.
+
 ## How to use this directory
 
 1. Read `AGENTS.md` first.
-2. Read this index and only the reference files relevant to the task.
+2. Use this index when locating guidance; read only the reference files relevant to the task.
 3. Verify drift-prone facts such as the current branch, build output, SDK, and runtime behavior locally.
 4. Update the relevant file when a durable project fact changes, and add a dated history entry for meaningful work.
 
