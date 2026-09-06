@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.2.0] - 2026-09-06
+
+Added Subscription Groups and live YouTube Home recommendations with preserved source order. Fixed PiP control sizing, black video after enlargement, and Home cache restoration across navigation. See [the release notes](RELEASE_NOTES/2.2.0.md).
+
 ## [2.1.1] - 2026-09-05
 
 Ships the 2.1 redesign with an Xcode 26 compatibility guard for macOS 27-only native pull-to-refresh. The 2.1.0 workflow stopped before distribution. See [the release notes](RELEASE_NOTES/2.1.1.md).

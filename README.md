@@ -1,14 +1,14 @@
 ![YouGlass Glass Prism app icon](Sources/YouTubeMac/Resources/YouGlassIconSource.png)
 
-# YouGlass 2.1
+# YouGlass 2.2
 
 YouGlass is a native Apple Silicon macOS YouTube client with an Apple-inspired liquid-glass interface, native navigation, an in-app player, desktop Picture in Picture, account-aware feeds, and a Sparkle update channel.
 
-![YouGlass 2.0 home screen](docs/screenshots/youglass-home-2.0.0.png)
+![YouGlass 2.2 home screen](docs/screenshots/youglass-home-2.2.0.png)
 
 ![YouGlass 2.1 Theme Center](docs/screenshots/youglass-theme-center-2.1.0.jpg)
 
-Version 2.1 refines navigation, discovery, channel cards, Library empty states, and player controls. Appearance now separates environment browsing from customization, with reliable scrolling through the complete theme catalog.
+Version 2.2 adds Subscription Groups with custom channel ordering and latest-upload views. Home follows the actual YouTube recommendations from the app's web session, and PiP controls and video remain correctly positioned while resizing.
 
 ## Install
 
@@ -22,6 +22,7 @@ After installation, use **YouGlass > Check for Updates...** to check the GitHub-
 - Theme Center with 24 coordinated Light/Dark environments, searchable collections, and per-environment accent treatment.
 - Google/YouTube sign-in session handling with credentials stored in the macOS Keychain.
 - Account-aware home, subscriptions, channels, search, comments, live chat, likes, saves, and playback state where YouTube grants access.
+- Named subscription groups with alphabetical/manual channel ordering, plus YouTube Home recommendations in their original order.
 - In-app player, captions, scrubber, desktop Picture in Picture, and resume position.
 - Local-first Continue Watching, Library collections, playback queue, command palette, offline cache recovery, and global YouTube Shorts exclusion.
 - Sparkle 2.9.5 update support with an Ed25519-signed GitHub release feed.

@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — 2.2.0 release preparation
+
+- Prepared version 2.2.0, build 202000, covering Subscription Groups, live YouTube Home ordering, and the PiP resize corrections. Added end-user release notes and a current Home screenshot.
+- The existing 88-test implementation check passed. Verified the rebuilt Developer ID bundle, matching ZIP and DMG metadata, archive integrity, embedded Sparkle/resources, and live Home presentation. GitHub's tag workflow owns Apple notarization and Sparkle signing before publication.
+
 ## 2026-09-06 — Subscription Groups and YouTube Home recommendations
 
 - Added local subscription groups with named sidebar folders, channel assignment, alphabetical/manual ordering, collapse state, and latest-upload views. Definitions use stable channel IDs and bounded storage; deleting a folder leaves YouTube subscriptions intact.
