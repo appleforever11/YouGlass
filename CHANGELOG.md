@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.1.1] - 2026-09-05
+
+Ships the 2.1 redesign with an Xcode 26 compatibility guard for macOS 27-only native pull-to-refresh. The 2.1.0 workflow stopped before distribution. See [the release notes](RELEASE_NOTES/2.1.1.md).
+
 ## [2.1.0] - 2026-09-05
 
 Refined Home, discovery, channels, Library, Theme Center, and native player controls. Fixed short-page alignment, catalog clipping, native Settings input stalls, and mixed-resource video search decoding. Preserved account and local data, quota safeguards, and established player stability boundaries. See [the release notes](RELEASE_NOTES/2.1.0.md).

@@ -2,6 +2,10 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-05 — 2.1.1 SDK compatibility correction
+
+The 2.1.0 CI workflow stopped before distribution because Xcode 26 cannot compile macOS 27-only NSRefreshController declarations inside runtime availability guards. Added compile-time gates while preserving the older-SDK toolbar refresh path. Prepared 2.1.1 build 201001 without moving the existing failed tag. All 80 tests pass locally with Xcode 26.6; the matching optimized Developer ID bundle builds and launches successfully.
+
 ## 2026-09-05 — 2.1.0 release preparation
 
 - Prepared version 2.1.0, build 201000, release notes and the refreshed Theme Center screenshot. Accounts, data, update feed, and signing keys are unchanged.

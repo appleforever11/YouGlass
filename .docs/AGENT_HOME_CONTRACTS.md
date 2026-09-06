@@ -1,5 +1,7 @@
 # YouGlass home contracts
 
+Native Home pull-to-refresh uses macOS 27 SDK APIs and is compiler-gated for Xcode 27/Swift 6.4 builds in addition to runtime availability. Xcode 26 releases retain the same AppKit scrolling and toolbar Refresh action without referencing unavailable SDK declarations.
+
 Read when changing Home, Library, discovery, navigation, refresh, or pointer behavior. These preserve the operational rules moved from AGENTS.md. Follow the user's requested scope; verify current source when implementation details may have changed.
 
 - Explore is a local topic chooser; choosing a topic deliberately enters the existing search path. Subscriptions, History, saved/liked destinations, and section drilldowns use a single correctly titled grid rather than Home's spotlight and recommendation labels. Refresh stays in the selected destination. Channel videos reuse the shared 260-point adaptive cards, safe user-interaction opening, and context menus, and expose all already-loaded videos rather than truncating presentation at 24.

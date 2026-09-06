@@ -88,6 +88,9 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
                 return
             }
 
+            // Xcode 26 cannot name the macOS 27 refresh API, even inside an
+            // availability check. Its builds retain the toolbar refresh action.
+            #if compiler(>=6.4)
             guard #available(macOS 27.0, *) else { return }
             if refreshScrollView === scrollView, refreshController != nil {
                 return
@@ -106,14 +109,17 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
             controller.endRefreshing()
             refreshScrollView = scrollView
             refreshController = controller
+            #endif
         }
 
         func removeRefresh(from scrollView: NSScrollView) {
+            #if compiler(>=6.4)
             if #available(macOS 27.0, *) {
                 if refreshScrollView === scrollView {
                     scrollView.refreshController = nil
                 }
             }
+            #endif
             if refreshScrollView === scrollView {
                 refreshScrollView = nil
                 refreshController = nil
@@ -173,9 +179,11 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
         private func finishRefresh() {
             guard let scrollView = refreshScrollView else { return }
 
+            #if compiler(>=6.4)
             if #available(macOS 27.0, *), let controller = refreshController as? NSRefreshController {
                 controller.endRefreshing()
             }
+            #endif
             scrollToTop(in: scrollView)
 
             // AppKit finishes its refresh animation on the next run loop. A
