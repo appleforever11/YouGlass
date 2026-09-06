@@ -7,6 +7,7 @@ struct NativeYouTubePlayer: View {
     @ObservedObject var playbackController: YouTubePlaybackController
     let autoMuteOnStart: Bool
     let isCompact: Bool
+    var mediaSize: CGSize? = nil
     let onCompactDragChanged: ((CGSize) -> Void)?
     let onCompactDragEnded: ((CGSize) -> Void)?
     let onPlayerHoverChanged: ((Bool) -> Void)?

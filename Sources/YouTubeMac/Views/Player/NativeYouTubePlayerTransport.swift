@@ -120,12 +120,11 @@ extension NativeYouTubePlayer {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 46)
-                .offset(y: PlayerTransportLayout.normalControlLift(for: palette))
             }
             .frame(maxWidth: 820)
             .padding(.horizontal, 18)
             .padding(.top, 10)
-            .padding(.bottom, 72)
+            .padding(.bottom, PlayerTransportLayout.normalBottomPadding)
             .frame(maxWidth: .infinity, alignment: .center)
             .background {
                 LinearGradient(

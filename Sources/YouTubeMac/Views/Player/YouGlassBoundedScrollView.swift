@@ -46,17 +46,17 @@ struct YouGlassBoundedScrollView<Content: View>: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        context.coordinator.hostingController.rootView = content
+        context.coordinator.hostingController.rootView = YouGlassScrollDocument(content: content)
         context.coordinator.scheduleResize(in: scrollView)
     }
 
     @MainActor
     final class Coordinator {
-        let hostingController: NSHostingController<Content>
+        let hostingController: NSHostingController<YouGlassScrollDocument<Content>>
         private var resizeScheduled = false
 
         init(content: Content) {
-            hostingController = NSHostingController(rootView: content)
+            hostingController = NSHostingController(rootView: YouGlassScrollDocument(content: content))
             hostingController.view.autoresizingMask = [.width]
         }
 
@@ -100,6 +100,17 @@ struct YouGlassBoundedScrollView<Content: View>: NSViewRepresentable {
                 scrollView.reflectScrolledClipView(scrollView.contentView)
             }
         }
+    }
+}
+
+/// Give AppKit one bounded interaction region for the scroll document rather
+/// than synthesizing a window-drag exclusion path from every rounded child.
+/// The individual buttons and scroll views retain their own hit testing.
+struct YouGlassScrollDocument<Content: View>: View {
+    let content: Content
+
+    var body: some View {
+        content.contentShape(Rectangle())
     }
 }
 

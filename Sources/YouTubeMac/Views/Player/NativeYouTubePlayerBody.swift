@@ -21,18 +21,13 @@ extension NativeYouTubePlayer {
                     // startup without creating a frame-readiness dependency.
                     .allowsHitTesting(false)
 
-                    if !isCompact {
-                        loadingThumbnail
-                    }
                 }
                 .overlay {
                     // The fill-scaled thumbnail must not participate in player
                     // sizing, even after it becomes transparent. Its image
                     // aspect ratio can otherwise enlarge the ZStack beyond the
-                    // PiP window and push transport controls below its bounds.
-                    if isCompact {
-                        loadingThumbnail
-                    }
+                    // visible media and push transport controls below its bounds.
+                    loadingThumbnail
                 }
                 // Keep the media layer visual-only. A separate SwiftUI interaction
                 // layer below the controls owns center taps and PIP dragging, so
@@ -96,6 +91,7 @@ extension NativeYouTubePlayer {
                 }
 
             }
+            .frame(width: mediaSize?.width, height: mediaSize?.height)
             // Keep the native toolbar outside the media ZStack. This gives the
             // SwiftUI buttons the first responder path and prevents the media
             // gesture surface from swallowing clicks during WebKit resizes.
@@ -107,7 +103,14 @@ extension NativeYouTubePlayer {
                 }
             }
             .background(.black)
-            .onHover(perform: handlePlayerHover)
+            .onHover { hovering in
+                if isCompact { handlePlayerHover(hovering) }
+            }
+            .overlay {
+                if !isCompact {
+                    PlayerHoverTrackingView(onHover: handlePlayerHover)
+                }
+            }
             // YouTubeInlinePlayerHostView owns the WebKit layer’s rounded clip.
             // Avoid applying a second SwiftUI mask to a remote WebKit layer while
             // AppKit is receiving a layer-tree transaction.

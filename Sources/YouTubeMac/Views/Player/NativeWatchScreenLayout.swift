@@ -72,6 +72,7 @@ extension NativeWatchScreen {
                     playbackController: playbackController,
                     autoMuteOnStart: store.autoMuteOnStart,
                     isCompact: false,
+                    mediaSize: playerWidth.map { CGSize(width: $0, height: $0 / CompactPlayerMetrics.aspectRatio) },
                     onCompactDragChanged: nil,
                     onCompactDragEnded: nil,
                     onPlayerHoverChanged: nil,

@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — Normal player controls and hover
+
+- Anchored the normal transport row to the media bottom, removed the palette-dependent vertical lift, and reserved a separate caption band. Applied explicit media bounds before overlays and isolated the loading thumbnail from layout in both player modes.
+- Added a click-through AppKit hover tracker with a 450-millisecond exit grace period. Tracking areas preserve their inside state across layout changes so the next pointer exit is delivered. Kept compact/PiP sizing and transport constants separate.
+- Bounded the AppKit scroll document's interaction region after runtime samples showed expensive window-drag region synthesis across rounded descendants.
+- All 89 tests pass with Xcode 26.6, including hover exit/re-entry and click pass-through. The rebuilt optimized app displayed the corrected normal control placement and caption separation. Live mouse automation intermittently failed with `noWindowsAvailable`, so the final physical hover cycle remains to be confirmed. A PiP return encountered first-frame recovery; Retry restored normal video. Do not treat this check as full playback regression clearance.
+
 ## 2026-09-06 — 2.2.0 release preparation
 
 - Prepared version 2.2.0, build 202000, covering Subscription Groups, live YouTube Home ordering, and the PiP resize corrections. Added end-user release notes and a current Home screenshot.

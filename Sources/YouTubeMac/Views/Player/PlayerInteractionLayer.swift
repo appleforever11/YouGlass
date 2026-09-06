@@ -91,22 +91,14 @@ enum PlayerTransportLayout {
     static let normalStatusWidth: CGFloat = 120
     // Keep expanded captions just above the normal transport shelf. The
     // resting inset remains intentionally lower; PIP has its own constants.
-    static let normalCaptionControlInset: CGFloat = 110
+    static let normalBottomPadding: CGFloat = 16
+    static let normalCaptionControlInset: CGFloat = 124
     static let normalCaptionRestingInset: CGFloat = 30
     static let compactCaptionControlInset: CGFloat = 100
     static let compactCaptionRestingInset: CGFloat = 16
-    static let normalControlExitGracePeriod: Double = 0.04
+    static let normalControlExitGracePeriod: Double = 0.45
     static let compactControlExitGracePeriod: Double = 0.16
     static let normalControlTransitionDuration: Double = 0.08
-    // Keep the full-player row inside the clipped media surface. The
-    // scrubber remains at the media edge while the circular controls sit
-    // one visual shelf above it. Arctic Glass has a lighter, taller-looking
-    // media surface, so its row needs a smaller lift to avoid floating too
-    // far above the title boundary.
-    static func normalControlLift(for palette: Palette) -> CGFloat {
-        palette.theme == .arcticGlass ? -12 : -28
-    }
-
     static func compactButtonSize(for width: CGFloat) -> CGFloat {
         min(34, max(22, (width - 15) / 6))
     }
