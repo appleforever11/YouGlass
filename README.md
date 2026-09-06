@@ -4,7 +4,7 @@
 
 YouGlass is a native Apple Silicon macOS YouTube client with an Apple-inspired liquid-glass interface, native navigation, an in-app player, desktop Picture in Picture, account-aware feeds, and a Sparkle update channel.
 
-![YouGlass 2.2 home screen](docs/screenshots/youglass-home-2.2.0.png)
+![YouGlass 2.2 home screen](docs/screenshots/youglass-home-2.2.0.jpg)
 
 ![YouGlass 2.1 Theme Center](docs/screenshots/youglass-theme-center-2.1.0.jpg)
 
