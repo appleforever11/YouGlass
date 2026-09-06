@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — Xcode 27 Home refresh and theme tint
+
+- Rebuilt the local optimized app using the installed Xcode 27.0 build 27A5252f / Swift 6.4 toolchain, re-enabling the compiler-gated native Home refresh controller on macOS 27.
+- The refresh indicator now follows `palette.accent`, including custom accents. Theme updates retint the retained controller instead of recreating it or reverting to the system's static accent.
+- All 91 tests pass under Xcode 27, including controller tint updates and identity retention. The signed bundle launched successfully; Kevin confirmed that the trackpad pull refresh works and its indicator is purple in the current purple theme.
+- This is a local build. Global toolchain selection, release version, and the Xcode 26 GitHub publication workflow are unchanged.
+
 ## 2026-09-06 — 2.2.2 hover hotfix preparation
 
 - Kevin confirmed that the latest local hover recovery build works much better and authorized GitHub/Sparkle publication. Prepared version 2.2.2, build 202002, without further playback changes.

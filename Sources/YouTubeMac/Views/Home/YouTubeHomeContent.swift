@@ -145,6 +145,7 @@ extension YouTubeHomeView {
         if #available(macOS 27.0, *) {
             YouGlassHomeScrollView(
                 isRefreshEnabled: store.selectedSection == "Home" && store.selectedCustomFeed == nil,
+                refreshTint: palette.accent,
                 refreshAction: {
                     await store.loadHome(force: true)
                 },

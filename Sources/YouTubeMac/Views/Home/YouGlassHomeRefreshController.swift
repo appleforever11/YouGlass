@@ -7,15 +7,18 @@ import SwiftUI
 struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
     let content: Content
     let isRefreshEnabled: Bool
+    let refreshTint: Color
     let refreshAction: @MainActor () async -> Void
 
     init(
         isRefreshEnabled: Bool,
+        refreshTint: Color,
         refreshAction: @escaping @MainActor () async -> Void,
         @ViewBuilder content: () -> Content
     ) {
         self.content = content()
         self.isRefreshEnabled = isRefreshEnabled
+        self.refreshTint = refreshTint
         self.refreshAction = refreshAction
     }
 
@@ -36,7 +39,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
         scrollView.scrollerStyle = .overlay
         scrollView.documentView = context.coordinator.hostingController.view
         context.coordinator.scrollView = scrollView
-        context.coordinator.updateRefresh(on: scrollView, enabled: isRefreshEnabled)
+        context.coordinator.updateRefresh(on: scrollView, enabled: isRefreshEnabled, tint: NSColor(refreshTint))
         context.coordinator.resizeDocument(in: scrollView)
         context.coordinator.scheduleResize(in: scrollView)
         return scrollView
@@ -46,7 +49,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
         context.coordinator.refreshAction = refreshAction
         context.coordinator.setContent(content)
         context.coordinator.hostingController.view.needsLayout = true
-        context.coordinator.updateRefresh(on: scrollView, enabled: isRefreshEnabled)
+        context.coordinator.updateRefresh(on: scrollView, enabled: isRefreshEnabled, tint: NSColor(refreshTint))
         context.coordinator.resizeDocument(in: scrollView)
         context.coordinator.scheduleResize(in: scrollView)
     }
@@ -82,7 +85,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
             }
         }
 
-        func updateRefresh(on scrollView: NSScrollView, enabled: Bool) {
+        func updateRefresh(on scrollView: NSScrollView, enabled: Bool, tint: NSColor) {
             guard enabled else {
                 removeRefresh(from: scrollView)
                 return
@@ -92,7 +95,8 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
             // availability check. Its builds retain the toolbar refresh action.
             #if compiler(>=6.4)
             guard #available(macOS 27.0, *) else { return }
-            if refreshScrollView === scrollView, refreshController != nil {
+            if refreshScrollView === scrollView, let controller = refreshController as? NSRefreshController {
+                controller.tintColor = tint
                 return
             }
 
@@ -100,7 +104,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
             let controller = NSRefreshController()
             controller.target = self
             controller.action = #selector(handleRefresh(_:))
-            controller.tintColor = .controlAccentColor
+            controller.tintColor = tint
             scrollView.refreshController = controller
             // Reset the controller after attaching it. The macOS 27 beta can
             // inherit an initial pulled state while the hosted document is

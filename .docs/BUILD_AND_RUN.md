@@ -46,6 +46,15 @@ The supported environment overrides are:
 - `SPARKLE_FRAMEWORK_PATH=/absolute/path/to/Sparkle.framework` when the normal resolved path is unavailable.
 - `YOUGLASS_BUILD_BINARY=/absolute/path/to/YouGlass` to stage an already-built binary without compiling.
 
+To include native macOS 27 Home pull-to-refresh in a local build, explicitly select the installed beta SDK for the command:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
+YOUGLASS_BUILD_CONFIGURATION=release ./script/build_and_run.sh --verify
+```
+
+This leaves global Xcode selection and the GitHub release workflow unchanged. Xcode 26 builds compile out the macOS 27 refresh controller even when launched on macOS 27.
+
 For a UI change, run `./script/build_and_run.sh --verify`, open Settings, select the affected page, resize if relevant, and inspect the real window with Computer Use. A successful Swift build alone is not sufficient evidence for settings layout or scroll behavior.
 
 For the current product foundation milestone, smoke-test the rebuilt bundle at minimum across these paths: Home -> `For You` -> Continue Watching -> resume; card context menu -> Watch Later/queue; Library -> collection and note creation; player -> queue, speed, mini-player, PIP, full screen, and Share; `⌘K` -> palette command; Settings -> Accent editor and recommendation toggles; and offline/cached Home behavior. Verify that local data survives a relaunch. Theme changes should be checked in both Light and Dark, especially at the player media/page boundary.
