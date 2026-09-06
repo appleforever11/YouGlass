@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.2.1] - 2026-09-06
+
+Corrected main-player playback button placement and caption spacing. Improved hover tracking and the pointer exit grace period. See [the release notes](RELEASE_NOTES/2.2.1.md).
+
 ## [2.2.0] - 2026-09-06
 
 Added Subscription Groups and live YouTube Home recommendations with preserved source order. Fixed PiP control sizing, black video after enlargement, and Home cache restoration across navigation. See [the release notes](RELEASE_NOTES/2.2.0.md).

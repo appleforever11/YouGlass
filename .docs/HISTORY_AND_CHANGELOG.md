@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — 2.2.1 hotfix preparation
+
+- Kevin confirmed the rebuilt main-player hover reveal, clickable buttons, and hide-on-exit behavior. Prepared 2.2.1, build 202001, for the explicitly requested GitHub and Sparkle hotfix publication.
+- All 89 tests pass. The optimized arm64 bundle has the configured Developer ID signature and matching release metadata. GitHub's tag workflow owns release notarization and Sparkle signing.
+
 ## 2026-09-06 — Normal player controls and hover
 
 - Anchored the normal transport row to the media bottom, removed the palette-dependent vertical lift, and reserved a separate caption band. Applied explicit media bounds before overlays and isolated the loading thumbnail from layout in both player modes.
