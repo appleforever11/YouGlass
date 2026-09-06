@@ -15,8 +15,10 @@ extension NativeYouTubePlayer {
                     // the hit-test chain lets the native toolbar and surface tap
                     // handler receive clicks consistently instead of letting
                     // YouTube's page layer swallow them.
-                    .opacity(playbackController.isSurfaceReady ? 1 : 0)
-                    .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
+                    // Keep WebKit renderable while awaiting the first frame.
+                    // Zero opacity can suppress remote-layer rendering during
+                    // compact/PIP attachment. The opaque thumbnail below covers
+                    // startup without creating a frame-readiness dependency.
                     .allowsHitTesting(false)
 
                     // YouTube's web player can take a few frames to create its

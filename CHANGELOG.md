@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.1.0] - 2026-09-05
+
+Refined Home, discovery, channels, Library, Theme Center, and native player controls. Fixed short-page alignment, catalog clipping, native Settings input stalls, and mixed-resource video search decoding. Preserved account and local data, quota safeguards, and established player stability boundaries. See [the release notes](RELEASE_NOTES/2.1.0.md).
+
 ## [2.0.0] - 2026-08-29
 
 YouGlass 2.0 is the major visual and product milestone: a new Glass Prism identity, 24 coordinated Light/Dark environments, a searchable Theme Center, post-update icon registration, and the complete local-first player, Library, command, reliability, and no-Shorts foundation. See [the complete end-user release notes](RELEASE_NOTES/2.0.0.md).

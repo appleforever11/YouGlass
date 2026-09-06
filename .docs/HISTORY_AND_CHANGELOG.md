@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-05 — 2.1.0 release preparation
+
+- Prepared version 2.1.0, build 201000, release notes and the refreshed Theme Center screenshot. Accounts, data, update feed, and signing keys are unchanged.
+- Kept WebKit renderable behind the startup thumbnail, addressing compact/PIP first-frame stalls without adding retries or overlapping player ownership. The optimized Developer ID build passed real compact/PIP playback and caption checks without Retry.
+- All 80 tests passed; local arm64 ZIP integrity, DMG checksums, embedded resources, and Developer ID signatures passed. A debug build on macOS 27 beta crashed in SwiftUI view copying; the optimized release candidate did not reproduce that crash during playback checks. This is not a claim that the beta debug runtime issue is resolved.
+
 ## 2026-09-05 — Theme Center and native input milestone
 
 - Reorganized Appearance into Environments and Customize, with compact headers, consistent groups, and accessible theme adjustments. A bounded exact-height theme grid fixes the clipped last catalog row observed in the expanded Settings window.
