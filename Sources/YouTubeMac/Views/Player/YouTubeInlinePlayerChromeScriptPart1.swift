@@ -209,6 +209,16 @@ extension YouTubeInlinePlayerView {
           object-position: center center !important;
           transform: none !important;
         }
+        /* YouTube's wide layout can reserve a full-height sibling above
+           the player. Keep this playback-only surface anchored to the
+           viewport instead of letting that responsive document flow move
+           the video one entire viewport below the visible window. */
+        #movie_player {
+          position: fixed !important;
+          inset: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+        }
       `;
 
       const installStyle = () => {

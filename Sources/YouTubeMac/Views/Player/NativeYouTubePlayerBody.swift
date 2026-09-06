@@ -21,17 +21,18 @@ extension NativeYouTubePlayer {
                     // startup without creating a frame-readiness dependency.
                     .allowsHitTesting(false)
 
-                    // YouTube's web player can take a few frames to create its
-                    // media element. Keep the already-known thumbnail on screen
-                    // until that player reports a real duration or playing state.
-                    // This removes the white WebKit flash and makes the first
-                    // presentation feel like one stable native surface.
-                    RemoteImage(url: video.thumbnailURL)
-                        .id(video.id)
-                        .overlay(Color.black.opacity(0.18))
-                        .opacity(playbackController.isSurfaceReady ? 0 : 1)
-                        .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
-                        .allowsHitTesting(false)
+                    if !isCompact {
+                        loadingThumbnail
+                    }
+                }
+                .overlay {
+                    // The fill-scaled thumbnail must not participate in player
+                    // sizing, even after it becomes transparent. Its image
+                    // aspect ratio can otherwise enlarge the ZStack beyond the
+                    // PiP window and push transport controls below its bounds.
+                    if isCompact {
+                        loadingThumbnail
+                    }
                 }
                 // Keep the media layer visual-only. A separate SwiftUI interaction
                 // layer below the controls owns center taps and PIP dragging, so
@@ -40,8 +41,8 @@ extension NativeYouTubePlayer {
                 .allowsHitTesting(false)
                 PlayerInteractionLayer(
                     isCompact: isCompact,
-                    reservedTop: isCompact ? 104 : 0,
-                    reservedBottom: isCompact ? 142 : 132,
+                    reservedTop: isCompact ? 54 : 0,
+                    reservedBottom: isCompact ? 98 : 132,
                     onTap: {
                         revealControls()
                         playbackController.togglePlayback()
@@ -149,6 +150,15 @@ extension NativeYouTubePlayer {
                     setTransportControlsVisible(false)
                 }
             }
+        }
+
+        private var loadingThumbnail: some View {
+            RemoteImage(url: video.thumbnailURL)
+                .id(video.id)
+                .overlay(Color.black.opacity(0.18))
+                .opacity(playbackController.isSurfaceReady ? 0 : 1)
+                .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
+                .allowsHitTesting(false)
         }
 
         /// Keep the native caption surface mounted independently of the

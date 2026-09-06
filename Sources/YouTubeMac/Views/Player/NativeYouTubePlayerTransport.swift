@@ -55,8 +55,7 @@ extension NativeYouTubePlayer {
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 6)
-            .padding(.bottom, 22)
-            .offset(y: -22)
+            .padding(.bottom, 8)
             .opacity(transportControlsVisible && !playbackController.canRetry ? 1 : 0)
             .animation(
                 .easeOut(duration: PlayerTransportLayout.normalControlTransitionDuration),

@@ -2,6 +2,12 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — PiP resize and transport correction
+
+- Isolated the compact loading thumbnail from player sizing so its fill-scaled image cannot push playback controls outside the PiP bounds. Removed compensating vertical offsets, anchored the controls to the window edges, and aligned caption/drag reservations. Preserved the normal player's existing layout.
+- Fixed the black video above YouTube's wide-layout breakpoint: runtime measurements showed the video displaced downward by exactly one viewport height. Anchored the web player to the viewport, retaining the same playback surface and position during resize.
+- The optimized development bundle built and launched successfully; Kevin confirmed that PiP sizing, enlarged video, and normal playback were fixed. All 81 tests passed, including a real WebKit layout regression across 240–1600-point widths and back to the default size. Temporary layout diagnostics were removed. The existing macOS beta debug SwiftUI view-copy crash remains outside this fix.
+
 ## 2026-09-05 — 2.1.1 SDK compatibility correction
 
 The 2.1.0 CI workflow stopped before distribution because Xcode 26 cannot compile macOS 27-only NSRefreshController declarations inside runtime availability guards. Added compile-time gates while preserving the older-SDK toolbar refresh path. Prepared 2.1.1 build 201001 without moving the existing failed tag. All 80 tests pass locally with Xcode 26.6; the matching optimized Developer ID bundle builds and launches successfully.

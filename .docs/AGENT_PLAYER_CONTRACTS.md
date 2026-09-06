@@ -6,6 +6,10 @@ Read when changing playback, captions, queue progression, WebKit, or player layo
 
 - Keep WebKit renderable during first-frame loading. Cover it with the opaque loading thumbnail instead of making the WebKit view zero-opacity; hiding the remote surface can prevent the frame needed to complete compact/PIP startup.
 
+- In compact/PiP, the loading thumbnail is an overlay on the media surface, not a sizing child of its ZStack. A fill-scaled thumbnail can exceed the proposed player height even at zero opacity; letting it size the player pushes PiP transport controls outside the window as its width grows. Keep the normal player's established thumbnail layout separate. Compact chrome uses edge padding (12 points at the top, 8 at the bottom), without compensating vertical offsets; caption and drag reservations follow those control bands.
+
+- The playback-only web client's `#movie_player` is fixed to the viewport. YouTube's wide responsive layout can reserve a full-height sibling ahead of the player; relative document positioning then moves the video one viewport below the visible surface. Preserve viewport anchoring across resize without reloading or recreating playback.
+
 - Player workspace behavior belongs in the store/player boundary: queue navigation, autoplay, speed, compact/PIP/full-screen actions, sharing, Now Playing, and media-key commands must remain safe when the feed or network is unavailable.
 
 - Queue autoplay treats `playbackQueue` as an ordered cursor: when a selected video already exists in the queue, opening it must preserve queue order, backfill late-loaded candidates after the queue tail, carry native `ended` events through the bridge, and advance to the following item without allowing the media element to loop. A user-selected Play Next action inserts immediately after the current cursor and must remain reachable when the bounded queue is full; Add to Queue continues to append at the tail.

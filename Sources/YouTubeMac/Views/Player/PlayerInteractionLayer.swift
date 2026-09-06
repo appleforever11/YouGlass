@@ -93,8 +93,8 @@ enum PlayerTransportLayout {
     // resting inset remains intentionally lower; PIP has its own constants.
     static let normalCaptionControlInset: CGFloat = 110
     static let normalCaptionRestingInset: CGFloat = 30
-    static let compactCaptionControlInset: CGFloat = 128
-    static let compactCaptionRestingInset: CGFloat = 46
+    static let compactCaptionControlInset: CGFloat = 100
+    static let compactCaptionRestingInset: CGFloat = 16
     static let normalControlExitGracePeriod: Double = 0.04
     static let compactControlExitGracePeriod: Double = 0.16
     static let normalControlTransitionDuration: Double = 0.08

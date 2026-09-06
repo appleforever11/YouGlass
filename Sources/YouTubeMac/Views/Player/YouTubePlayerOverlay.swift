@@ -89,8 +89,7 @@ struct YouTubePlayerOverlay: View {
                         .accessibilityIdentifier("pip-close-button")
                         .help("Stop playback")
                     }
-                    .offset(y: 18)
-                    .padding(.top, 30)
+                    .padding(.top, 12)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
                     .opacity(compactChromeVisible ? 1 : 0)
@@ -135,7 +134,7 @@ struct YouTubePlayerOverlay: View {
                             .stroke(palette.stroke, lineWidth: 1)
                             .allowsHitTesting(false)
                     }
-                    .padding(.top, 100)
+                    .padding(.top, 54)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 12)
                     .zIndex(21)
