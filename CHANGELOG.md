@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.2.2] - 2026-09-06
+
+Improved main-player hover reliability with missed-event recovery, accurate video bounds, and preserved hover during player startup. See [the release notes](RELEASE_NOTES/2.2.2.md).
+
 ## [2.2.1] - 2026-09-06
 
 Corrected main-player playback button placement and caption spacing. Improved hover tracking and the pointer exit grace period. See [the release notes](RELEASE_NOTES/2.2.1.md).

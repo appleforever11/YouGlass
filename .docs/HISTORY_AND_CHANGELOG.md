@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — 2.2.2 hover hotfix preparation
+
+- Kevin confirmed that the latest local hover recovery build works much better and authorized GitHub/Sparkle publication. Prepared version 2.2.2, build 202002, without further playback changes.
+- All 90 implementation tests passed before release preparation. The existing release workflow provides Developer ID signing, Apple notarization, and Sparkle archive signing.
+
 ## 2026-09-06 — Main-player hover recovery
 
 - Replaced event-only hover state with coordinate validation plus an 80-millisecond reconciliation timer while the normal player is attached. Stops the timer on detach/dismantle and clears hover for inactive, hidden, or minimized surfaces.
