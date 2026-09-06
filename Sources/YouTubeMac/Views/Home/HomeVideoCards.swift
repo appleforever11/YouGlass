@@ -14,7 +14,7 @@ struct VideoRow: View {
 
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
-                YouGlassSectionHeading(title: title, subtitle: sectionSubtitle, palette: palette, count: videos.count)
+                YouGlassSectionHeading(title: displayTitle, subtitle: sectionSubtitle, palette: palette, count: videos.count)
                 .layoutPriority(1)
 
                 Spacer(minLength: 12)
@@ -30,7 +30,7 @@ struct VideoRow: View {
                         .padding(.vertical, 8)
                     }
                     .buttonStyle(DashboardActionStyle(palette: palette))
-                    .accessibilityLabel("See all \(title) videos")
+                    .accessibilityLabel("See all \(displayTitle) videos")
                     .layoutPriority(2)
                 }
             }
@@ -51,15 +51,22 @@ struct VideoRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var displayTitle: String {
+        title == "Trending" && store.homeRecommendationsAreFromYouTube ? "More from YouTube" : title
+    }
+
     private var sectionSubtitle: String {
         switch title {
-        case "For You": "Fresh picks shaped by your subscriptions and local viewing"
-        case "Trending": "Popular videos from the channels and topics you follow"
+        case "For You": store.homeRecommendationsAreFromYouTube
+            ? "Suggestions in YouTube Home order" : "Picks shaped by your subscriptions and local viewing"
+        case "Trending": store.homeRecommendationsAreFromYouTube
+            ? "More suggestions from YouTube Home" : "Popular videos from the channels and topics you follow"
         case "More to watch": "Keep exploring beyond your usual favorites"
         case "Watch Later": "Saved locally and ready when you are"
         case "Liked on this Mac": "Videos you marked as favorites in YouGlass"
         case "Search results": "Find your next great watch"
         case "Subscriptions": "Latest uploads from your channels"
+        case "Latest uploads": "Newest videos from the channels in this group"
         case "History": "Return to videos you’ve watched"
         case "Liked Videos": "Videos you’ve liked on YouTube and in YouGlass"
         default: "Videos selected for this collection"

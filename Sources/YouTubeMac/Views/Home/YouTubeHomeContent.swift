@@ -20,7 +20,9 @@ extension YouTubeHomeView {
                             .environmentObject(store)
                     }
 
-                    if store.selectedSection == "Explore" {
+                    if store.selectedSection == "Subscription Group" {
+                        SubscriptionGroupDetailView(palette: palette, compact: compact)
+                    } else if store.selectedSection == "Explore" {
                         DiscoveryView(palette: palette)
                     } else if store.selectedSection == "Library" {
                         PersonalLibraryView(palette: palette, compact: compact)

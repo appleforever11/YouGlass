@@ -4,6 +4,7 @@ import SwiftUI
 
 extension YouTubeStore {
         func refreshHomeIfNeeded(now: Date = Date()) async {
+            guard selectedSection == "Home", selectedCustomFeedID == nil else { return }
             // The expanded watch screen completely covers Home. Deliberate
             // refresh and visible mini-player/PIP browsing remain available.
             guard selectedVideo == nil || isPlayerCompact || isDesktopPIPActive else { return }
@@ -94,6 +95,11 @@ extension YouTubeStore {
             playlistItems = []
             playlistError = nil
             clearSelectedCustomFeed()
+            if title != "Subscription Group" {
+                selectedSubscriptionGroupID = nil
+                subscriptionGroupVideos = []
+                subscriptionGroupMessage = nil
+            }
             selectedSection = title
             self.query = query ?? (title == "Home" ? "" : self.query)
             sectionEmptyMessage = nil
@@ -110,7 +116,10 @@ extension YouTubeStore {
             guard canPublishSectionLoad(generation) else { return }
 
             switch title {
+            case "Subscription Group":
+                await loadSubscriptionGroup(generation: generation)
             case "Home":
+                restoreHomeRecommendations()
                 await loadHome(sectionGeneration: generation)
             case "History":
                 await loadHistory(sectionGeneration: generation)

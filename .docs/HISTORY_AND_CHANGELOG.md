@@ -2,6 +2,14 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — Subscription Groups and YouTube Home recommendations
+
+- Added local subscription groups with named sidebar folders, channel assignment, alphabetical/manual ordering, collapse state, and latest-upload views. Definitions use stable channel IDs and bounded storage; deleting a folder leaves YouTube subscriptions intact.
+- Home now reads the actual YouTube homepage using the existing app web session and preserves its recommendation order. Supports both signed-in and viewing-personalized signed-out web sessions, classic and modern video cards, and excludes ads, playlists, and Shorts routes. The previous account/RSS/API mix remains available when the web response is unavailable, without re-enabling hidden WebKit surfaces.
+- Home displays its recommendation source and provides a YouTube Home shortcut to view or sign into that web session. Other destinations no longer overwrite the Home recommendation cache, and returning Home restores its saved order before refreshing.
+- Live optimized-bundle checks covered group creation, manual/alpha order, collapse, persistence across relaunch, group uploads, and cleanup. Compared the real YouTube web session with the app and confirmed the live homepage source replaced the fallback mix.
+- All 88 tests pass, including homepage order, classic/modern cards, ad/playlist/Shorts exclusion, malformed responses, bounded group membership, stable channel identities, and persisted manual ordering. Canceled subscription requests no longer publish stale errors into the next destination.
+
 ## 2026-09-06 — PiP resize and transport correction
 
 - Isolated the compact loading thumbnail from player sizing so its fill-scaled image cannot push playback controls outside the PiP bounds. Removed compensating vertical offsets, anchored the controls to the window edges, and aligned caption/drag reservations. Preserved the normal player's existing layout.

@@ -54,7 +54,17 @@ struct SidebarView: View {
             DividerLine(palette: palette)
 
             if !compact {
-                Text("Subscriptions")
+                HStack {
+                    Text("Subscriptions")
+                    Spacer()
+                    Button { store.editSubscriptionGroup() } label: {
+                        Image(systemName: "folder.badge.plus")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Create subscription group")
+                    .accessibilityLabel("Create subscription group")
+                    .disabled(store.sidebarSubscriptionGroupsSnapshot.count >= SubscriptionGroup.maximumGroups)
+                }
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(palette.secondaryText)
                     .padding(.horizontal, 22)
@@ -67,6 +77,7 @@ struct SidebarView: View {
                 // and starts every avatar load even though this viewport only
                 // exposes a small subset at once.
                 LazyVStack(spacing: 8) {
+                    SubscriptionGroupSidebar(palette: palette, compact: compact)
                     ForEach(store.sidebarSubscriptionsSnapshot) { item in
                         SidebarSubscriptionRow(
                             item: item,

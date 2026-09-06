@@ -11,6 +11,7 @@ final class YouTubeStore: ObservableObject {
     // diffing subscriptions.
     nonisolated(unsafe) var sidebarSubscriptionsSnapshot: [SubscriptionItem] = []
     nonisolated(unsafe) var sidebarIsSignedInSnapshot = false
+    nonisolated(unsafe) var sidebarSubscriptionGroupsSnapshot: [SubscriptionGroup] = []
 
     @Published var theme: AppTheme = .light
     @Published var visualTheme: YouGlassThemeFamily = .neoCitrus
@@ -74,6 +75,15 @@ final class YouTubeStore: ObservableObject {
     @Published var customFeedMessage: String?
     @Published var customFeedComposerPresented = false
     @Published var editingCustomFeedID: UUID?
+    @Published var subscriptionGroups: [SubscriptionGroup] = [] {
+        didSet { sidebarSubscriptionGroupsSnapshot = subscriptionGroups }
+    }
+    @Published var selectedSubscriptionGroupID: UUID?
+    @Published var subscriptionGroupVideos: [VideoItem] = []
+    @Published var subscriptionGroupMessage: String?
+    @Published var subscriptionGroupEditorPresented = false
+    @Published var editingSubscriptionGroup: SubscriptionGroup?
+    @Published var homeRecommendationsAreFromYouTube = false
 
     var client = YouTubeAPIClient()
     let oauth = YouTubeOAuthClient.shared
@@ -159,6 +169,7 @@ final class YouTubeStore: ObservableObject {
         recommendationSeeds = decodeRecommendationSeeds()
         recentlyPresentedRecommendationIDs = decodeRecentlyPresentedRecommendationIDs()
         customFeeds = decodeCustomFeeds()
+        subscriptionGroups = decodeSubscriptionGroups()
         recentlyWatched = decodeVideos(forKey: DefaultsKey.recentlyWatched)
         savedVideos = decodeVideos(forKey: DefaultsKey.savedVideos)
         locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
@@ -177,12 +188,14 @@ final class YouTubeStore: ObservableObject {
             _ = applyPrimaryHomeVideos(
                 cachedPersonalizedVideos,
                 message: "Saved personalized YouTube recommendations",
-                cacheFeed: false
+                cacheFeed: false,
+                preserveSourceOrder: defaults.bool(forKey: "YouGlass.cachedHomePreservesYouTubeOrder")
             )
         } else {
             let cachedFeedVideos = decodeVideos(forKey: DefaultsKey.cachedFeed)
             if !cachedFeedVideos.isEmpty {
-                _ = applyPrimaryHomeVideos(cachedFeedVideos, message: "Saved YouTube recommendations", cacheFeed: false)
+                _ = applyPrimaryHomeVideos(cachedFeedVideos, message: "Saved YouTube recommendations", cacheFeed: false,
+                                          preserveSourceOrder: defaults.bool(forKey: "YouGlass.cachedHomePreservesYouTubeOrder"))
             }
         }
         // Cached feeds and queues can reveal additional Shorts IDs after the
@@ -238,6 +251,8 @@ final class YouTubeStore: ObservableObject {
                 Task { @MainActor in
                     self?.isSignedIn = false
                     self?.subscriptions = []
+                    self?.selectedSubscriptionGroupID = nil
+                    self?.subscriptionGroupVideos = []
                     self?.subscriptionsLoaded = false
                     self?.profileImageURL = nil
                     self?.lastAccountSyncDate = nil

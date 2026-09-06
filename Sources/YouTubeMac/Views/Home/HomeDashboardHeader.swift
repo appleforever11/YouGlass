@@ -31,6 +31,9 @@ struct HomeDashboardHeader: View {
 
     private var shortcuts: some View {
         Group {
+            shortcut("YouTube Home", detail: "Open the YouTube session used for Home suggestions", icon: "play.rectangle") {
+                store.openURL(URL(string: "https://www.youtube.com/")!, title: "YouTube Home")
+            }
             shortcut("Watch Later", detail: "\(store.savedVideos.count) saved", icon: "bookmark.fill") {
                 store.showSection("Watch Later")
             }

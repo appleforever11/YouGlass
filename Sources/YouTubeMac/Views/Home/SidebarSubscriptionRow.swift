@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SidebarSubscriptionRow: View {
+    @EnvironmentObject private var store: YouTubeStore
     let item: SubscriptionItem
     let palette: Palette
     let compact: Bool
@@ -53,5 +54,21 @@ struct SidebarSubscriptionRow: View {
         .onHover { isHovered = $0 }
         .help(item.name)
         .accessibilityLabel(item.isLive ? "\(item.name), live now" : item.name)
+        .draggable(item.canonicalChannelID ?? item.id)
+        .contextMenu {
+            Menu("Add to group") {
+                ForEach(store.sidebarSubscriptionGroupsSnapshot) { group in
+                    Button(group.name) { store.addChannel(item.canonicalChannelID ?? item.id, to: group.id) }
+                        .disabled(group.channelIDs.contains(item.canonicalChannelID ?? item.id)
+                                  || group.channelIDs.count >= SubscriptionGroup.maximumChannels)
+                }
+                Button("New group…") {
+                    var group = SubscriptionGroup()
+                    group.channelIDs = [item.canonicalChannelID ?? item.id]
+                    store.editSubscriptionGroup(group)
+                }
+                .disabled(store.sidebarSubscriptionGroupsSnapshot.count >= SubscriptionGroup.maximumGroups)
+            }
+        }
     }
 }

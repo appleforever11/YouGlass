@@ -121,6 +121,7 @@ extension YouTubeStore {
                 apiRequestSucceeded = true
                 YouGlassDiagnostics.auth.debug("Subscription API returned \(apiSubscriptions.count, privacy: .public) items")
             } catch {
+                guard !Task.isCancelled else { return }
                 YouGlassDiagnostics.auth.error("Subscription API request failed")
                 connectionMessage = error.localizedDescription
             }
@@ -131,6 +132,7 @@ extension YouTubeStore {
             let webSubscriptions = apiRequestSucceeded
                 ? []
                 : await subscriptionBridge.loadSubscriptions(maxResults: 200)
+            guard !Task.isCancelled, isSignedIn else { return }
 
             let mergedSubscriptions = mergeSubscriptions(apiSubscriptions + webSubscriptions)
             if !mergedSubscriptions.isEmpty {

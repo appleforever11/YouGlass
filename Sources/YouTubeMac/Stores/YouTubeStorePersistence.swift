@@ -238,7 +238,7 @@ extension YouTubeStore {
             feed.more = Array(merged.dropFirst(16).prefix(8))
             feed.queue = Array(merged.dropFirst(24).prefix(4))
             connectionMessage = message
-            if cacheFeed, let data = try? JSONEncoder().encode(merged) {
+            if cacheFeed, selectedSection == "Home", let data = try? JSONEncoder().encode(merged) {
                 defaults.set(data, forKey: DefaultsKey.cachedFeed)
                 let refreshedAt = Date()
                 cachedFeedUpdatedAt = refreshedAt
@@ -247,14 +247,22 @@ extension YouTubeStore {
             }
         }
 
+        func restoreHomeRecommendations() {
+            let cached = decodeVideos(forKey: DefaultsKey.cachedFeed)
+            guard !cached.isEmpty else { return }
+            _ = applyPrimaryHomeVideos(cached, message: "Saved YouTube recommendations", cacheFeed: false,
+                                       preserveSourceOrder: defaults.bool(forKey: "YouGlass.cachedHomePreservesYouTubeOrder"))
+        }
+
         @discardableResult
         func applyPrimaryHomeVideos(
             _ videos: [VideoItem],
             message: String,
             cacheFeed: Bool = true,
-            favorFresh: Bool = false
+            favorFresh: Bool = false,
+            preserveSourceOrder: Bool = false
         ) -> Bool {
-            let ranked = RecommendationRanker.rank(
+            let ranked = preserveSourceOrder ? Array(mergeVideos(nonShortVideos(videos)).prefix(40)) : RecommendationRanker.rank(
                 videos,
                 subscriptions: subscriptions,
                 history: recentlyWatched,
@@ -266,6 +274,8 @@ extension YouTubeStore {
                 limit: 40
             )
             guard !ranked.isEmpty else { return false }
+            homeRecommendationsAreFromYouTube = preserveSourceOrder
+            if cacheFeed { defaults.set(preserveSourceOrder, forKey: "YouGlass.cachedHomePreservesYouTubeOrder") }
             applyHomeVideos(ranked, message: message, cacheFeed: cacheFeed)
             if favorFresh {
                 rememberPresentedRecommendations(feed.forYou)

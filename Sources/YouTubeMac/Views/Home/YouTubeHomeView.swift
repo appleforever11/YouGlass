@@ -128,6 +128,13 @@ struct YouTubeHomeView: View {
             compactDragOffset = .zero
         }
         .sheet(isPresented: Binding(
+            get: { store.subscriptionGroupEditorPresented },
+            set: { store.subscriptionGroupEditorPresented = $0 }
+        )) {
+            SubscriptionGroupEditor(group: store.editingSubscriptionGroup)
+                .environmentObject(store)
+        }
+        .sheet(isPresented: Binding(
             get: { store.customFeedComposerPresented },
             set: { store.customFeedComposerPresented = $0 }
         )) {

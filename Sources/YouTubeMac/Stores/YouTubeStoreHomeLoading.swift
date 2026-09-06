@@ -51,7 +51,8 @@ extension YouTubeStore {
                 _ = applyPrimaryHomeVideos(
                     cachedVideos,
                     message: "Saved YouTube recommendations",
-                    cacheFeed: false
+                    cacheFeed: false,
+                    preserveSourceOrder: defaults.bool(forKey: "YouGlass.cachedHomePreservesYouTubeOrder")
                 )
             }
             defer {
@@ -96,22 +97,13 @@ extension YouTubeStore {
                 defaults.set(true, forKey: DefaultsKey.isSignedIn)
             }
 
-            // OAuth-backed Data API calls are account-scoped and do not need the
-            // hidden homepage bridge. Skipping it removes the largest source of
-            // remote layer-tree activity for signed-in users while preserving the
-            // web-session fallback for API-key-only installs.
-            let webResult: YouTubeWebFeedResult
-            if hasOAuthSession {
-                YouGlassDiagnostics.record(
-                    .debug,
-                    category: "webkit",
-                    message: "Skipped hidden homepage bridge for OAuth account"
-                )
-                webResult = .empty
-            } else {
-                webResult = await YouTubeWebFeedBridge.shared.loadHomeVideos(maxResults: 32)
-            }
+            // Read the actual web homepage without a hidden rendering surface.
+            // OAuth alone does not provide YouTube Home's recommendation order.
+            let webResult = await YouTubeHomepageClient().load(maxResults: 40)
             guard canPublishSectionLoad(sectionGeneration) else { return }
+            YouGlassDiagnostics.record(.info, category: "feed", message: "YouTube Home response",
+                                       metadata: ["count": String(webResult.videos.count),
+                                                  "signedIn": String(webResult.isSignedIn)])
             if let profileURL = webResult.profileImageURL {
                 profileImageURL = profileURL
                 defaults.set(profileURL.absoluteString, forKey: DefaultsKey.profileImageURL)
@@ -121,9 +113,17 @@ extension YouTubeStore {
                 defaults.set(true, forKey: DefaultsKey.isSignedIn)
             }
 
+            if !webResult.videos.isEmpty,
+               applyPrimaryHomeVideos(webResult.videos,
+                                      message: "Live suggestions from YouTube Home",
+                                      preserveSourceOrder: true) {
+                cachePersonalizedFeed(webResult.videos)
+                if subscriptions.isEmpty { scheduleSubscriptionsLoad(force: false) }
+                return
+            }
+
             if isSignedIn {
-                // The hidden YouTube homepage can return a Shorts-only public
-                // surface even when the account session is valid. Build the
+                // If the web homepage is unavailable, build the
                 // account feed from the user's actual subscriptions first.
                 // A Home refresh should not block on full subscription
                 // pagination when a persisted snapshot is already available.
@@ -157,15 +157,6 @@ extension YouTubeStore {
                         favorFresh: true
                    ) {
                     cachePersonalizedFeed(personalized)
-                    return
-                }
-            }
-
-            if !webResult.videos.isEmpty && (!isSignedIn || webResult.isSignedIn) {
-                let message = webResult.isSignedIn
-                    ? "Using signed-in YouTube homepage recommendations"
-                    : "Using YouTube homepage recommendations"
-                if applyPrimaryHomeVideos(webResult.videos, message: message, favorFresh: true) {
                     return
                 }
             }
