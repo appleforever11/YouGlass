@@ -2,6 +2,13 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-06 — Main-player hover recovery
+
+- Replaced event-only hover state with coordinate validation plus an 80-millisecond reconciliation timer while the normal player is attached. Stops the timer on detach/dismantle and clears hover for inactive, hidden, or minimized surfaces.
+- Restricted tracking and pointer containment to both view bounds and the visible rect. An AppKit test demonstrated that a non-clipping view's visible rect can extend outside its bounds. Stale entry events now use their coordinates rather than unconditionally revealing controls.
+- Preserved existing hover during player appearance so startup cannot hide controls after entry has already been detected.
+- All 90 tests pass, including omitted entry events, media movement beneath a stationary pointer, out-of-bounds entry events, reentry, and click pass-through. The optimized local bundle was inspected with live playback and caption/control separation. Repeated physical hover confirmation remains separate from these automated checks. No release or Git push was requested for this correction.
+
 ## 2026-09-06 — 2.2.1 hotfix preparation
 
 - Kevin confirmed the rebuilt main-player hover reveal, clickable buttons, and hide-on-exit behavior. Prepared 2.2.1, build 202001, for the explicitly requested GitHub and Sparkle hotfix publication.

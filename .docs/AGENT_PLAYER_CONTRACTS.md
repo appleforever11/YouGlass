@@ -20,6 +20,8 @@ Read when changing playback, captions, queue progression, WebKit, or player layo
 
 - AppKit-hosted player scroll documents expose one rectangular content shape. This bounds window-drag exclusion-region synthesis instead of combining every rounded descendant; child controls retain their own hit testing. Preserve this boundary when changing the player or comments hierarchy.
 
+- Normal hover must recover from missing tracking events. While attached, the tracking overlay reconciles the actual pointer every 80 milliseconds on the main run loop, in common modes, and stops its timer on detach/dismantle. Limit containment and tracking areas to the intersection of `bounds` and `visibleRect`; a non-clipping AppKit view can report a larger visible rect. Inactive, hidden, or minimized surfaces relinquish hover. Preserve already-detected hover during player appearance rather than unconditionally hiding transport.
+
 - Hidden WebKit feed/comments compatibility scripts must keep retries bounded, avoid whole-page polling/scans when a targeted query is sufficient, and dispatch each continuation action only once.
 
 - The watch page owns playback through `WatchPlaybackOwner` without observing transport ticks. Small player/caption/side-effect views observe the controller; do not reattach whole-page observation. Bridge updates suppress equal values. Bounded scroll measurements coalesce asynchronously and only change document frames when dimensions differ. Expanded playback suspends covered Home hover/prewarming and automatic refresh, while compact/PIP browsing remains enabled.

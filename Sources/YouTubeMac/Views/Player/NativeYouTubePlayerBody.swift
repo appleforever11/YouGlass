@@ -147,7 +147,7 @@ extension NativeYouTubePlayer {
                 // Both player surfaces start with a brief discoverable control
                 // state. Normal playback then waits for media hover, while
                 // compact/PIP uses the same transient hover contract.
-                if isCompact {
+                if isCompact || isPointerHovering {
                     revealControls()
                 } else {
                     setTransportControlsVisible(false)
