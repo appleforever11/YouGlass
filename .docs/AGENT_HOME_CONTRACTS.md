@@ -2,6 +2,8 @@
 
 Read when changing Home, Library, discovery, navigation, refresh, or pointer behavior. These preserve the operational rules moved from AGENTS.md. Follow the user's requested scope; verify current source when implementation details may have changed.
 
+- Explore is a local topic chooser; choosing a topic deliberately enters the existing search path. Subscriptions, History, saved/liked destinations, and section drilldowns use a single correctly titled grid rather than Home's spotlight and recommendation labels. Refresh stays in the selected destination. Channel videos reuse the shared 260-point adaptive cards, safe user-interaction opening, and context menus, and expose all already-loaded videos rather than truncating presentation at 24.
+
 - Home's AppKit document observes its natural SwiftUI content size, including child-local state changes such as Library tabs. Coalesce remeasurement and skip equal frames. `YouGlassHomeClipView` top-aligns short unflipped documents without changing long-document scroll positions. Keep the fixed-size document measurement and named card coordinate space together; otherwise empty tabs can drift down the window. Sidebar subscriptions use the remaining vertical space rather than a fixed-height viewport.
 - Library empty states provide a destination-specific next action; an empty collection name cannot be submitted. Global refresh is absent in the local Library and reruns search on Search. Section headings expose their own accessibility header while adjacent actions remain independently reachable.
 

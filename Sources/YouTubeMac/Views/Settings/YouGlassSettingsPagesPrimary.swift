@@ -43,117 +43,125 @@ extension YouGlassSettingsView {
 
                 selectedThemeSummary
 
-                settingsGroup("Theme controls", footer: "Every environment includes a coordinated light and dark palette. Changes apply throughout Home, channels, the player, compact windows, and Settings.") {
-                    Picker("Appearance", selection: Binding(
-                        get: { store.theme },
-                        set: { store.setTheme($0) }
-                    )) {
-                        ForEach(AppTheme.allCases) { theme in
-                            Text(theme.rawValue).tag(theme)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Divider()
-
-                    HStack(alignment: .top, spacing: 24) {
-                        ThemeControlSlider(
-                            title: "Background glow",
-                            systemImage: "sun.max",
-                            value: Binding(
-                                get: { store.backgroundGlow },
-                                set: { store.setBackgroundGlow($0) }
-                            ),
-                            range: 0.35...1.0
-                        )
-
-                        ThemeControlSlider(
-                            title: "Glass tint",
-                            systemImage: "circle.lefthalf.filled",
-                            value: Binding(
-                                get: { store.glassIntensity },
-                                set: { store.setGlassIntensity($0) }
-                            ),
-                            range: 0.25...1.0
-                        )
-                    }
-
-                    Toggle("Reduce ambient motion", isOn: $reduceAmbientMotion)
+                Picker("Appearance section", selection: $showThemeAdjustments) {
+                    Text("Environments").tag(false)
+                    Text("Customize").tag(true)
                 }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityLabel("Appearance section")
 
-                settingsGroup("Accent editor", footer: "Use a six-digit hex color to tune the selection, accent, and highlight treatment across the app. Leave it blank to use the environment default.") {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(store.themeCustomization.accentColor ?? store.visualTheme.colors(isDark: effectiveColorScheme == .dark).accent)
-                            .frame(width: 24, height: 24)
-                            .overlay(Circle().stroke(.quaternary, lineWidth: 1))
-
-                        TextField("#4C8DFF", text: $accentHexDraft)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
-                            .onSubmit { store.setThemeAccentHex(accentHexDraft) }
-
-                        Button("Apply") {
-                            store.setThemeAccentHex(accentHexDraft)
-                            accentHexDraft = store.themeCustomization.normalizedAccentHex ?? ""
+                if showThemeAdjustments {
+                    settingsGroup("Theme controls", footer: "Every environment includes a coordinated light and dark palette. Changes apply throughout Home, channels, the player, compact windows, and Settings.") {
+                        Picker("Appearance", selection: Binding(
+                            get: { store.theme },
+                            set: { store.setTheme($0) }
+                        )) {
+                            ForEach(AppTheme.allCases) { theme in
+                                Text(theme.rawValue).tag(theme)
+                            }
                         }
-                        .buttonStyle(.bordered)
-                        .disabled(YouGlassThemeCustomization.normalizeHex(accentHexDraft) == nil)
+                        .pickerStyle(.segmented)
 
-                        Button("Reset") {
-                            store.resetThemeCustomization()
-                            accentHexDraft = ""
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(store.themeCustomization.normalizedAccentHex == nil)
-                    }
-                }
+                        Divider()
 
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Theme Center")
-                            .font(.title3.weight(.bold))
-                        Text("Choose an environment. Each preview shows its light and dark treatments together.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: 12)
-
-                    Text("\(filteredThemeFamilies.count) of \(YouGlassThemeFamily.allCases.count) environments")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 2)
-
-                themeBrowserControls
-
-                if filteredThemeFamilies.isEmpty {
-                    VStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.title2)
-                            .foregroundStyle(.secondary)
-                        Text("No matching environments")
-                            .font(.headline)
-                        Text("Try a different name or collection.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 34)
-                } else {
-                    LazyVGrid(
-                        columns: [GridItem(.adaptive(minimum: 240, maximum: 360), spacing: 16)],
-                        alignment: .leading,
-                        spacing: 16
-                    ) {
-                        ForEach(filteredThemeFamilies) { theme in
-                            YouGlassThemeCard(
-                                theme: theme,
-                                isSelected: store.visualTheme == theme,
-                                action: { store.setVisualTheme(theme) }
+                        HStack(alignment: .top, spacing: 24) {
+                            ThemeControlSlider(
+                                title: "Background glow",
+                                systemImage: "sun.max",
+                                value: Binding(
+                                    get: { store.backgroundGlow },
+                                    set: { store.setBackgroundGlow($0) }
+                                ),
+                                range: 0.35...1.0
                             )
+
+                            ThemeControlSlider(
+                                title: "Glass tint",
+                                systemImage: "circle.lefthalf.filled",
+                                value: Binding(
+                                    get: { store.glassIntensity },
+                                    set: { store.setGlassIntensity($0) }
+                                ),
+                                range: 0.25...1.0
+                            )
+                        }
+
+                        Toggle("Reduce ambient motion", isOn: $reduceAmbientMotion)
+                    }
+
+                    settingsGroup("Accent editor", footer: "Use a six-digit hex color to tune the selection, accent, and highlight treatment across the app. Leave it blank to use the environment default.") {
+                        HStack(spacing: 10) {
+                            Circle()
+                                .fill(store.themeCustomization.accentColor ?? store.visualTheme.colors(isDark: effectiveColorScheme == .dark).accent)
+                                .frame(width: 24, height: 24)
+                                .overlay(Circle().stroke(.quaternary, lineWidth: 1))
+
+                            TextField("#4C8DFF", text: $accentHexDraft)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 120)
+                                .onSubmit { store.setThemeAccentHex(accentHexDraft) }
+
+                            Button("Apply") {
+                                store.setThemeAccentHex(accentHexDraft)
+                                accentHexDraft = store.themeCustomization.normalizedAccentHex ?? ""
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(YouGlassThemeCustomization.normalizeHex(accentHexDraft) == nil)
+
+                            Button("Reset") {
+                                store.resetThemeCustomization()
+                                accentHexDraft = ""
+                            }
+                            .buttonStyle(.bordered)
+                            .disabled(store.themeCustomization.normalizedAccentHex == nil)
+                        }
+                    }
+
+
+                } else {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Theme Center")
+                                .font(.title3.weight(.bold))
+                            Text("Choose an environment. Each preview shows its light and dark treatments together.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 12)
+
+                        Text("\(filteredThemeFamilies.count) of \(YouGlassThemeFamily.allCases.count) environments")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 2)
+
+                    themeBrowserControls
+
+                    if filteredThemeFamilies.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.title2)
+                                .foregroundStyle(.secondary)
+                            Text("No matching environments")
+                                .font(.headline)
+                            Text("Try a different name or collection.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 34)
+                } else {
+                        YouGlassThemeGrid {
+                            ForEach(filteredThemeFamilies) { theme in
+                                YouGlassThemeCard(
+                                    theme: theme,
+                                    isSelected: store.visualTheme == theme,
+                                    action: { store.setVisualTheme(theme) }
+                                )
+                            }
                         }
                     }
                 }

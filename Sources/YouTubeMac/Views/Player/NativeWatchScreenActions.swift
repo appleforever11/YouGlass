@@ -7,9 +7,11 @@ extension NativeWatchScreen {
                     AsyncAvatar(url: details?.channelAvatarURL)
                         .frame(width: 42, height: 42)
                         .overlay {
+                            if details?.channelAvatarURL == nil {
                             Text(String(video.channel.prefix(2)))
                                 .font(.system(size: 12, weight: .heavy))
                                 .foregroundStyle(.white)
+                            }
                         }
 
                     VStack(alignment: .leading, spacing: 3) {
@@ -120,7 +122,7 @@ extension NativeWatchScreen {
             VStack(alignment: .leading, spacing: 8) {
                 Text(metadataLine)
                     .font(.system(size: 13, weight: .bold))
-                Text(details?.description.isEmpty == false ? details?.description ?? "" : "Watching in the native Apple-inspired player. Public metadata, comments, ratings, and live chat load from the YouTube Data API when available.")
+                Text(details?.description.isEmpty == false ? details?.description ?? "" : "No description is available for this video.")
                     .font(.system(size: 13))
                     .foregroundStyle(palette.secondaryText)
                     .lineSpacing(3)

@@ -59,6 +59,9 @@ struct VideoRow: View {
         case "Watch Later": "Saved locally and ready when you are"
         case "Liked on this Mac": "Videos you marked as favorites in YouGlass"
         case "Search results": "Find your next great watch"
+        case "Subscriptions": "Latest uploads from your channels"
+        case "History": "Return to videos you’ve watched"
+        case "Liked Videos": "Videos you’ve liked on YouTube and in YouGlass"
         default: "Videos selected for this collection"
         }
     }

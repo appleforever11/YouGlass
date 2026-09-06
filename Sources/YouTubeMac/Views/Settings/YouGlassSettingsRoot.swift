@@ -17,7 +17,7 @@ extension YouGlassSettingsView {
                             Divider()
                         }
 
-                        YouGlassSettingsScrollView(resetID: selection ?? .general) {
+                        YouGlassSettingsScrollView(resetID: "\((selection ?? .general).rawValue)-\(showThemeAdjustments)") {
                             settingsDetail
                                 .frame(
                                     maxWidth: selection == .appearance ? 1_120 : 820,

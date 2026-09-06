@@ -25,8 +25,6 @@ if [[ -z "$SIGNING_IDENTITY" ]]; then
 fi
 SIGNING_IDENTITY="${SIGNING_IDENTITY:--}"
 
-pkill -x "$APP_NAME" >/dev/null 2>&1 || true
-
 cd "$ROOT_DIR"
 if [[ -n "${YOUGLASS_BUILD_BINARY:-}" ]]; then
   BUILD_BINARY="$YOUGLASS_BUILD_BINARY"
@@ -46,6 +44,25 @@ fi
 if [[ ! -d "$SPARKLE_FRAMEWORK" ]]; then
   echo "Sparkle.framework was not found. Run swift package resolve first." >&2
   exit 1
+fi
+
+# Preserve installed and archived copies. Build-only mode never stops an app;
+# a run restarts only the executable inside this checkout's staged bundle.
+if [[ "$MODE" != "build" && "$MODE" != "--build" ]]; then
+  while IFS= read -r app_pid; do
+    app_command="$(ps -p "$app_pid" -o command= 2>/dev/null || true)"
+    if [[ "$app_command" == "$CONTENTS/MacOS/$APP_NAME" ]]; then
+      kill "$app_pid" 2>/dev/null || true
+      for attempt in {1..40}; do
+        kill -0 "$app_pid" 2>/dev/null || break
+        sleep 0.1
+      done
+      if kill -0 "$app_pid" 2>/dev/null; then
+        echo "The development app has not exited; leaving its staged bundle intact." >&2
+        exit 1
+      fi
+    fi
+  done < <(pgrep -x "$APP_NAME" || true)
 fi
 
 rm -rf "$APP_BUNDLE"

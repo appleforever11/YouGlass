@@ -1,8 +1,27 @@
 import AppKit
 import Sparkle
 
-private struct YouGlassDeferredMouseEvent: @unchecked Sendable {
-    let event: NSEvent
+/// The monitor may capture mouse-up before the main-actor mouse-down task runs.
+/// Keep that pair together so AppKit's synchronous tracking loop can consume it.
+final class YouGlassPointerEventBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var events: [NSEvent] = []
+
+    func append(_ event: NSEvent) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        let needsReplay = events.isEmpty
+        events.append(event)
+        return needsReplay
+    }
+
+    func takeAll() -> [NSEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        let pending = events
+        events.removeAll(keepingCapacity: true)
+        return pending
+    }
 }
 
 /// Owns Sparkle for the process lifetime and exposes the one imperative action
@@ -10,6 +29,7 @@ private struct YouGlassDeferredMouseEvent: @unchecked Sendable {
 @MainActor
 final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
     private static weak var shared: YouGlassAppDelegate?
+    nonisolated private static let deferredMouseEvents = YouGlassPointerEventBuffer()
 
     private let updaterController: SPUStandardUpdaterController
     private var mouseMovedMonitor: Any?
@@ -118,14 +138,16 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
             message: "Deferred pointer event",
             metadata: ["type": String(event.type.rawValue)]
         )
-        let deferredEvent = YouGlassDeferredMouseEvent(event: event)
+        guard deferredMouseEvents.append(event) else { return nil }
         Task { @MainActor in
+            let pending = Self.deferredMouseEvents.takeAll()
+            guard let first = pending.first else { return }
             guard let delegate = Self.shared else {
                 YouGlassDiagnostics.record(
                     .warning,
                     category: "input",
                     message: "Could not find app delegate for deferred pointer event",
-                    metadata: ["type": String(deferredEvent.event.type.rawValue)]
+                    metadata: ["type": String(first.type.rawValue)]
                 )
                 return
             }
@@ -133,14 +155,14 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
                 .debug,
                 category: "input",
                 message: "Replaying deferred pointer event",
-                metadata: ["type": String(deferredEvent.event.type.rawValue)]
+                metadata: ["type": String(first.type.rawValue)]
             )
-            delegate.replayMouseEvent(deferredEvent.event)
+            delegate.replayMouseEvent(first, pending: Array(pending.dropFirst()))
         }
         return nil
     }
 
-    private func replayMouseEvent(_ event: NSEvent) {
+    private func replayMouseEvent(_ event: NSEvent, pending: [NSEvent]) {
         guard let monitor = mouseButtonMonitor else {
             YouGlassDiagnostics.record(
                 .warning,
@@ -152,6 +174,11 @@ final class YouGlassAppDelegate: NSObject, NSApplicationDelegate {
         }
         NSEvent.removeMonitor(monitor)
         self.mouseButtonMonitor = nil
+        // Posting queued successors before mouseDown lets an NSTableView or
+        // native control finish tracking without waiting on the task it owns.
+        for successor in pending.reversed() {
+            NSApp.postEvent(successor, atStart: true)
+        }
         NSApp.sendEvent(event)
         mouseButtonMonitor = NSEvent.addLocalMonitorForEvents(
             matching: Self.mouseEventsNeedingMainActorReplay,

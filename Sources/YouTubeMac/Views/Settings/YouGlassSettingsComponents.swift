@@ -4,7 +4,7 @@ extension YouGlassSettingsView {
         @ViewBuilder
         func settingsHeader(_ page: YouGlassSettingsPage) -> some View {
             HStack(spacing: 14) {
-                SettingsIconBadge(systemName: page.systemName, tint: page.tint, size: 68)
+                SettingsIconBadge(systemName: page.systemName, tint: palette.accent, size: 42)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(page.title)
                         .font(.system(size: 26, weight: .bold, design: .rounded))
@@ -15,13 +15,9 @@ extension YouGlassSettingsView {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
-            .background(palette.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(.quaternary, lineWidth: 1)
-            }
+            .padding(.vertical, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
         }
 
         func settingsGroup<Content: View>(

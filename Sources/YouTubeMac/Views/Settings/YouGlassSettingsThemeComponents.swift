@@ -12,6 +12,8 @@ struct ThemeControlSlider: View {
                 .font(.subheadline.weight(.semibold))
             Slider(value: $value, in: range)
                 .controlSize(.small)
+                .accessibilityLabel(title)
+                .accessibilityValue("\(Int(value * 100)) percent")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -23,6 +25,7 @@ struct YouGlassThemeCard: View {
     let theme: YouGlassThemeFamily
     let isSelected: Bool
     let action: () -> Void
+    @State private var hovered = false
 
     private var cardColor: Color {
         theme.colors(isDark: store.colorScheme == .dark).card
@@ -76,7 +79,7 @@ struct YouGlassThemeCard: View {
             .overlay {
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(
-                        isSelected ? theme.colors(isDark: false).accent.opacity(0.78) : Color.secondary.opacity(0.18),
+                        isSelected || hovered ? theme.colors(isDark: false).accent.opacity(0.78) : Color.secondary.opacity(0.18),
                         lineWidth: isSelected ? 2 : 1
                     )
             }
@@ -87,6 +90,7 @@ struct YouGlassThemeCard: View {
             )
         }
         .buttonStyle(.plain)
+        .onHover { hovered = $0 }
         .accessibilityLabel("\(theme.title), light and dark theme")
         .accessibilityValue(isSelected ? "Selected" : "Not selected")
     }

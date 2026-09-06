@@ -37,10 +37,11 @@ struct YouGlassSettingsGroup<Content: View>: View {
             VStack(alignment: .leading, spacing: 14) {
                 content()
             }
-            .padding(20)
-            .background(background, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(background, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(.quaternary, lineWidth: 1)
             }
 

@@ -2,6 +2,19 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-05 — Theme Center and native input milestone
+
+- Reorganized Appearance into Environments and Customize, with compact headers, consistent groups, and accessible theme adjustments. A bounded exact-height theme grid fixes the clipped last catalog row observed in the expanded Settings window.
+- Fixed a reproduced macOS 27 native Settings selection stall: deferred mouse-down/up events now replay as an ordered batch so AppKit tracking can consume its pending mouse-up. Preserved the existing actor-isolation and mouse-movement workarounds.
+- Added native-hosted theme-grid and pointer-ordering regression tests. All 80 tests pass. Rebuilt staged app inspected with real theme search/application, Light/Dark changes, subsection navigation, scrolling to the complete final row, and repeated native Settings selection.
+
+## 2026-09-05 — discovery, channels and playback milestone
+
+- Explore now offers six useful topic entry points without an automatic search request. Dedicated browsing destinations show correctly titled grids and contextual refresh. Channels reuse stable shared video cards and display all already-loaded videos with more readable sizing.
+- Consolidated the player control shelf into system Liquid Glass with an opaque Reduce Transparency fallback, improved hover/press and queue feedback, and added compact-player context actions plus Command-Option-M expansion from mini-player or desktop PIP.
+- The build/run script now restarts only this checkout's staged executable after a successful compile, preserving installed and archived copies.
+- All 80 tests pass; signed staged build and launch pass. Computer Use verified real search/topic results, channel browsing, Library transitions, playback with captions, queue presentation, speed changes and restoration, compact/PIP transitions, and full-screen entry/exit. Intermittent compact/PIP load watchdog timeouts recovered using Retry; their underlying cause remains unresolved. Original Lavender Haze/Dark appearance and Normal playback speed were restored. Native speed menu labels use compact decimal formatting. Existing data and installations were preserved; no remote publication occurred.
+
 ## 2026-09-05 — everyday experience, navigation and Library milestone
 
 - Compact sidebar rows and flexible subscription height keep all navigation and the subscription footer reachable. Shared section typography, quieter video-card surfaces, independent accessible section actions, and Reduce Motion-aware toolbar feedback establish a consistent media-first direction.

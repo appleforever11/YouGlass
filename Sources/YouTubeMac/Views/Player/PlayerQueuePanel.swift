@@ -3,6 +3,7 @@ import SwiftUI
 struct PlayerQueuePanel: View {
     @ObservedObject var store: YouTubeStore
     let palette: Palette
+    @State private var hoveredVideoID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -20,7 +21,9 @@ struct PlayerQueuePanel: View {
                 Button("Keep current") {
                     store.clearPlaybackQueue()
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Remove other videos from the queue and keep the current video")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(palette.secondaryText)
                 .disabled(store.playbackQueue.count <= 1)
@@ -103,6 +106,8 @@ struct PlayerQueuePanel: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Play \(video.title)")
+            .accessibilityValue(isCurrent ? "Now playing" : "Queued")
 
             Button {
                 store.removeFromPlaybackQueue(video)
@@ -116,6 +121,7 @@ struct PlayerQueuePanel: View {
             .accessibilityLabel("Remove \(video.title) from queue")
         }
         .padding(6)
-        .background(isCurrent ? palette.selected : palette.queueCard, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(isCurrent || hoveredVideoID == video.id ? palette.selected : palette.queueCard, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .onHover { hoveredVideoID = $0 ? video.id : (hoveredVideoID == video.id ? nil : hoveredVideoID) }
     }
 }

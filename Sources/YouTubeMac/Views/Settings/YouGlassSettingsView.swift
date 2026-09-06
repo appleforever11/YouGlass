@@ -18,6 +18,7 @@ struct YouGlassSettingsView: View {
     @State var showingCacheResetConfirmation = false
     @State var accentHexDraft = ""
     @State var themeQuery = ""
+    @State var showThemeAdjustments = false
     @State var settingsQuery = ""
     @State var themeCollection: YouGlassThemeCollection = .all
     @State var debugStatus: String?

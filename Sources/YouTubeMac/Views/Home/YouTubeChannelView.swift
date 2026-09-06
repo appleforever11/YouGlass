@@ -36,6 +36,7 @@ struct YouTubeChannelView: View {
             }
             .buttonStyle(GlassIconButtonStyle(palette: palette))
             .help("Back to Home")
+            .accessibilityLabel("Back to browsing")
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Channel")
@@ -48,9 +49,6 @@ struct YouTubeChannelView: View {
 
             Spacer()
 
-            Text("Native channel view")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(palette.tertiaryText)
         }
         .padding(.horizontal, 24)
         .frame(height: 68)
@@ -135,8 +133,8 @@ struct YouTubeChannelView: View {
 
                     VStack(alignment: .leading, spacing: 5) {
                         Text(channel.name)
-                            .font(.system(size: 24, weight: .bold))
-                            .lineLimit(1)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .lineLimit(2)
                         Text("\(channel.handle)  •  \(channel.subscriberCount)  •  \(channel.videoCount)")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundStyle(palette.secondaryText)
@@ -184,6 +182,8 @@ struct YouTubeChannelView: View {
                             .overlay(Capsule().stroke(selectedTab == tab ? palette.stroke : .clear, lineWidth: 1))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(tab.title)
+                    .accessibilityValue(selectedTab == tab ? "Selected" : "Not selected")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -244,23 +244,20 @@ struct YouTubeChannelView: View {
     }
 
     private func videoGrid(_ videos: [VideoItem]) -> some View {
-        let visible = Array(videos.prefix(24))
         return LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 180, maximum: 320), spacing: 18)],
+            columns: [GridItem(.adaptive(minimum: 260), spacing: 18)],
             alignment: .leading,
             spacing: 24
         ) {
-            ForEach(visible) { video in
-                ChannelVideoCard(video: video, palette: palette) {
-                    store.open(video)
-                }
+            ForEach(videos) { video in
+                VideoCard(video: video, palette: palette)
             }
         }
     }
 
     private func playlistGrid(_ playlists: [YouTubePlaylist]) -> some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 180, maximum: 320), spacing: 18)],
+            columns: [GridItem(.adaptive(minimum: 260), spacing: 18)],
             alignment: .leading,
             spacing: 24
         ) {
@@ -327,55 +324,6 @@ private enum ChannelTab: String, CaseIterable, Identifiable {
         case .live: return "Live"
         case .playlists: return "Playlists"
         case .posts: return "Posts"
-        }
-    }
-}
-
-private struct ChannelVideoCard: View {
-    @EnvironmentObject private var store: YouTubeStore
-    let video: VideoItem
-    let palette: Palette
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                YouGlassVideoPreview {
-                    ZStack(alignment: .bottomTrailing) {
-                        RemoteImage(url: video.thumbnailURL)
-                            .videoThumbnailParallax()
-                            .clipped()
-
-                        if !video.duration.isEmpty {
-                            Text(video.duration)
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 3)
-                                .background(.black.opacity(0.82))
-                                .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                                .padding(7)
-                        }
-                    }
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-
-                Text(video.title)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(palette.text)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Text("\(video.views)  •  \(video.age)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(palette.secondaryText)
-                    .lineLimit(1)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            if hovering { store.prewarmPlayback(for: video) }
         }
     }
 }

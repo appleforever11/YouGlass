@@ -99,8 +99,9 @@ struct YouTubeMacApp: App {
                 }
                 .disabled(store.selectedVideo == nil)
 
-                Button("Minimize Player") {
-                    store.minimizePlayer()
+                Button(store.isPlayerCompact || store.isDesktopPIPActive ? "Expand Player" : "Minimize Player") {
+                    if store.isPlayerCompact || store.isDesktopPIPActive { store.expandPlayer() }
+                    else { store.minimizePlayer() }
                 }
                 .keyboardShortcut("m", modifiers: [.command, .option])
                 .disabled(store.selectedVideo == nil)
@@ -112,7 +113,7 @@ struct YouTubeMacApp: App {
 
                 Menu("Playback Speed") {
                     ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in
-                        Button(rate == 1 ? "Normal" : "\(rate)x") {
+                        Button(rate == 1 ? "Normal" : "\(rate.formatted(.number.precision(.fractionLength(0...2))))×") {
                             store.sendPlaybackCommand(.setPlaybackRate(rate))
                         }
                     }

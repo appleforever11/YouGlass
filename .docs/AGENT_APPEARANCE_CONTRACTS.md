@@ -2,6 +2,8 @@
 
 Read when changing themes, command palette, icons, settings, or shared appearance. These preserve the operational rules moved from AGENTS.md. Follow the user's requested scope; verify current source when implementation details may have changed.
 
+- Appearance separates Environments from Customize using presentation-only state; changing that subpage resets the settings viewport just like a page change. The bounded catalog uses `YouGlassThemeGrid` to measure every row exactly for AppKit scrolling, including the last row and bottom inset. Do not substitute an estimated lazy height that makes the final labels unreachable. Theme controls retain stable persistence keys; sliders expose names and percentages to accessibility.
+
 - Theme Center owns 24 selectable environment families. Each family must provide coordinated Light/Dark colors, collection metadata, and stable Codable identity; search, collection filtering, badges, and Surprise me are presentation affordances over that catalog and must not replace the persisted `visualTheme` key.
 
 - The command palette is a modal surface: keep its theme base opaque so Home content, desktop windows, and other translucent layers cannot show through the command list; keep the overlay outside the horizontal Home shell so it can center in the full window, while the surrounding scrim may retain the active theme tint. Every command row must have a visible pointer hover highlight and make the hovered row the active keyboard selection. The palette owns keyboard focus while open, Escape must always dismiss it, and command execution dismisses the modal before performing a navigation, focus, or window action.

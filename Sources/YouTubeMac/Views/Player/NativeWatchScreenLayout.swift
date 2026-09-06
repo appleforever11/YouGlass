@@ -311,29 +311,7 @@ extension NativeWatchScreen {
                 .help(saved ? "Remove from Watch Later" : "Save to Watch Later")
             }
             .padding(4)
-            .background {
-                RoundedRectangle(cornerRadius: 21, style: .continuous)
-                    .fill(.thinMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 21, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        palette.text.opacity(palette.isDark ? 0.07 : 0.10),
-                                        .clear
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                    }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 21, style: .continuous)
-                    .stroke(palette.stroke.opacity(0.72), lineWidth: 1)
-                    .allowsHitTesting(false)
-            }
-            .shadow(color: .black.opacity(palette.isDark ? 0.28 : 0.14), radius: 12, x: 0, y: 3)
+            .modifier(PlayerControlShelf(palette: palette))
             .fixedSize(horizontal: true, vertical: false)
         }
 }

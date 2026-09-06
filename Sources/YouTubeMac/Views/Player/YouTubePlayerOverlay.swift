@@ -155,6 +155,14 @@ struct YouTubePlayerOverlay: View {
             .onDisappear {
                 compactChromeHideTask?.cancel()
             }
+            .contextMenu {
+                if isCompact {
+                    Button("Expand player", systemImage: "arrow.up.left.and.arrow.down.right", action: store.expandPlayer)
+                    Button("Picture in Picture", systemImage: "pip.enter", action: store.presentDesktopPIP)
+                    Divider()
+                    Button("Stop playback", systemImage: "xmark", action: store.dismissPlayer)
+                }
+            }
     }
 
     private func handleCompactPlayerHover(_ isHovering: Bool) {

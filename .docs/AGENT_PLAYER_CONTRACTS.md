@@ -2,6 +2,8 @@
 
 Read when changing playback, captions, queue progression, WebKit, or player layout. These preserve the operational rules moved from AGENTS.md. Follow the user's requested scope; verify current source when implementation details may have changed.
 
+- The header control shelf uses one system Liquid Glass surface on macOS 26+, an opaque palette surface for Reduce Transparency, and thin material on older macOS. Keep the underlying watch page opaque. Header and queue controls provide pointer feedback. Compact playback also exposes expand/PIP/stop through its context menu, and Command-Option-M toggles compact/expanded presentation without relying on transient chrome.
+
 - Player workspace behavior belongs in the store/player boundary: queue navigation, autoplay, speed, compact/PIP/full-screen actions, sharing, Now Playing, and media-key commands must remain safe when the feed or network is unavailable.
 
 - Queue autoplay treats `playbackQueue` as an ordered cursor: when a selected video already exists in the queue, opening it must preserve queue order, backfill late-loaded candidates after the queue tail, carry native `ended` events through the bridge, and advance to the following item without allowing the media element to loop. A user-selected Play Next action inserts immediately after the current cursor and must remain reachable when the bounded queue is full; Add to Queue continues to append at the tail.

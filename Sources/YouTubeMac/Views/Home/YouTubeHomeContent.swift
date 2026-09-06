@@ -13,10 +13,6 @@ extension YouTubeHomeView {
                 VStack(alignment: .leading, spacing: 22) {
                     if store.selectedSection == "Home" {
                         HomeDashboardHeader(palette: palette, compact: compact)
-                    } else if store.selectedSection != "Library" && store.selectedSection != "Search" {
-                        Text(store.selectedSection)
-                            .font(.system(size: 26, weight: .bold))
-                            .padding(.top, 6)
                     }
 
                     if store.selectedSection == "Home" {
@@ -24,7 +20,9 @@ extension YouTubeHomeView {
                             .environmentObject(store)
                     }
 
-                    if store.selectedSection == "Library" {
+                    if store.selectedSection == "Explore" {
+                        DiscoveryView(palette: palette)
+                    } else if store.selectedSection == "Library" {
                         PersonalLibraryView(palette: palette, compact: compact)
                             .environmentObject(store)
                     } else if store.selectedSection == "Search" {
@@ -44,6 +42,14 @@ extension YouTubeHomeView {
                         PlaylistDetailView(playlist: playlist, palette: palette)
                     } else if store.selectedSection == "Playlists" {
                         PlaylistLibraryView(palette: palette)
+                    } else if store.selectedSection != "Home" {
+                        if store.isLoading {
+                            ProgressView("Loading \(store.selectedSection)…")
+                                .frame(maxWidth: .infinity, minHeight: 260)
+                        } else {
+                            VideoRow(title: store.selectedSection, videos: sectionVideos, palette: palette, compact: compact, showsSeeAll: false)
+                                .padding(.top, 20)
+                        }
                     } else {
                         if store.feed.forYou.isEmpty && store.feed.trending.isEmpty && store.feed.more.isEmpty {
                             if store.isLoading {
@@ -247,12 +253,14 @@ extension YouTubeHomeView {
                 )
             }
 
-            if store.selectedSection != "Library" {
+            if store.selectedSection != "Library" && store.selectedSection != "Explore" {
             Button {
                 if store.selectedCustomFeed != nil {
                     store.refreshSelectedCustomFeed()
                 } else if store.selectedSection == "Search" {
                     store.startSearch()
+                } else if !["Home", "For You", "Trending", "More to watch"].contains(store.selectedSection) {
+                    store.showSection(store.selectedSection)
                 } else {
                     Task { await store.loadHome(force: true) }
                 }
@@ -266,8 +274,8 @@ extension YouTubeHomeView {
                 }
             }
             .buttonStyle(IconButtonStyle(palette: palette))
-            .accessibilityLabel(store.selectedSection == "Search" ? "Refresh search results" : "Refresh recommendations")
-            .help(store.selectedSection == "Search" ? "Refresh search results" : "Refresh recommendations")
+            .accessibilityLabel("Refresh \(store.selectedSection == "Search" ? "search results" : store.selectedSection)")
+            .help("Refresh \(store.selectedSection)")
             .disabled(store.isLoading || store.customFeedLoading)
             }
 
@@ -339,5 +347,18 @@ extension YouTubeHomeView {
         }
         .padding(.horizontal, minimal ? 8 : (compact ? 12 : 28))
         .frame(maxWidth: .infinity)
+    }
+
+    private var sectionVideos: [VideoItem] {
+        switch store.selectedSection {
+        case "Watch Later": return store.savedVideos
+        case "For You": return store.feed.forYou
+        case "Trending": return store.feed.trending
+        case "More to watch": return store.feed.more
+        default:
+            var seen = Set<String>()
+            return (store.feed.forYou + store.feed.trending + store.feed.more + store.feed.queue)
+                .filter { seen.insert($0.id).inserted }
+        }
     }
 }
