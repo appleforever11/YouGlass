@@ -2,6 +2,7 @@
 set -euo pipefail
 
 MODE="${1:-run}"
+case "$MODE" in build|--build|run|--debug|debug|--logs|logs|--telemetry|telemetry|--verify|verify) ;; *) echo 'Unknown launch mode.' >&2; exit 2 ;; esac
 APP_NAME="YouGlass"
 BUNDLE_ID="com.kevinhowe.YouGlass"
 BUILD_CONFIGURATION="${YOUGLASS_BUILD_CONFIGURATION:-debug}"
@@ -10,6 +11,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_BUNDLE="$ROOT_DIR/dist/$APP_NAME.app"
 CONTENTS="$APP_BUNDLE/Contents"
 FRAMEWORKS="$CONTENTS/Frameworks"
+source "$ROOT_DIR/script/app_instance.sh"
+require_app_stopped "$CONTENTS/MacOS/$APP_NAME"
 
 if [[ -z "$SIGNING_IDENTITY" ]]; then
   # Prefer a stable Apple signing identity. Ad-hoc signatures change their
@@ -46,24 +49,9 @@ if [[ ! -d "$SPARKLE_FRAMEWORK" ]]; then
   exit 1
 fi
 
-# Preserve installed and archived copies. Build-only mode never stops an app;
-# a run restarts only the executable inside this checkout's staged bundle.
-if [[ "$MODE" != "build" && "$MODE" != "--build" ]]; then
-  while IFS= read -r app_pid; do
-    app_command="$(ps -p "$app_pid" -o command= 2>/dev/null || true)"
-    if [[ "$app_command" == "$CONTENTS/MacOS/$APP_NAME" ]]; then
-      kill "$app_pid" 2>/dev/null || true
-      for attempt in {1..40}; do
-        kill -0 "$app_pid" 2>/dev/null || break
-        sleep 0.1
-      done
-      if kill -0 "$app_pid" 2>/dev/null; then
-        echo "The development app has not exited; leaving its staged bundle intact." >&2
-        exit 1
-      fi
-    fi
-  done < <(pgrep -x "$APP_NAME" || true)
-fi
+# A build-only invocation must not unlink a running executable either.
+# Recheck after compilation in case the app opened during the build.
+require_app_stopped "$CONTENTS/MacOS/$APP_NAME"
 
 rm -rf "$APP_BUNDLE"
 mkdir -p "$CONTENTS/MacOS" "$CONTENTS/Resources" "$FRAMEWORKS"
@@ -141,7 +129,7 @@ case "$MODE" in
   --verify|verify)
     open_app
     sleep 2
-    pgrep -x "$APP_NAME" >/dev/null
+    [[ -n "$(app_instance_pids "$CONTENTS/MacOS/$APP_NAME")" ]]
     codesign --verify --deep --strict "$APP_BUNDLE"
     ;;
   *)

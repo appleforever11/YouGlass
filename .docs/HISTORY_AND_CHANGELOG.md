@@ -444,3 +444,7 @@ The repository contains tagged release commits through `v1.13.2`, public release
 ## 2026-09-05 — Instruction cleanup
 
 Reduced AGENTS.md to shared workflow and invariants. Moved existing Home, player, appearance, and state contracts into task-specific references without changing application code. Removed the completed initial-setup commit instruction and replaced drift-prone current-version/toolchain snapshots with source lookup guidance. Documentation-only edits use documentation validation; affected GUI changes still require rebuilt-bundle live verification. Local-only commit and explicit remote-publication boundaries remain.
+
+## 2026-09-07 — Preserve active development bundles
+
+Build/run now validates its mode before any work and refuses to replace a running staged app. This closes the build-only path that previously unlinked the running bundle, and preserves active playback during development. Quit the staged app before rebuilding it. Process checks match the literal executable path, including canonical directory aliases and launch arguments, and verification checks that exact instance. Signed disposable-process tests cover unrelated same-name apps, punctuation in paths, and symlinks. No player or account behavior was changed.
