@@ -39,6 +39,7 @@ extension YouTubeHomeView {
             video: video,
             palette: palette,
             isCompact: true,
+            initialAvailableSize: CGSize(width: width, height: height),
             onCompactDragChanged: { translation in
                 let desiredCenter = CGPoint(
                     x: baseCenter.x + translation.width,

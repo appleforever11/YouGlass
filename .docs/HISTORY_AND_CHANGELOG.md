@@ -2,6 +2,19 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-12 — 2.3.0 discovery and modularity
+
+- Balanced local interest signals across history, likes, and saves; ignored generic title words, used stable channel identity, and kept unseen candidates ahead of repeats during diversity selection.
+- Contextual Up Next now works offline and preserves independently successful API search results. Removed unrelated watch-history text from the current video's query.
+- Rotated bounded subscription/seed sampling and corrected single-seed result allocation without adding network requests.
+- Removed the 28-item feed presentation truncation and changed duplicate merging to set-based lookup while preserving first-occurrence order.
+- Separated ranking, interest signals, query construction, feed presentation, Library components, API response families, display formatting, and theme palettes. Existing persistence identities and playback ownership remain unchanged.
+- Live expanded-player testing exposed an AppKit constraint-fitting stall; an explicit representable viewport sizing boundary restored responsive playback and captions.
+- Added regression coverage for topic relevance ahead of unrelated subscribed favorites in Up Next.
+- Hardened deferred WebKit detach and message routing by attachment identity. Passed explicit media dimensions from the in-app mini-player container.
+- Added a cancellable source-teardown boundary for compact/expanded transitions. Live video and captions were observed in all three surfaces, but repeat transitions still intermittently produced black video or first-frame timeout on macOS 27 beta; this remains documented in the release notes.
+- All 100 tests passed. The optimized Developer ID bundle was inspected across Home, Explore/search, Library, channels, subscription group editor, Custom Feeds, command palette, settings, and the full theme catalog. Captured 18 screenshots. All 175 production Swift files remain below 500 lines (largest: 429).
+
 ## 2026-09-06 — Xcode 27 Home refresh and theme tint
 
 - Rebuilt the local optimized app using the installed Xcode 27.0 build 27A5252f / Swift 6.4 toolchain, re-enabling the compiler-gated native Home refresh controller on macOS 27.

@@ -58,15 +58,16 @@ struct YouTubeHomeView: View {
                         }
 
                         if let video = store.selectedVideo {
-                            if store.isDesktopPIPActive {
+                            if store.isDesktopPIPActive || store.isInlinePlayerTransitioning {
                                 // Playback is hosted by the separate desktop PIP
                                 // panel. Keep the feed interactive underneath it.
                                 Color.clear
                                     .allowsHitTesting(false)
                             } else if store.isPlayerCompact {
-                                GeometryReader { playerGeometry in
-                                    compactPlayer(video: video, in: playerGeometry.size)
-                                }
+                                compactPlayer(video: video, in: CGSize(
+                                    width: mainContentWidth,
+                                    height: max(1, geometry.size.height - shellTopInset - shellInset)
+                                ))
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                             } else {
                                 YouTubePlayerOverlay(

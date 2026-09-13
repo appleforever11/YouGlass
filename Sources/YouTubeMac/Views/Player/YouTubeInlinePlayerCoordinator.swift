@@ -21,6 +21,8 @@ extension YouTubeInlinePlayerView {
                 let coordinator = self.coordinator
                 Task { @MainActor in
                     guard message.name == "youglassPlayback",
+                          let source = message.webView,
+                          coordinator?.controller.isAttached(to: source) == true,
                           let payload = PlaybackMessage(body: message.body) else { return }
                     coordinator?.handlePlaybackMessage(payload)
                 }

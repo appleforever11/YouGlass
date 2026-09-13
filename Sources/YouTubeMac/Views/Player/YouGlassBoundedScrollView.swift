@@ -50,6 +50,14 @@ struct YouGlassBoundedScrollView<Content: View>: NSViewRepresentable {
         context.coordinator.scheduleResize(in: scrollView)
     }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
+        // The parent owns the viewport; the coordinator owns document size.
+        // Default representable fitting walks the hosted document's complete
+        // Auto Layout subtree, which can stall expanded playback on macOS 27.
+        CGSize(width: proposal.width ?? max(1, nsView.frame.width),
+               height: proposal.height ?? max(1, nsView.frame.height))
+    }
+
     @MainActor
     final class Coordinator {
         let hostingController: NSHostingController<YouGlassScrollDocument<Content>>

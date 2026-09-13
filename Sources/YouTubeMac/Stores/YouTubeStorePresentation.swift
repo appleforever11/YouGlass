@@ -99,10 +99,7 @@ extension YouTubeStore {
         }
 
         func expandPlayer() {
-            guard selectedVideo != nil else { return }
-            stopCurrentPlayback()
-            closeDesktopPIPWindow()
-            isPlayerCompact = false
+            transitionInlinePlayer(compact: false)
         }
 
         func dismissPlayer() {
@@ -188,6 +185,9 @@ extension YouTubeStore {
         }
 
         func stopCurrentPlayback() {
+            inlinePlayerTransitionTask?.cancel()
+            inlinePlayerTransitionTask = nil
+            isInlinePlayerTransitioning = false
             let handler = playbackStopHandler
             playbackStopHandler = nil
             playbackStopHandlerToken = nil
@@ -202,7 +202,7 @@ extension YouTubeStore {
             let generation = channelLoadGeneration
 
             if selectedVideo != nil {
-                isPlayerCompact = true
+                minimizePlayer()
             }
             selectedChannelItem = item
             channelPage = nil

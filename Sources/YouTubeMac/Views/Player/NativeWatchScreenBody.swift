@@ -16,6 +16,7 @@ extension NativeWatchScreen {
                         playbackController: playbackController,
                         autoMuteOnStart: store.autoMuteOnStart,
                         isCompact: true,
+                        mediaSize: compactMediaSize,
                         onCompactDragChanged: onCompactDragChanged,
                         onCompactDragEnded: onCompactDragEnded,
                         onPlayerHoverChanged: onPlayerHoverChanged,

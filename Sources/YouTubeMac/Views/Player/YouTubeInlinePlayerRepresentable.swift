@@ -4,6 +4,13 @@ import SwiftUI
 @preconcurrency import WebKit
 
 extension YouTubeInlinePlayerView {
+        func sizeThatFits(_ proposal: ProposedViewSize, nsView: YouTubeInlinePlayerHostView, context: Context) -> CGSize? {
+            // Video consumes its native container, never the webpage's ideal
+            // size. This also gives compact/PIP a usable first layout proposal.
+            CGSize(width: proposal.width ?? max(1, nsView.frame.width),
+                   height: proposal.height ?? max(1, nsView.frame.height))
+        }
+
         func makeCoordinator() -> Coordinator {
             Coordinator(controller: controller)
         }

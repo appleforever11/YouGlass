@@ -54,9 +54,23 @@ extension YouTubeStore {
     }
 
     func minimizePlayer() {
-        guard selectedVideo != nil else { return }
+        transitionInlinePlayer(compact: true)
+    }
+
+    func transitionInlinePlayer(compact: Bool) {
+        guard let video = selectedVideo else { return }
+        stopCurrentPlayback()
         closeDesktopPIPWindow()
-        isPlayerCompact = true
+        isInlinePlayerTransitioning = true
+        isPlayerCompact = compact
+        // As with desktop PiP, retire the source remote layer before mounting
+        // its replacement. Both surfaces must not share a SwiftUI transaction.
+        inlinePlayerTransitionTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: PIPTransitionPolicy.sourceTeardownDelayNanoseconds)
+            guard !Task.isCancelled, let self, self.selectedVideo?.id == video.id else { return }
+            self.isInlinePlayerTransitioning = false
+            self.inlinePlayerTransitionTask = nil
+        }
     }
 
     func toggleMainWindowFullScreen() {

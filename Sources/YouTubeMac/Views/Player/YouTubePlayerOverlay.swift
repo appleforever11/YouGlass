@@ -36,6 +36,7 @@ struct YouTubePlayerOverlay: View {
                 video: video,
                 palette: palette,
                 isCompact: isCompact,
+                compactMediaSize: isCompact ? initialAvailableSize : nil,
                 onCompactDragChanged: onCompactDragChanged,
                 onCompactDragEnded: onCompactDragEnded,
                 onPlayerHoverChanged: isCompact ? { isHovering in

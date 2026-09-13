@@ -20,9 +20,10 @@ extension YouTubePlaybackController {
         }
 
         func detach(from webView: WKWebView) {
-            if self.webView === webView {
-                self.webView = nil
-            }
+            // Deferred teardown of an older surface must not cancel the newly
+            // attached compact or expanded surface's startup and watchdog.
+            guard self.webView === webView else { return }
+            self.webView = nil
             visualPaletteTask?.cancel()
             visualPaletteTask = nil
             cancelLoadWatchdog()

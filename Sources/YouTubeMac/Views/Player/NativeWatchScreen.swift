@@ -35,6 +35,7 @@ struct NativeWatchScreen: View {
     let video: VideoItem
     let palette: Palette
     let isCompact: Bool
+    var compactMediaSize: CGSize? = nil
     let onCompactDragChanged: ((CGSize) -> Void)?
     let onCompactDragEnded: ((CGSize) -> Void)?
     let onPlayerHoverChanged: ((Bool) -> Void)?

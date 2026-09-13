@@ -16,6 +16,9 @@ Use when locating a subsystem. Paths describe responsibilities; inspect current 
 - `Sources/YouTubeMac/Views/Home/YouTubeChannelView.swift`: channel detail surface composed with the Home window.
 - `Sources/YouTubeMac/Resources/`: Icon Composer source, fallback icon resources, and packaged assets.
 - `Tests/YouTubeMacTests/`: XCTest coverage for models, policies, diagnostics, and persistence-adjacent behavior.
+- Recommendations: `Models/RecommendationRanker.swift` owns candidate ranking and diversity; `RecommendationSignals.swift` owns bounded interests and source rotation; `RecommendationModels.swift` owns feed partitioning and presented-ID rotation. Store query construction and feed presentation are separate from persistence.
+- API response models are split into video/search, account, and community files. Display formatting lives in `Models/YouTubeDisplayFormatting.swift`.
+- Library composition and note editing live in `PersonalLibraryView.swift` and `LibraryNoteSheet.swift`; `HomeLibraryViews.swift` owns Continue Watching. Theme metadata and concrete palettes live in `YouGlassThemeCatalog.swift` and `YouGlassThemePalettes.swift`.
 - `script/`: local build, test, release packaging, diagnostics export, and optional remote-development helpers.
 - `docs/`: user-facing screenshots and public project documentation.
 - `.docs/`: this internal, tracked project knowledge base.

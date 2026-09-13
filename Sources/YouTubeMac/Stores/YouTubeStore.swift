@@ -55,6 +55,7 @@ final class YouTubeStore: ObservableObject {
     @Published var commentAuthorizationRequired = false
     @Published var autoMuteOnStart = false
     @Published var isPlayerCompact = false
+    @Published var isInlinePlayerTransitioning = false
     @Published var isDesktopPIPActive = false
     @Published var pipTransitionState: PIPTransitionState = .idle
     @Published var compactPlayerCorner: CompactPlayerCorner = .topTrailing
@@ -125,6 +126,7 @@ final class YouTubeStore: ObservableObject {
     var playbackCommandHandler: ((YouGlassPlaybackCommand) -> Void)?
     var playbackCommandHandlerToken: UUID?
     var pipTransitionTask: Task<Void, Never>?
+    var inlinePlayerTransitionTask: Task<Void, Never>?
     var networkMonitor: YouGlassNetworkMonitor?
     let defaults = UserDefaults.standard
     let playbackLogger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")

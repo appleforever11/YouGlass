@@ -1,5 +1,8 @@
 # YouGlass home contracts
 
+- Fallback ranking uses independently bounded history, likes, and saves through `RecommendationSignals`; stable channel IDs take precedence over display names. Up Next excludes the playing video before limiting and applies the same current-video context to network and local candidates. Source sampling rotates five-minute windows within existing request budgets. Freshness eligibility is enforced before channel diversity.
+- `HomeFeed.replaceVideos` preserves all loaded items across its sections in source order; do not restore the former 28-item presentation truncation. Home's ingestion/cache remains bounded at 40 recommendations. Feed publication/cache coordination belongs in `YouTubeStoreFeedPresentation`, separate from persistence decoding.
+
 Native Home pull-to-refresh uses macOS 27 SDK APIs and is compiler-gated for Xcode 27/Swift 6.4 builds in addition to runtime availability. Xcode 26 releases retain the same AppKit scrolling and toolbar Refresh action without referencing unavailable SDK declarations.
 
 The native refresh indicator uses `palette.accent`, including custom accent overrides. Pass that tint into the AppKit bridge on creation and update; retint the retained controller when the theme changes without replacing it or interrupting an active refresh.

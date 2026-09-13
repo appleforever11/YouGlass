@@ -5,7 +5,7 @@ extension YouGlassSettingsView {
             VStack(alignment: .leading, spacing: 24) {
                 settingsHeader(.recommendations)
 
-                settingsGroup("Your feed", footer: "YouGlass combines the signed-in YouTube session, subscribed channels, local watch signals, and public metadata. It cannot reproduce YouTube's private ranking model exactly, but it can keep these signals aligned with your account.") {
+                settingsGroup("Your feed", footer: "YouTube Home keeps its original suggestion order. When it is unavailable, YouGlass balances subscriptions, recent viewing, likes, and saves to find related uploads. Up Next also follows the video you are watching.") {
                     settingsValueRow("Account", value: store.isSignedIn ? "Signed in" : "Sign in for account signals", systemName: "person.crop.circle")
                     settingsValueRow("Subscribed channels", value: "\(store.subscriptions.count)", systemName: "rectangle.stack.person.crop")
                     settingsValueRow("Watched on this Mac", value: "\(store.recentlyWatched.count)", systemName: "clock")
@@ -20,7 +20,7 @@ extension YouGlassSettingsView {
                     )
                 }
 
-                settingsGroup("Refresh", footer: "Refreshing asks the signed-in session and the official API for new candidates, then reranks them with your local signals.") {
+                settingsGroup("Refresh", footer: "Refresh checks for new suggestions. Fallback discovery rotates through your channels and interests within a limited request budget, favoring videos you have not recently seen.") {
                     HStack {
                         Text("Last account sync")
                         Spacer()

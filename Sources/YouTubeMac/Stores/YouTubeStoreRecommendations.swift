@@ -11,10 +11,10 @@ extension YouTubeStore {
                 + feed.queue
                 + recentlyWatched
                 + savedVideos
-            return Array(
-                mergeVideos(candidates)
-                    .filter { $0.id != video.id }
-                    .prefix(10)
+            return RecommendationRanker.rank(
+                candidates, subscriptions: subscriptions, history: recentlyWatched,
+                liked: locallyLikedVideos, seeds: [], saved: savedVideos,
+                contextVideo: video, limit: 10
             )
         }
 
@@ -26,16 +26,20 @@ extension YouTubeStore {
 
             do {
                 let query = recommendationQuery(for: video)
-                let relevance = try await client.searchVideos(query: query, maxResults: 8, order: "relevance")
-                let popular = try await client.searchVideos(query: video.channel, maxResults: 6, order: "viewCount")
+                async let relevance = client.searchVideos(query: query, maxResults: 8, order: "relevance")
+                async let popular = client.searchVideos(query: video.channel, maxResults: 6, order: "viewCount")
+                let matches = await ((try? relevance) ?? []) + ((try? popular) ?? [])
+                try Task.checkCancellation()
                 let blended = RecommendationRanker.rank(
-                    relevance + popular + relatedVideos(for: video),
+                    matches + localFallback,
                     subscriptions: subscriptions,
                     history: recentlyWatched,
                     liked: locallyLikedVideos,
                     seeds: [video.channel, video.title],
+                    saved: savedVideos,
+                    contextVideo: video,
                     limit: 10
-                ).filter { $0.id != video.id }
+                )
                 // Keep the rail populated when the API returns only one or two
                 // search matches. The already-loaded home/history catalog is a
                 // safe local supplement, so a transiently sparse API response

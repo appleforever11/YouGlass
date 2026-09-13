@@ -1,5 +1,9 @@
 # YouGlass player contracts
 
+- `YouGlassBoundedScrollView.sizeThatFits` returns the parent-proposed viewport without asking AppKit to fit the hosted document's constraint subtree. The coordinator measures the document separately. Preserve this separation: default representable fitting caused a verified 100-percent-CPU expanded-player layout stall on macOS 27.
+- The inline WebKit representable also consumes the proposed media viewport. Deferred detach and script messages must match the controller's currently attached WebView; an older surface may not cancel the replacement surface's watchdog/bootstrap or publish stale transport state.
+- In-window compact/expanded handoffs use the same source teardown delay as desktop PiP. Remove the old surface before mounting its replacement; cancel pending handoffs on stop or new selection. Compact media dimensions come from the Home shell's known viewport, without a nested GeometryReader.
+
 Read when changing playback, captions, queue progression, WebKit, or player layout. These preserve the operational rules moved from AGENTS.md. Follow the user's requested scope; verify current source when implementation details may have changed.
 
 - The header control shelf uses one system Liquid Glass surface on macOS 26+, an opaque palette surface for Reduce Transparency, and thin material on older macOS. Keep the underlying watch page opaque. Header and queue controls provide pointer feedback. Compact playback also exposes expand/PIP/stop through its context menu, and Command-Option-M toggles compact/expanded presentation without relying on transient chrome.

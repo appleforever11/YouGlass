@@ -22,11 +22,12 @@ extension YouTubeStore {
             guard !recommendationSeeds.isEmpty else { return [] }
 
             let results = await withTaskGroup(of: [VideoItem].self, returning: [VideoItem].self) { group in
-                for seed in recommendationSeeds.prefix(max(1, seedLimit)) {
+                let seeds = RecommendationSourcePolicy.rotatingWindow(recommendationSeeds, limit: max(1, seedLimit))
+                for seed in seeds {
                     group.addTask {
                         (try? await self.client.searchVideos(
                             query: seed,
-                            maxResults: max(4, maxResults / 3),
+                            maxResults: max(4, maxResults / seeds.count),
                             order: "relevance",
                             forceFresh: forceFresh
                         )) ?? []
@@ -66,8 +67,8 @@ extension YouTubeStore {
             }
 
             let hasCredentials = await client.hasCredentials()
-            let subscriptionChannels = Array(
-                subscribedChannels.prefix(YouGlassFeedRefreshPolicy.homeSubscriptionChannelLimit)
+            let subscriptionChannels = RecommendationSourcePolicy.rotatingWindow(
+                subscribedChannels, limit: YouGlassFeedRefreshPolicy.homeSubscriptionChannelLimit
             )
             let needsSearchFallback = subscriptionChannels.isEmpty
             await withTaskGroup(of: [VideoItem].self) { group in
