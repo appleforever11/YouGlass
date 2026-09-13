@@ -38,6 +38,16 @@ extension YouTubeInlinePlayerView {
                 self.controller = controller
             }
 
+            func adopt(video: VideoItem, in webView: WKWebView, autoMuteOnStart: Bool) {
+                loadedVideoID = video.id
+                self.autoMuteOnStart = autoMuteOnStart
+                webView.navigationDelegate = self
+                webView.uiDelegate = self
+                let content = webView.configuration.userContentController
+                content.removeScriptMessageHandler(forName: "youglassPlayback")
+                content.add(ScriptMessageHandlerProxy(coordinator: self), name: "youglassPlayback")
+            }
+
             @MainActor
             fileprivate func handlePlaybackMessage(_ payload: PlaybackMessage) {
                 controller.update(from: payload.dictionary)

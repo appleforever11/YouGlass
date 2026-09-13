@@ -13,6 +13,17 @@ final class YouGlassNowPlayingController {
     private var previousHandler: (() -> Void)?
     private var skipForwardHandler: (() -> Void)?
     private var skipBackwardHandler: (() -> Void)?
+    private var lastUpdate: Update?
+
+    private struct Update: Equatable {
+        let videoID: String
+        let title: String
+        let channel: String
+        let second: Double
+        let duration: Double
+        let isPlaying: Bool
+        let rate: Double
+    }
 
     func configure(
         play: @escaping () -> Void,
@@ -69,10 +80,17 @@ final class YouGlassNowPlayingController {
     ) {
         let center = MPNowPlayingInfoCenter.default()
         guard let video else {
+            lastUpdate = nil
             center.nowPlayingInfo = nil
             center.playbackState = .stopped
             return
         }
+
+        let update = Update(videoID: video.id, title: video.title, channel: video.channel,
+                            second: floor(currentTime), duration: duration,
+                            isPlaying: isPlaying, rate: playbackRate)
+        guard update != lastUpdate else { return }
+        lastUpdate = update
 
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: video.title,

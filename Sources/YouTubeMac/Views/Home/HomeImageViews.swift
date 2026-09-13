@@ -75,6 +75,7 @@ struct SearchField: View {
 
 struct RemoteImage: View {
     let url: URL?
+    var maximumPixelSize: Int = 800
     @State private var loadedImage: Image?
     @State private var failed = false
 
@@ -106,7 +107,7 @@ struct RemoteImage: View {
             return
         }
         do {
-            let image = try await YouGlassImageLoader.shared.image(for: url)
+            let image = try await YouGlassImageLoader.shared.image(for: url, maximumPixelSize: maximumPixelSize)
             guard !Task.isCancelled else { return }
             loadedImage = Image(decorative: image, scale: 1)
         } catch {
@@ -141,7 +142,7 @@ struct AsyncAvatar: View {
     let url: URL?
 
     var body: some View {
-        RemoteImage(url: url)
+        RemoteImage(url: url, maximumPixelSize: 160)
             .background(
                 LinearGradient(colors: [.red, .orange, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
             )

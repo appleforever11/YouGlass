@@ -16,6 +16,13 @@ extension YouTubeInlinePlayerView {
         }
 
         func makeNSView(context: Context) -> YouTubeInlinePlayerHostView {
+            if controller.isTransferringSurface,
+               controller.activeVideoID == video.id,
+               let webView = controller.webView {
+                controller.isTransferringSurface = false
+                context.coordinator.adopt(video: video, in: webView, autoMuteOnStart: autoMuteOnStart)
+                return YouTubeInlinePlayerHostView(webView: webView)
+            }
             let configuration = WKWebViewConfiguration()
             configuration.youGlassDisableWebMaterialsOnAffectedSystems()
             configuration.websiteDataStore = .default()
@@ -75,7 +82,6 @@ extension YouTubeInlinePlayerView {
         }
 
         static func dismantleNSView(_ hostView: YouTubeInlinePlayerHostView, coordinator: Coordinator) {
-            let webView = hostView.webView
-            coordinator.controller.stopAndDetachDeferred(from: webView)
+            coordinator.controller.dismantleSurface(in: hostView)
         }
 }

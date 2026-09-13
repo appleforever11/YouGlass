@@ -21,7 +21,8 @@ final class YouTubePlaybackController: ObservableObject {
     @Published var playbackRate = 1.0
     @Published var ambientPalette = VideoAmbientPalette.neutral
 
-    weak var webView: WKWebView?
+    var webView: WKWebView?
+    var isTransferringSurface = false
     var visualPaletteTask: Task<Void, Never>?
     var activeVideoID: String?
     var pendingResumeVideoID: String?

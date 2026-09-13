@@ -13,4 +13,5 @@ Read when changing persistence, credentials, content policy, image loading, or n
 
 - Network recovery uses `NWPathMonitor`, cached feed data, and the bounded `RemoteImage` cache. Offline states must remain usable and must not erase local library or playback data.
 
-- Remote thumbnail/avatar loading belongs in the actor-owned `YouGlassImageLoader` service. Share download and decoded results, eagerly downsample off the main actor (maximum 1600 pixels), and account cache cost using decoded row bytes times height. UI consumers check cancellation before publishing; failures remain retryable. This applies to preview images, never video stream resolution.
+- Remote thumbnail/avatar loading belongs in the actor-owned `YouGlassImageLoader` service. Cache by URL and decode size, eagerly downsample off the main actor (800 pixels for cards, 160 for avatars, up to 1600 for the hero/loading surface), and account decoded row bytes times height against the 32 MB/120-entry cache. UI consumers check cancellation before publishing; failures remain retryable. This applies to preview images, never video stream resolution.
+- Closing the reusable account/browser window releases its WebView and chrome after AppKit's close transaction. Keep `isReleasedWhenClosed = false`, cancel profile capture, and preserve the default website data store and credentials.

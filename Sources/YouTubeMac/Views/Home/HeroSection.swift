@@ -12,7 +12,7 @@ struct HeroSection: View {
                 Button {
                     store.openFromUserInteraction(store.feed.hero)
                 } label: {
-                    RemoteImage(url: store.feed.hero.thumbnailURL)
+                    RemoteImage(url: store.feed.hero.thumbnailURL, maximumPixelSize: 1_600)
                         .frame(width: geometry.size.width, height: geometry.size.height)
                         .clipped()
                         // Clipping pixels does not bound a scaled image's pointer region.

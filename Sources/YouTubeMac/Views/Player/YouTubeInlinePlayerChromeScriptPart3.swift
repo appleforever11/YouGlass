@@ -5,7 +5,7 @@ extension YouTubeInlinePlayerView {
           media.webkitSetPresentationMode &&
           media.webkitSupportsPresentationMode('picture-in-picture')
         );
-        window.webkit.messageHandlers.youglassPlayback.postMessage({
+        const payload = {
           videoID: currentVideoID(),
           muted: Boolean(media.muted || media.volume === 0),
           captionsEnabled: readCaptionsState(media),
@@ -18,7 +18,11 @@ extension YouTubeInlinePlayerView {
           pipAvailable: supportsWebKitPiP || Boolean(document.pictureInPictureEnabled && media.requestPictureInPicture),
           pipActive: media.webkitPresentationMode === 'picture-in-picture' || document.pictureInPictureElement === media,
           status: resolvedStatus
-        });
+        };
+        const key = JSON.stringify({ ...payload, currentTime: Math.floor(payload.currentTime * 4) / 4 });
+        if (key === lastTransportKey) return;
+        lastTransportKey = key;
+        window.webkit.messageHandlers.youglassPlayback.postMessage(payload);
       };
 
       const waitFor = milliseconds => new Promise(resolve => window.setTimeout(resolve, milliseconds));
@@ -317,12 +321,18 @@ extension YouTubeInlinePlayerView {
         }
       }, 220);
       window.__youglassPlaybackTimer = playbackTimer;
+      let mutationRefreshPending = false;
       window.__youglassPlaybackObserver = new MutationObserver(() => {
-        if (window.__youglassPlaybackStopped ||
-            window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) return;
-        installStyle();
-        installMediaEvents();
-        primePlayback();
+        if (mutationRefreshPending) return;
+        mutationRefreshPending = true;
+        window.setTimeout(() => {
+          mutationRefreshPending = false;
+          if (window.__youglassPlaybackStopped ||
+              window.__youglassPlaybackScriptGeneration !== playbackScriptGeneration) return;
+          installStyle();
+          installMediaEvents();
+          if (!window.__youglassFrameReady) primePlayback();
+        }, 120);
       });
       window.__youglassPlaybackObserver.observe(document.documentElement, { childList: true, subtree: true });
     })();

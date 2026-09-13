@@ -2,6 +2,16 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-13 - Playback resource use and default recommendations
+
+- Share one store-owned playback controller and WebKit page across expanded, compact, and desktop PiP surfaces. Preserve the delayed host handoff, reject retired-host teardown, preserve transport state, and release the page on stop/new selection.
+- Make player script installation idempotent, invalidate stale play promises on media-source replacement, coalesce DOM refreshes, use targeted caption queries, and suppress duplicate transport messages. Avoid hidden comments/details work in compact/PiP and redundant Now Playing updates.
+- Reduce decoded-image cache limits from 80 MB/180 entries to 32 MB/120 entries; decode cards at 800 pixels, avatars at 160, and hero/loading images at up to 1600. Remove the loading thumbnail once video is ready. Release the account browser page on close without removing session data.
+- A live CPU sample identified Home's repeated synchronous document fitting. Its representable now accepts a viewport independently of document sizing, coalesces measurement, and skips unchanged layout frames.
+- Refine default web-sourced Home suggestions with subscriptions and bounded history/like/save affinity. Preserve source order within relevance groups and on cache restoration; keep discovery after relevant suggestions and recent exact replays later.
+- Validation: all 110 tests passed; optimized staged bundle passed strict code-signature verification. Live QA covered Home scrolling, initial muted playback, five expanded/compact/PiP changes with one WebKit attachment/navigation and no Retry, stop cleanup, and account browser open/close/reopen. The final Home-layout rebuild was also checked for scrolling and muted PiP playback.
+- Short PiP samples measured the main app at about 264 MB versus an earlier 365 MB, with final CPU samples 6-13 percent. These are observational main-process figures, not a controlled benchmark or combined WebKit/GPU footprint; total CPU reduction is not yet established. Test playback was stopped and muted startup remains enabled.
+
 ## 2026-09-12 — 2.3.1 browser-window crash correction
 
 - Symbolicated the supplied macOS 27 crash to `YouTubeBrowserWindow.webView(_:didFinish:)` retaining the stored `NSWindow` after a close. Programmatic `NSWindow` instances now set `isReleasedWhenClosed = false`, and finish callbacks validate the current WebView without mutating window chrome.

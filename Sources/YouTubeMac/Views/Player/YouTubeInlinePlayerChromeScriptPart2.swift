@@ -43,6 +43,9 @@ extension YouTubeInlinePlayerView {
             window.__youglassBoundMediaSource !== source) {
           window.__youglassBoundMedia = media;
           window.__youglassBoundMediaSource = source;
+          window.__youglassPlayRequestInFlight = false;
+          window.__youglassPlayRequestGeneration =
+            (window.__youglassPlayRequestGeneration || 0) + 1;
           window.__youglassFrameReady = false;
           window.__youglassWaitingForVideoFrame = false;
           delete media.dataset.youglassFrameWatch;
@@ -164,6 +167,10 @@ extension YouTubeInlinePlayerView {
         // keep only one promise in flight while the browser resolves autoplay.
         if (media.paused && !window.__youglassPlayRequestInFlight) {
           window.__youglassPlayRequestInFlight = true;
+          const requestGeneration = window.__youglassPlayRequestGeneration;
+          const isCurrentRequest = () => !window.__youglassPlaybackStopped &&
+            window.__youglassPlaybackScriptGeneration === playbackScriptGeneration &&
+            window.__youglassPlayRequestGeneration === requestGeneration;
           let playResult;
           try {
             playResult = media.play();
@@ -177,6 +184,7 @@ extension YouTubeInlinePlayerView {
 
           if (playResult && playResult.then) {
             playResult.then(() => {
+              if (!isCurrentRequest()) return;
               window.__youglassPlayRequestInFlight = false;
               window.__youglassAutoplayBootstrap = false;
               if (needsAudioBootstrap &&
@@ -188,6 +196,7 @@ extension YouTubeInlinePlayerView {
                 emitState();
               }
             }).catch(() => {
+              if (!isCurrentRequest()) return;
               window.__youglassPlayRequestInFlight = false;
               window.__youglassAutoplayBootstrap = false;
               window.__youglassWaitingForVideoFrame = false;
@@ -325,6 +334,10 @@ extension YouTubeInlinePlayerView {
       };
 
       const captionElements = (media, selector) => {
+        // Normal YouTube captions are in the light DOM. Traverse shadow roots
+        // and frames only when the targeted lookup cannot find a caption.
+        const direct = document.querySelectorAll(selector);
+        if (direct.length) return Array.from(direct);
         const elements = [];
         for (const root of captionDocumentRoots(media)) {
           elements.push(...Array.from(root.querySelectorAll?.(selector) || []));
@@ -383,6 +396,7 @@ extension YouTubeInlinePlayerView {
         }
       };
 
+      let lastTransportKey = null;
       const emitState = status => {
         const media = findMediaElement();
         if (!media || !window.webkit?.messageHandlers?.youglassPlayback) return;

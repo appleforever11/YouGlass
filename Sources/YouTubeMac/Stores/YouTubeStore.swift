@@ -4,6 +4,8 @@ import SwiftUI
 
 @MainActor
 final class YouTubeStore: ObservableObject {
+    // Surface changes do not create another YouTube page or forward ticks to Home.
+    let playbackController = YouTubePlaybackController()
     // SwiftUI may reevaluate a view body from an AttributeGraph transaction
     // that is running on the main thread without carrying the Swift main
     // executor. Keep render-only sidebar snapshots synchronized on the main

@@ -26,6 +26,11 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
         Coordinator(content: content, refreshAction: refreshAction)
     }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSScrollView, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? max(1, nsView.frame.width),
+               height: proposal.height ?? max(1, nsView.frame.height))
+    }
+
     func makeNSView(context: Context) -> NSScrollView {
         let scrollView = NSScrollView()
         scrollView.contentView = YouGlassHomeClipView()
@@ -48,9 +53,7 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.refreshAction = refreshAction
         context.coordinator.setContent(content)
-        context.coordinator.hostingController.view.needsLayout = true
         context.coordinator.updateRefresh(on: scrollView, enabled: isRefreshEnabled, tint: NSColor(refreshTint))
-        context.coordinator.resizeDocument(in: scrollView)
         context.coordinator.scheduleResize(in: scrollView)
     }
 
@@ -143,11 +146,8 @@ struct YouGlassHomeScrollView<Content: View>: NSViewRepresentable {
                 width: width,
                 height: height
             )
-            if hostingController.view.frame != frame {
-                hostingController.view.frame = frame
-            }
-            hostingController.view.needsLayout = true
-            hostingController.view.layoutSubtreeIfNeeded()
+            guard hostingController.view.frame != frame else { return }
+            hostingController.view.frame = frame
         }
 
         func scheduleResize(in scrollView: NSScrollView) {

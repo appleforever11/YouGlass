@@ -4,6 +4,31 @@ import WebKit
 
 final class PlaybackAttachmentTests: XCTestCase {
     @MainActor
+    func testSurfaceHandoffKeepsPlaybackAndLateOldHostTeardownCannotStopIt() {
+        let controller = YouTubePlaybackController()
+        let surface = WKWebView()
+        let oldHost = YouTubeInlinePlayerHostView(webView: surface)
+        controller.webView = surface
+        controller.isSurfaceReady = true
+        controller.currentTime = 42
+        controller.isTransferringSurface = true
+
+        controller.dismantleSurface(in: oldHost)
+        XCTAssertTrue(controller.webView === surface)
+        let newHost = YouTubeInlinePlayerHostView(webView: surface)
+        controller.isTransferringSurface = false
+        controller.dismantleSurface(in: oldHost)
+        XCTAssertTrue(controller.webView === surface)
+        XCTAssertTrue(surface.superview === newHost)
+        XCTAssertTrue(controller.isSurfaceReady)
+        XCTAssertEqual(controller.currentTime, 42)
+
+        controller.stopPlayback()
+        XCTAssertNil(controller.webView)
+        XCTAssertFalse(controller.isSurfaceReady)
+    }
+
+    @MainActor
     func testRetiredSurfaceCannotCancelCurrentSurfaceTasks() {
         let controller = YouTubePlaybackController()
         let oldSurface = WKWebView()

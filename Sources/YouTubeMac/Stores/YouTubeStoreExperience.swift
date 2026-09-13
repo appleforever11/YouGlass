@@ -59,7 +59,7 @@ extension YouTubeStore {
 
     func transitionInlinePlayer(compact: Bool) {
         guard let video = selectedVideo else { return }
-        stopCurrentPlayback()
+        stopCurrentPlayback(preservingSurface: true)
         closeDesktopPIPWindow()
         isInlinePlayerTransitioning = true
         isPlayerCompact = compact

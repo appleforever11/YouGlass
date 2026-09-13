@@ -140,11 +140,9 @@ extension YouTubeStore {
             pipTransitionTask?.cancel()
             pipTransitionTask = nil
 
-            // Stop the source player and remove it from the SwiftUI tree before
-            // creating the floating player. WebKit can crash while committing a
-            // remote layer tree if the source and PIP WebViews are mounted or
-            // detached in the same transaction.
-            stopCurrentPlayback()
+            // Retire the source host before moving the existing WebKit surface
+            // into the floating window, outside the current SwiftUI transaction.
+            stopCurrentPlayback(preservingSurface: true)
             isPlayerCompact = false
             pipTransitionState = .presenting(videoID: video.id)
             isDesktopPIPActive = true
@@ -184,7 +182,8 @@ extension YouTubeStore {
             YouGlassDesktopPIPWindowController.shared.close()
         }
 
-        func stopCurrentPlayback() {
+        func stopCurrentPlayback(preservingSurface: Bool = false) {
+            playbackController.isTransferringSurface = preservingSurface
             inlinePlayerTransitionTask?.cancel()
             inlinePlayerTransitionTask = nil
             isInlinePlayerTransitioning = false
@@ -194,6 +193,7 @@ extension YouTubeStore {
             playbackCommandHandler = nil
             playbackCommandHandlerToken = nil
             handler?()
+            if !preservingSurface { playbackController.stopPlayback() }
         }
 
         func openChannel(_ item: SubscriptionItem) {

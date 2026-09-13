@@ -31,13 +31,27 @@ enum YouTubeAuthBridge {
 }
 
 @MainActor
-final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
+final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate, NSWindowDelegate {
     static let shared = YouTubeBrowserWindow()
 
     private var window: NSWindow?
     private var webView: WKWebView?
     private var addressField: NSTextField?
     private var profileCaptureTask: Task<Void, Never>?
+
+    func windowWillClose(_ notification: Notification) {
+        guard let closedWindow = notification.object as? NSWindow, closedWindow === window else { return }
+        profileCaptureTask?.cancel()
+        profileCaptureTask = nil
+        webView?.stopLoading()
+        webView?.navigationDelegate = nil
+        webView = nil
+        addressField = nil
+        window = nil
+        // Release the closed page after AppKit finishes its close transaction.
+        // The default website data store continues to own the signed-in session.
+        DispatchQueue.main.async { closedWindow.contentView = nil }
+    }
 
     func open(_ url: URL, title: String = "YouTube") {
         profileCaptureTask?.cancel()
@@ -117,6 +131,7 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
         // callback after the user closes it. Keep the retained object valid so
         // that callback cannot read an over-released window pointer.
         window.isReleasedWhenClosed = false
+        window.delegate = self
         window.center()
         window.title = "YouTube"
         window.titlebarAppearsTransparent = true

@@ -156,12 +156,14 @@ extension NativeYouTubePlayer {
         }
 
         private var loadingThumbnail: some View {
-            RemoteImage(url: video.thumbnailURL)
+            Group {
+              if !playbackController.isSurfaceReady {
+                RemoteImage(url: video.thumbnailURL, maximumPixelSize: isCompact ? 800 : 1_600)
                 .id(video.id)
                 .overlay(Color.black.opacity(0.18))
-                .opacity(playbackController.isSurfaceReady ? 0 : 1)
-                .animation(.easeOut(duration: 0.16), value: playbackController.isSurfaceReady)
-                .allowsHitTesting(false)
+              }
+            }
+            .allowsHitTesting(false)
         }
 
         /// Keep the native caption surface mounted independently of the

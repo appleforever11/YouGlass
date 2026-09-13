@@ -5,6 +5,7 @@ import SwiftUI
 
 extension YouTubePlaybackController {
         func attach(to webView: WKWebView, video: VideoItem) {
+            isTransferringSurface = false
             clearPictureInPictureFallback()
             self.webView = webView
             resetPublishedStateForAttachment()
@@ -36,6 +37,7 @@ extension YouTubePlaybackController {
         }
 
         func stopPlayback() {
+            isTransferringSurface = false
             clearPictureInPictureFallback()
             cancelLoadWatchdog()
             cancelPlaybackBootstrap()
@@ -56,6 +58,14 @@ extension YouTubePlaybackController {
             pendingResumeVideoID = nil
             pendingResumePosition = nil
             status = "Playback stopped"
+            if let webView { stopAndDetachDeferred(from: webView) }
+        }
+
+        func dismantleSurface(in hostView: YouTubeInlinePlayerHostView) {
+            let surface = hostView.webView
+            // A late teardown must not stop a surface already moved to its new host.
+            guard surface.superview === hostView, !isTransferringSurface else { return }
+            stopAndDetachDeferred(from: surface)
         }
 
         func stopAndDetachDeferred(from webView: WKWebView) {

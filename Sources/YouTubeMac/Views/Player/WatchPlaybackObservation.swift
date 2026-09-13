@@ -1,11 +1,5 @@
 import SwiftUI
 
-/// Owns the session without forwarding every transport tick to the watch page.
-@MainActor
-final class WatchPlaybackOwner: ObservableObject {
-    let controller = YouTubePlaybackController()
-}
-
 struct WatchPlaybackObservation: View {
     @ObservedObject var controller: YouTubePlaybackController
     let onAmbient: (VideoAmbientPalette) -> Void

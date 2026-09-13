@@ -140,6 +140,13 @@ extension NativeWatchScreen {
                 saved = store.isSaved(video)
                 liked = store.isLocallyLiked(video)
 
+                // Compact/PiP has no comments or details pane. The store keeps
+                // the existing queue, so it needs no duplicate metadata load.
+                guard !isCompact else {
+                    commentsLoading = false
+                    return
+                }
+
                 // Resolve account state before slower comments/details requests. A
                 // stalled public-data request must never leave this control at
                 // "Checking..." when the signed-in subscription list is ready.
@@ -200,7 +207,6 @@ extension NativeWatchScreen {
                         at: controller.currentTime,
                         duration: controller.duration
                     )
-                    controller.stopPlayback()
                 }
                 playbackCommandHandlerToken = store.registerPlaybackCommandHandler { [weak controller] command in
                     guard let controller else { return }
@@ -215,10 +221,12 @@ extension NativeWatchScreen {
                 }
                 store.configureNativeMediaControls()
                 syncNativeNowPlaying()
-                playbackController.restorePlaybackPosition(
-                    store.playbackPosition(for: video.id),
-                    for: video.id
-                )
+                if !playbackController.isSurfaceReady {
+                    playbackController.restorePlaybackPosition(
+                        store.playbackPosition(for: video.id),
+                        for: video.id
+                    )
+                }
                 store.setAmbientPalette(playbackController.ambientPalette)
             }
             .background {

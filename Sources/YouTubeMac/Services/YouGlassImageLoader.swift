@@ -9,30 +9,31 @@ actor YouGlassImageLoader {
 
     private let fetch: Fetch
     private let maximumPixelSize: Int
-    private let cache = NSCache<NSURL, CGImage>()
-    private var inFlight: [URL: Task<CGImage, Error>] = [:]
+    private let cache = NSCache<NSString, CGImage>()
+    private var inFlight: [String: Task<CGImage, Error>] = [:]
 
-    init(maximumPixelSize: Int = 1_600, fetch: @escaping Fetch = YouGlassImageLoader.download) {
+    init(maximumPixelSize: Int = 800, fetch: @escaping Fetch = YouGlassImageLoader.download) {
         self.maximumPixelSize = max(1, maximumPixelSize)
         self.fetch = fetch
-        cache.countLimit = 180
-        cache.totalCostLimit = 80 * 1024 * 1024
+        cache.countLimit = 120
+        cache.totalCostLimit = 32 * 1024 * 1024
     }
 
-    func image(for url: URL) async throws -> CGImage {
-        if let cached = cache.object(forKey: url as NSURL) { return cached }
-        if let existing = inFlight[url] { return try await existing.value }
+    func image(for url: URL, maximumPixelSize requestedSize: Int? = nil) async throws -> CGImage {
+        let maximumPixelSize = max(1, min(1_600, requestedSize ?? self.maximumPixelSize))
+        let key = "\(maximumPixelSize):\(url.absoluteString)"
+        if let cached = cache.object(forKey: key as NSString) { return cached }
+        if let existing = inFlight[key] { return try await existing.value }
 
         let fetch = self.fetch
-        let maximumPixelSize = self.maximumPixelSize
         let task = Task {
             let data = try await fetch(url)
             return try Self.decode(data, maximumPixelSize: maximumPixelSize)
         }
-        inFlight[url] = task
-        defer { inFlight[url] = nil }
+        inFlight[key] = task
+        defer { inFlight[key] = nil }
         let image = try await task.value
-        cache.setObject(image, forKey: url as NSURL, cost: image.bytesPerRow * image.height)
+        cache.setObject(image, forKey: key as NSString, cost: image.bytesPerRow * image.height)
         return image
     }
 

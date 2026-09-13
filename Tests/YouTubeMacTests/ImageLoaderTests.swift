@@ -44,6 +44,17 @@ final class ImageLoaderTests: XCTestCase {
         XCTAssertEqual(count, 2)
     }
 
+    func testAvatarAndPreviewUseSeparateSizedCacheEntries() async throws {
+        let source = try png()
+        let loader = YouGlassImageLoader(fetch: { _ in source })
+        let avatar = try await loader.image(for: url, maximumPixelSize: 40)
+        let preview = try await loader.image(for: url, maximumPixelSize: 200)
+        let cachedAvatar = try await loader.image(for: url, maximumPixelSize: 40)
+        XCTAssertEqual(avatar.width, 40)
+        XCTAssertEqual(preview.width, 200)
+        XCTAssertTrue(avatar === cachedAvatar)
+    }
+
     private func png() throws -> Data {
         let context = try XCTUnwrap(CGContext(
             data: nil, width: 200, height: 100, bitsPerComponent: 8,

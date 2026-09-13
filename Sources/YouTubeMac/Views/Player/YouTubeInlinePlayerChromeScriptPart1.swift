@@ -3,6 +3,11 @@ import SwiftUI
 extension YouTubeInlinePlayerView {
     static let playerChromeScriptPart1 = """
     (() => {
+      if (window.__youglassControls && !window.__youglassPlaybackStopped &&
+          window.__youglassExpectedVideoID === '__YOUGLASS_VIDEO_ID__') {
+        window.__youglassControls.startPlayback();
+        return;
+      }
       const styleID = 'youglass-player-style';
       const styleText = `
         html, body {

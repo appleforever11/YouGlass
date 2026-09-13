@@ -58,7 +58,7 @@ struct VideoRow: View {
     private var sectionSubtitle: String {
         switch title {
         case "For You": store.homeRecommendationsAreFromYouTube
-            ? "Suggestions in YouTube Home order" : "Picks shaped by your subscriptions and local viewing"
+            ? "From your channels and recent interests" : "Picks shaped by your subscriptions and local viewing"
         case "Trending": store.homeRecommendationsAreFromYouTube
             ? "More suggestions from YouTube Home" : "Popular videos from the channels and topics you follow"
         case "More to watch": "Keep exploring beyond your usual favorites"
