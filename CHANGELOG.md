@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.3.1(a)] - 2026-09-13
+
+Follow-up 2.3.1 build focused on lower playback and image-resource use, retained WebKit/Picture in Picture handoff, and more relevant default Home suggestions. See [the release notes](RELEASE_NOTES/2.3.1.1.md).
+
 ## [2.2.2] - 2026-09-06
 
 Improved main-player hover reliability with missed-event recovery, accurate video bounds, and preserved hover during player startup. See [the release notes](RELEASE_NOTES/2.2.2.md).

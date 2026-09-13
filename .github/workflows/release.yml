@@ -50,9 +50,13 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]
+          base_version="$version"
+          if [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$ ]]; then
+            base_version="${BASH_REMATCH[1]}"
+          fi
           plist_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Sources/YouTubeMac/Info.plist)"
-          [[ "$version" == "$plist_version" ]]
+          [[ "$base_version" == "$plist_version" ]]
           test -s "RELEASE_NOTES/${version}.md"
 
       - name: Validate distribution secrets
@@ -186,10 +190,14 @@ jobs:
         run: |
           set -euo pipefail
           version="${GITHUB_REF_NAME#v}"
+          title="YouGlass ${version}"
+          if [[ "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.[0-9]+$ ]]; then
+            title="YouGlass ${BASH_REMATCH[1]}(a)"
+          fi
           gh release create "$GITHUB_REF_NAME" \
             "$RUNNER_TEMP/YouGlass-${version}-arm64.zip" \
             "$RUNNER_TEMP/YouGlass-${version}-arm64.dmg" \
             "$RUNNER_TEMP/appcast.xml" \
             --repo "$REPOSITORY" \
-            --title "YouGlass ${version}" \
+            --title "$title" \
             --notes-file "RELEASE_NOTES/${version}.md"

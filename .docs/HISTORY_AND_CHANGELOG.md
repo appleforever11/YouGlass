@@ -11,6 +11,7 @@ This file records durable project context, not every line edit. The local Git hi
 - Refine default web-sourced Home suggestions with subscriptions and bounded history/like/save affinity. Preserve source order within relevance groups and on cache restoration; keep discovery after relevant suggestions and recent exact replays later.
 - Validation: all 110 tests passed; optimized staged bundle passed strict code-signature verification. Live QA covered Home scrolling, initial muted playback, five expanded/compact/PiP changes with one WebKit attachment/navigation and no Retry, stop cleanup, and account browser open/close/reopen. The final Home-layout rebuild was also checked for scrolling and muted PiP playback.
 - Short PiP samples measured the main app at about 264 MB versus an earlier 365 MB, with final CPU samples 6-13 percent. These are observational main-process figures, not a controlled benchmark or combined WebKit/GPU footprint; total CPU reduction is not yet established. Test playback was stopped and muted startup remains enabled.
+- Prepared the Sparkle follow-up build `2.3.1(a)` (`203101`) as immutable tag `v2.3.1.1`, preserving the already-published `v2.3.1` tag while allowing existing installs to receive the higher build.
 
 ## 2026-09-12 — 2.3.1 browser-window crash correction
 
