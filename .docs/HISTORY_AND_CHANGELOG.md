@@ -2,6 +2,11 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-12 — 2.3.1 browser-window crash correction
+
+- Symbolicated the supplied macOS 27 crash to `YouTubeBrowserWindow.webView(_:didFinish:)` retaining the stored `NSWindow` after a close. Programmatic `NSWindow` instances now set `isReleasedWhenClosed = false`, and finish callbacks validate the current WebView without mutating window chrome.
+- The optimized rebuilt bundle passed strict code-signature verification. Live QA opened YouTube Home, completed navigation, closed the browser window, reopened it, and closed it again while the process remained alive.
+
 ## 2026-09-12 — 2.3.0 discovery and modularity
 
 - Balanced local interest signals across history, likes, and saves; ignored generic title words, used stable channel identity, and kept unseen candidates ahead of repeats during diversity selection.

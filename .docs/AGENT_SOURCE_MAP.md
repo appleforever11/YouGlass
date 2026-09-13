@@ -13,6 +13,7 @@ Use when locating a subsystem. Paths describe responsibilities; inspect current 
 - `Sources/YouTubeMac/Models/YouGlassThemeCatalog.swift` and `YouGlassRuntimeStabilityPolicy.swift`: theme families/colors and platform safety policies.
 - `Sources/YouTubeMac/Views/Shared/`: palette, ambient theme rendering, shared surfaces, and parallax modifiers.
 - `Sources/YouTubeMac/Services/`: OAuth credentials/browser sign-in, focused WebKit compatibility bridges, Keychain access, PIP window/session management, diagnostics, request helpers, prewarming, and updates.
+- `YouTubeBrowserWindow` keeps its ARC-retained reusable NSWindow with `isReleasedWhenClosed = false`; its WebKit finish callback only handles the currently attached WebView and does not mutate window chrome after navigation.
 - `Sources/YouTubeMac/Views/Home/YouTubeChannelView.swift`: channel detail surface composed with the Home window.
 - `Sources/YouTubeMac/Resources/`: Icon Composer source, fallback icon resources, and packaged assets.
 - `Tests/YouTubeMacTests/`: XCTest coverage for models, policies, diagnostics, and persistence-adjacent behavior.

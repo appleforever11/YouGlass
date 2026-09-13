@@ -112,6 +112,11 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
             backing: .buffered,
             defer: false
         )
+        // NSWindow defaults to releasing itself from close(). Swift/ARC code
+        // retains this reusable window and may still receive a WebKit finish
+        // callback after the user closes it. Keep the retained object valid so
+        // that callback cannot read an over-released window pointer.
+        window.isReleasedWhenClosed = false
         window.center()
         window.title = "YouTube"
         window.titlebarAppearsTransparent = true
@@ -126,11 +131,8 @@ final class YouTubeBrowserWindow: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard self.webView === webView else { return }
         addressField?.stringValue = webView.url?.absoluteString ?? ""
-        // WebKit can invalidate the title object while a navigation callback is
-        // being delivered. The browser window does not need page titles, so keep
-        // a stable native title and avoid retaining that transient object.
-        window?.title = "YouTube"
         checkAuthenticationState()
         captureProfileImage(from: webView)
     }
