@@ -4,6 +4,8 @@ This directory is the tracked, non-skill reference layer for the project. `AGENT
 
 ## Documents
 
+- [YOUGLASS_3_0.md](YOUGLASS_3_0.md) — cinematic redesign direction, implemented foundations, architecture migration, and release gates.
+
 - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) — product scope, runtime boundaries, toolchain, persistence, and current project state.
 - [BUILD_AND_RUN.md](BUILD_AND_RUN.md) — exact dependency, test, debug, packaging, signing, and runtime validation commands.
 - [ARCHITECTURE.md](ARCHITECTURE.md) — SwiftUI/AppKit structure, state ownership, data flow, and platform safety boundaries.

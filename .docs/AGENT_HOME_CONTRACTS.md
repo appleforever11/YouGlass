@@ -1,5 +1,8 @@
 # YouGlass home contracts
 
+- Toolbar, command palette, and Command-R route through `refreshCurrentDestination`. Library, Explore, Notifications, and open channel/playlist detail surfaces do not refresh the underlying Home feed. Search and Custom Feeds retain their own loaders.
+- The 3.0 browsing foundation uses a compact editorial Home heading, resume action, personal-destination menu, and a larger cinematic spotlight. Secondary toolbar actions remain reachable through the overflow menu and application commands. Existing theme choices remain supported.
+
 - Fallback ranking uses independently bounded history, likes, and saves through `RecommendationSignals`; stable channel IDs take precedence over display names. Up Next excludes the playing video before limiting and applies the same current-video context to network and local candidates. Source sampling rotates five-minute windows within existing request budgets. Freshness eligibility is enforced before channel diversity.
 - `HomeFeed.replaceVideos` preserves all loaded items across its sections in source order; do not restore the former 28-item presentation truncation. Home's ingestion/cache remains bounded at 40 recommendations. Feed publication/cache coordination belongs in `YouTubeStoreFeedPresentation`, separate from persistence decoding.
 

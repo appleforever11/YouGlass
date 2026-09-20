@@ -6,6 +6,8 @@ Use when locating a subsystem. Paths describe responsibilities; inspect current 
 - `Sources/YouTubeMac/App/`: app entry point, root composition, commands, and window sizing.
 - `Sources/YouTubeMac/Models/`: value models, policies, and model fixtures for videos, subscriptions, themes, playback, and API responses.
 - `Sources/YouTubeMac/Stores/`: the main-actor store declaration plus focused extensions for initialization, settings, playback, feed loading/ranking/navigation, search, account, community, persistence, and presentation.
+- Startup restoration/defaults keys live in `YouTubeStoreRestoration`; runtime service/observer attachment lives in `YouTubeStoreRuntime`. `YouTubeStoreRefresh` is the shared destination-aware refresh action for UI and commands, backed by `Models/YouGlassRefreshDestination`.
+- `Views/Home/YouGlassBrowseToolbar` owns browsing search and toolbar actions separately from `YouTubeHomeContent`'s scroll document.
 - `Sources/YouTubeMac/Views/Home/`: main window layout, navigation/sidebar content, recommendation surfaces, cards, playlists, and shared home states.
 - `Sources/YouTubeMac/Views/Settings/`: settings state, sidebar/detail pages, theme controls, layout components, window configuration, and the AppKit-backed scroll container.
 - `Sources/YouTubeMac/Views/Player/`: player overlay, native watch screen, native transport controls, inline WebKit host/coordinator, playback controller, JavaScript bridge, ambient palette sampling, and player support views.

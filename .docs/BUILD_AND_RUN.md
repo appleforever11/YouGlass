@@ -29,7 +29,7 @@ swift test --filter YouTubeMacTests
 
 ## Development build and runtime validation
 
-`script/build_and_run.sh` is the authoritative local app loop. It builds the selected configuration, restarts only the executable inside this checkout's `dist/YouGlass.app` for run modes, stages the real app bundle, copies Sparkle, applies the app's `Info.plist`, handles icon resources, signs the bundle when an identity is available, and opens the bundle with LaunchServices. Build-only mode does not stop running apps. Installed and archived copies are never terminated by process name alone.
+`script/build_and_run.sh` is the authoritative local app loop. It requires this checkout's development app to be stopped before building or replacing its bundle, including build-only mode. Quit that development instance normally before running the script. It builds the selected configuration, stages the real app bundle, copies Sparkle, applies the app's `Info.plist`, handles icon resources, signs the bundle when an identity is available, and opens the bundle with LaunchServices for run modes. Installed and archived copies are never terminated by process name alone.
 
 ```sh
 ./script/build_and_run.sh                 # build and open debug app

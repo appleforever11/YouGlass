@@ -45,6 +45,10 @@ struct YouTubeMacApp: App {
 
                 Divider()
 
+                Button("Refresh \(store.selectedSection)", action: store.refreshCurrentDestination)
+                    .keyboardShortcut("r", modifiers: [.command])
+                    .disabled(!store.canRefreshCurrentDestination)
+
                 Button("Refresh YouTube Account") {
                     store.refreshAccount()
                 }

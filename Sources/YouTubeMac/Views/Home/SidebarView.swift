@@ -6,19 +6,6 @@ struct SidebarView: View {
     let palette: Palette
     let compact: Bool
 
-    private let topItems: [(String, String, Bool, String, String?)] = [
-        ("house.fill", "Home", false, "Home", nil),
-        ("safari", "Explore", false, "Explore", nil),
-        ("play.rectangle", "Subscriptions", false, "Subscriptions", nil)
-    ]
-    private let libraryItems: [(String, String, Bool, String, String?)] = [
-        ("rectangle.stack", "Library", false, "Library", nil),
-        ("list.bullet.rectangle", "Playlists", false, "Playlists", nil),
-        ("clock.arrow.circlepath", "History", false, "History", nil),
-        ("bookmark", "Watch Later", false, "Watch Later", nil),
-        ("heart", "Liked Videos", false, "Liked Videos", nil)
-    ]
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
@@ -48,9 +35,9 @@ struct SidebarView: View {
             .padding(.top, 20)
             .padding(.bottom, 22)
 
-            SidebarGroup(items: topItems, palette: palette, compact: compact)
+            SidebarGroup(items: YouGlassSidebarDestination.browse, palette: palette, compact: compact)
             DividerLine(palette: palette)
-            SidebarGroup(items: libraryItems, palette: palette, compact: compact)
+            SidebarGroup(items: YouGlassSidebarDestination.personal, palette: palette, compact: compact)
             DividerLine(palette: palette)
 
             if !compact {

@@ -32,16 +32,16 @@ struct CommandPaletteView: View {
             command("watch-later", "Open Watch Later", "Show videos saved for later", "bookmark.fill") { store.showSection("Watch Later") },
             command("history", "Open History", "Show videos watched on this Mac", "clock.fill") { store.showSection("History") },
             command("subscriptions", "Open Subscriptions", "See recent uploads from subscribed channels", "person.2.fill") { store.showSection("Subscriptions") },
-            command("refresh", "Refresh recommendations", "Fetch fresh feed data", "arrow.clockwise", "⌘R") {
-                if store.selectedCustomFeed != nil {
-                    store.refreshSelectedCustomFeed()
-                } else {
-                    Task { await store.loadHome(force: true) }
-                }
-            },
             command("theme", "Cycle visual theme", "Move to the next Theme Center environment", "paintbrush.pointed.fill") { store.cycleVisualTheme() },
             command("settings", "Open Settings", "Adjust appearance, playback, account, and privacy", "gearshape.fill", "⌘,") { openSettings() }
         ]
+
+        if store.canRefreshCurrentDestination {
+            result.append(command("refresh", "Refresh \(store.selectedSection)",
+                                  "Reload the current destination", "arrow.clockwise", "⌘R") {
+                store.refreshCurrentDestination()
+            })
+        }
 
         if !store.continueWatching.isEmpty {
             result.insert(

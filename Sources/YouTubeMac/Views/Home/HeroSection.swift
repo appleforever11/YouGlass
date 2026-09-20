@@ -20,11 +20,11 @@ struct HeroSection: View {
                         .overlay {
                             LinearGradient(
                                 stops: [
-                                    .init(color: .black.opacity(0.04), location: 0),
-                                    .init(color: .black.opacity(0.34), location: 0.32),
-                                    .init(color: .black.opacity(0.92), location: 1)
+                                    .init(color: .black.opacity(0.08), location: 0),
+                                    .init(color: .black.opacity(0.48), location: 0.40),
+                                    .init(color: .black.opacity(0.96), location: 1)
                                 ],
-                                startPoint: .top, endPoint: .bottom
+                                startPoint: .topTrailing, endPoint: .bottomLeading
                             )
                         }
                 }
@@ -33,14 +33,15 @@ struct HeroSection: View {
                 .onHover { if $0 { store.prewarmPlayback(for: store.feed.hero) } }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Label("IN THE SPOTLIGHT", systemImage: "sparkles")
+                    Label("THE SPOTLIGHT", systemImage: "play.rectangle.fill")
                         .font(.system(size: 10, weight: .bold))
                         .tracking(1.6)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
                         .background(.white.opacity(0.16), in: Capsule())
                     Text(store.feed.hero.title)
-                        .font(.system(size: compact ? 25 : 34, weight: .bold, design: .rounded))
+                        .font(.system(size: compact ? 29 : 44, weight: .bold))
+                        .tracking(-1.0)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                         .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
@@ -74,8 +75,8 @@ struct HeroSection: View {
                     .padding(.top, 4)
                 }
                 .foregroundStyle(.white)
-                .frame(maxWidth: compact ? .infinity : min(geometry.size.width * 0.78, 880), alignment: .leading)
-                .padding(compact ? 22 : 32)
+                .frame(maxWidth: compact ? .infinity : min(geometry.size.width * 0.72, 820), alignment: .leading)
+                .padding(compact ? 24 : 40)
             }
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -85,7 +86,7 @@ struct HeroSection: View {
                     .allowsHitTesting(false)
             }
         }
-        .frame(height: compact ? 340 : 380)
+        .frame(height: compact ? 380 : 460)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Featured video")
     }

@@ -2,6 +2,16 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-19 — 3.0 foundation and cinematic browsing direction
+
+- User selected a bold, cinematic, immersive UI direction. Added `YOUGLASS_3_0.md` with implemented scope, architecture migrations, surface-specific acceptance criteria, and release gates. This is a foundation milestone, not a completed 3.0 release.
+- Separated startup restoration/defaults keys from runtime service/observer attachment; extracted the browsing toolbar from the feed document; replaced positional sidebar tuples with a typed destination catalog.
+- Unified toolbar, command palette, and application refresh under a pure destination policy and a shared store action. Added the real Command-R command; local and obscured detail destinations no longer dispatch unrelated Home refreshes from the palette.
+- Simplified browsing chrome, added editorial Home hierarchy and a resume action, and enlarged the featured stage with directional contrast and stronger typography.
+- Baseline: 110 tests passed. Foundation: 114 tests passed, including four destination-refresh regression tests. The staged app passed process/signature verification. Xcode Icon Composer failed plugin initialization; the existing checked-in ICNS fallback was used successfully.
+- Computer Use inspected wide Home, Library navigation, the Library palette's absence of refresh, Escape dismissal, Command-L focus, and window zoom. Compact-window drag validation was blocked by the Computer Use coordinate mapping (`windowNotFoundAtPosition`); minimum-size and full playback/theme matrix checks remain release gates, not claimed successes.
+- Corrected build documentation to reflect the existing requirement to quit the development app before replacing its bundle.
+
 ## 2026-09-13 - Playback resource use and default recommendations
 
 - Share one store-owned playback controller and WebKit page across expanded, compact, and desktop PiP surfaces. Preserve the delayed host handoff, reject retired-host teardown, preserve transport state, and release the page on stop/new selection.

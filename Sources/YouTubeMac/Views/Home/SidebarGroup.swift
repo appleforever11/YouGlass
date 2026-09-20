@@ -2,24 +2,24 @@ import SwiftUI
 
 struct SidebarGroup: View {
     @EnvironmentObject private var store: YouTubeStore
-    let items: [(String, String, Bool, String, String?)]
+    let items: [YouGlassSidebarDestination]
     let palette: Palette
     let compact: Bool
-    @State private var hoveredSection: String?
+    @State private var hoveredSection: YouGlassSidebarDestination?
 
     var body: some View {
         VStack(spacing: 4) {
-            ForEach(items, id: \.1) { symbol, title, selected, section, query in
-                let active = selected || store.selectedSection == title
-                let hovered = hoveredSection == section
-                Button(action: { store.showSection(section, query: query) }) {
+            ForEach(items) { destination in
+                let active = store.selectedSection == destination.title
+                let hovered = hoveredSection == destination
+                Button(action: { store.showSection(destination.title) }) {
                     HStack(spacing: 13) {
-                        Image(systemName: symbol)
+                        Image(systemName: destination.symbol)
                             .font(.system(size: 16, weight: active ? .semibold : .regular))
                             .foregroundStyle(active ? palette.accent : palette.text)
                             .frame(width: 20)
                         if !compact {
-                            Text(title)
+                            Text(destination.title)
                                 .font(.system(size: 14, weight: active ? .semibold : .regular))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.82)
@@ -58,10 +58,10 @@ struct SidebarGroup: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { isHovering in
-                    hoveredSection = isHovering ? section : (hoveredSection == section ? nil : hoveredSection)
+                    hoveredSection = isHovering ? destination : (hoveredSection == destination ? nil : hoveredSection)
                 }
-                .help(title)
-                .accessibilityLabel(title)
+                .help(destination.title)
+                .accessibilityLabel(destination.title)
                 .accessibilityValue(active ? "Selected" : "Not selected")
             }
         }

@@ -3,14 +3,14 @@ import SwiftUI
 extension YouTubeHomeView {
     func mainContent(compact: Bool) -> some View {
         VStack(spacing: 0) {
-            topBar
+            YouGlassBrowseToolbar(palette: palette)
 
             // Keep this as the single vertical scroll owner for the home
             // surface. Nested adaptive grids can otherwise consume the
             // available height without giving the user a reliable way to
             // reach the lower recommendation rows on smaller displays.
             homeRefreshContainer {
-                VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 28) {
                     if store.selectedSection == "Home" {
                         HomeDashboardHeader(palette: palette, compact: compact)
                     }
@@ -186,170 +186,6 @@ extension YouTubeHomeView {
                     )
                 }
             }
-    }
-
-    private var topBar: some View {
-        GeometryReader { geometry in
-            let minimal = geometry.size.width < 560
-            let compact = geometry.size.width < 860
-
-            Group {
-                if minimal {
-                    topBarContent(compact: true, minimal: true)
-                } else {
-                    topBarContent(compact: compact, minimal: false)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-        }
-        .frame(height: 68)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(palette.hairline)
-                .frame(height: 1)
-                .padding(.horizontal, 22)
-        }
-    }
-
-    private func topBarContent(compact: Bool, minimal: Bool) -> some View {
-        HStack(spacing: minimal ? 6 : (compact ? 10 : 22)) {
-            SearchField(
-                text: $store.query,
-                focusRequestID: store.searchFocusRequestID,
-                palette: palette
-            ) {
-                store.startSearch()
-            }
-            .frame(
-                minWidth: minimal ? 80 : (compact ? 160 : 250),
-                maxWidth: minimal ? .infinity : (compact ? 360 : 500)
-            )
-            .layoutPriority(1)
-
-            Button(action: store.toggleCommandPalette) {
-                Image(systemName: "command")
-                    .font(.system(size: 14, weight: .semibold))
-            }
-            .buttonStyle(IconButtonStyle(palette: palette))
-            .accessibilityLabel("Open command palette")
-            .help("Command palette (⌘K)")
-
-            if !minimal {
-                Button(action: store.presentNewCustomFeedComposer) {
-                    Image(systemName: "wand.and.stars")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                .buttonStyle(IconButtonStyle(palette: palette))
-                .accessibilityLabel("Create a custom feed")
-                .help("Create a custom feed")
-            }
-
-            Spacer(minLength: minimal ? 4 : (compact ? 6 : 12))
-
-            if minimal {
-                EmptyView()
-            } else {
-                HomeConnectionStatusView(
-                    store: store,
-                    palette: palette,
-                    compact: compact
-                )
-            }
-
-            if store.selectedSection != "Library" && store.selectedSection != "Explore" {
-            Button {
-                if store.selectedCustomFeed != nil {
-                    store.refreshSelectedCustomFeed()
-                } else if store.selectedSection == "Search" {
-                    store.startSearch()
-                } else if !["Home", "For You", "Trending", "More to watch"].contains(store.selectedSection) {
-                    store.showSection(store.selectedSection)
-                } else {
-                    Task { await store.loadHome(force: true) }
-                }
-            } label: {
-                if store.isLoading || store.customFeedLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-            }
-            .buttonStyle(IconButtonStyle(palette: palette))
-            .accessibilityLabel("Refresh \(store.selectedSection == "Search" ? "search results" : store.selectedSection)")
-            .help("Refresh \(store.selectedSection)")
-            .disabled(store.isLoading || store.customFeedLoading)
-            }
-
-            SettingsLink {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 15, weight: .semibold))
-            }
-            .buttonStyle(IconButtonStyle(palette: palette))
-            .accessibilityLabel("YouGlass settings")
-            .help("YouGlass settings")
-
-            if minimal {
-                Menu {
-                    Button("Create custom feed", action: store.presentNewCustomFeedComposer)
-                    Button("Notifications") { store.showSection("Notifications") }
-                    Divider()
-                    Picker("Appearance", selection: Binding(
-                        get: { store.theme }, set: { store.setTheme($0) }
-                    )) {
-                        Text("Light").tag(AppTheme.light)
-                        Text("Dark").tag(AppTheme.dark)
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
-                .accessibilityLabel("More Home actions")
-            }
-
-            if !minimal {
-                Picker("Appearance", selection: Binding(
-                    get: { store.theme },
-                    set: { newTheme in store.setTheme(newTheme) }
-                )) {
-                    Text(AppTheme.light.rawValue).tag(AppTheme.light)
-                    Text(AppTheme.dark.rawValue).tag(AppTheme.dark)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: compact ? 100 : 122)
-            }
-
-            if !minimal {
-                Button(action: { store.showSection("Notifications") }) {
-                    Image(systemName: "bell")
-                        .font(.system(size: 17, weight: .medium))
-                }
-                .buttonStyle(IconButtonStyle(palette: palette))
-                .accessibilityLabel("Notifications")
-            }
-
-            Button(action: { store.login() }) {
-                ZStack(alignment: .bottomTrailing) {
-                    AsyncAvatar(url: store.profileImageURL)
-                        .frame(width: 34, height: 34)
-
-                    if store.isSignedIn {
-                        Circle()
-                            .fill(Color.green)
-                            .frame(width: 10, height: 10)
-                            .overlay(Circle().stroke(palette.window, lineWidth: 2))
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(store.isSignedIn ? "YouTube account" : "Sign in to YouTube")
-            .help(store.isSignedIn ? "Signed in" : "Sign in")
-        }
-        .padding(.horizontal, minimal ? 8 : (compact ? 12 : 28))
-        .frame(maxWidth: .infinity)
     }
 
     private var sectionVideos: [VideoItem] {

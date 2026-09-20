@@ -24,25 +24,41 @@ struct HomeDashboardHeader: View {
     }
 
     private var heading: some View {
-        Text("Home")
-            .font(.system(size: 22, weight: .bold))
-            .foregroundStyle(palette.text)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("HOME / DISCOVER")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .tracking(2)
+                .foregroundStyle(palette.accent)
+            Text("Your next great watch.")
+                .font(.system(size: compact ? 26 : 34, weight: .bold))
+                .tracking(-0.8)
+                .foregroundStyle(palette.text)
+        }
+        .accessibilityAddTraits(.isHeader)
     }
 
     private var shortcuts: some View {
         Group {
-            shortcut("YouTube Home", detail: "Open the YouTube session used for Home suggestions", icon: "play.rectangle") {
-                store.openURL(URL(string: "https://www.youtube.com/")!, title: "YouTube Home")
+            if !store.continueWatching.isEmpty {
+                shortcut("Continue watching", detail: "Resume your latest video", icon: "play.fill") {
+                    store.resumeLastVideo()
+                }
             }
-            shortcut("Watch Later", detail: "\(store.savedVideos.count) saved", icon: "bookmark.fill") {
-                store.showSection("Watch Later")
+            Menu {
+                Button("Watch Later") { store.showSection("Watch Later") }
+                Button("Library") { store.showSection("Library") }
+                Button("Subscriptions") { store.showSection("Subscriptions") }
+                Divider()
+                Button("Open YouTube Home") {
+                    store.openURL(URL(string: "https://www.youtube.com/")!, title: "YouTube Home")
+                }
+            } label: {
+                Label("Your space", systemImage: "square.stack")
+                    .font(.system(size: 12, weight: .semibold))
             }
-            shortcut("Library", detail: "Collections & notes", icon: "square.stack.fill") {
-                store.showSection("Library")
-            }
-            shortcut("Subscriptions", detail: "Your channels", icon: "person.2.fill") {
-                store.showSection("Subscriptions")
-            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .foregroundStyle(palette.secondaryText)
         }
     }
 
