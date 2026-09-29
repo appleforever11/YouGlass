@@ -101,6 +101,12 @@ extension YouTubeStore {
             // OAuth alone does not provide YouTube Home's recommendation order.
             let webResult = await YouTubeHomepageClient().load(maxResults: 40)
             guard canPublishSectionLoad(sectionGeneration) else { return }
+            // OAuth account access and the website's recommendation session
+            // are independent. Only a successfully parsed page establishes
+            // whether the website needs sign-in; a timeout cannot sign it out.
+            if webResult.diagnostics.hasPrefix("YouTube homepage order:") {
+                homeWebSessionNeedsSignIn = !webResult.isSignedIn && webResult.videos.isEmpty
+            }
             YouGlassDiagnostics.record(.info, category: "feed", message: "YouTube Home response",
                                        metadata: ["count": String(webResult.videos.count),
                                                   "signedIn": String(webResult.isSignedIn)])

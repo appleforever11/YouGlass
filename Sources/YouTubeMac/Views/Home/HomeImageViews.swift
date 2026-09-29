@@ -54,16 +54,10 @@ struct SearchField: View {
         }
         .padding(.horizontal, 20)
         .frame(height: 42)
-        .background(.thinMaterial)
-        .clipShape(Capsule())
+        .youGlassSurface(palette: palette, cornerRadius: 24, interactive: true)
         .overlay {
             Capsule()
-                .fill(palette.accent.opacity(palette.isDark ? 0.025 : 0.014))
-                .allowsHitTesting(false)
-        }
-        .overlay {
-            Capsule()
-                .stroke(isFocused ? palette.accent.opacity(0.72) : palette.stroke, lineWidth: 1)
+                .stroke(isFocused ? palette.accent.opacity(0.72) : .clear, lineWidth: 1)
                 .allowsHitTesting(false)
         }
         .shadow(color: isFocused ? palette.accent.opacity(0.12) : .clear, radius: 10)

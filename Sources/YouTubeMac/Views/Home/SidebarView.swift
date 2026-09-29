@@ -124,24 +124,5 @@ struct SidebarView: View {
             .accessibilityLabel("All subscriptions")
             .help("Browse all subscribed channels")
         }
-        .background {
-            ZStack {
-                Rectangle().fill(.ultraThinMaterial)
-                LinearGradient(
-                    colors: [
-                        palette.purple.opacity(palette.isDark ? 0.14 : 0.08),
-                        .clear,
-                        palette.pink.opacity(palette.isDark ? 0.08 : 0.045)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-        }
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(palette.hairline)
-                .frame(width: 1)
-        }
     }
 }

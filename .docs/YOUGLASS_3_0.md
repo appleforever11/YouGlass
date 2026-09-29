@@ -8,6 +8,10 @@ This document separates implemented foundations from the remaining release work.
 
 ## Implemented foundation
 
+- September 29 browsing pass: native Liquid Glass shared surfaces with accessibility/older-OS fallbacks, floating navigation, quieter chrome, shorter theme-aware spotlight, recommendation-source status and browser-session setup guidance.
+- Homepage recommendations preserve YouTube's exact sequence; local ranking applies only to fallback sources. Signed-in live source validated after the user connected the browser session. Modern bylines keep channel identities.
+- Recommendation composition is isolated in `HomeRecommendationContent`. Thumbnail haptics reuse the document-coordinate pointer bridge and a small AppKit performer; physical trackpad feedback is not remotely verifiable.
+
 - Startup now calls explicit restoration and runtime-connection phases. `YouTubeStoreRestoration` owns durable decoding and stable defaults keys; `YouTubeStoreRuntime` owns network monitoring and authentication observers. The central store remains the compatibility facade.
 - Sidebar destinations use a typed catalog instead of positional five-field tuples; labels, symbols, and grouping have one source of truth.
 - `YouGlassBrowseToolbar` owns search and destination actions independently of the feed document. Secondary appearance, notification, and settings actions live in its overflow menu; command palette and account access remain visible.

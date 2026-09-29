@@ -2,6 +2,17 @@
 
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
+## 2026-09-29 — 3.0 browsing, native glass and recommendation fidelity
+
+- Added a floating native-glass navigation surface, native-glass search and shared controls, quieter backdrop, compact custom feeds and a shorter theme-aware featured stage. Reduce Transparency has an opaque fallback.
+- Extracted `HomeRecommendationContent` from destination routing, centralized thumbnail haptics and removed local-ranking inputs from the web-source order policy.
+- YouTube Home now retains the upstream sequence after Shorts filtering, deduplication and the 40-item bound. Fallback feeds keep their local ranker. Modern card bylines retain stable channel IDs; live badges remain visible.
+- Runtime inspection identified separate API and browser authentication: the browser initially showed a signed-out empty Home. After the user signed in, the native feed used live YouTube Home and its first three recommendations matched the observed website's first three cards. Separate refresh requests may vary upstream.
+- Added thumbnail-entry trackpad haptics using the existing pointer coordinate bridge, one pulse per entry with an 80 ms global rate bound. Physical sensation requires user verification on supported hardware.
+- User reported repeated login-Keychain password dialogs after development rebuilds. The bundle is ad-hoc signed, so successive binaries lack stable credential trust. Added fail-without-authentication-UI queries; no credential deletion, ACL changes or plaintext fallback.
+- Validation: 115 full-suite tests passed, followed by nine focused feed/parser tests and 21 model tests after final changes. The staged bundle passed process/signature verification. Computer Use inspected live Home, Library, command palette dismissal, Theme Center and wider-window layout; final startup and a Home refresh showed no Keychain dialog. Modern-card duration/age display was verified in the final running Home. Minimum-width, Light-mode, full playback regression, performance comparison and physical haptic verification remain release checks.
+- This is local 3.0 development work; release identity and publication remain pending the full release gates in `YOUGLASS_3_0.md`.
+
 ## 2026-09-19 — 3.0 foundation and cinematic browsing direction
 
 - User selected a bold, cinematic, immersive UI direction. Added `YOUGLASS_3_0.md` with implemented scope, architecture migrations, surface-specific acceptance criteria, and release gates. This is a foundation milestone, not a completed 3.0 release.

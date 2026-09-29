@@ -58,7 +58,7 @@ struct VideoRow: View {
     private var sectionSubtitle: String {
         switch title {
         case "For You": store.homeRecommendationsAreFromYouTube
-            ? "From your channels and recent interests" : "Picks shaped by your subscriptions and local viewing"
+            ? "YouTube Home, in the order YouTube recommends" : "Picks shaped by your subscriptions and local viewing"
         case "Trending": store.homeRecommendationsAreFromYouTube
             ? "More suggestions from YouTube Home" : "Popular videos from the channels and topics you follow"
         case "More to watch": "Keep exploring beyond your usual favorites"
@@ -120,6 +120,7 @@ struct VideoCard: View {
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .videoThumbnailHaptics()
                 .overlay {
                     RoundedRectangle(cornerRadius: 9, style: .continuous)
                         .stroke(store.ambientPalette.primary.color.opacity(0.26), lineWidth: 1)
@@ -217,6 +218,7 @@ struct CompactVideoCard: View {
                 .videoThumbnailParallax(translation: 3.5, rotation: 2.2)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .videoThumbnailHaptics()
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(video.title)

@@ -35,16 +35,9 @@ extension YouTubeStore {
             favorFresh: Bool = false,
             preserveSourceOrder: Bool = false
         ) -> Bool {
-            // The persisted flag identifies web-sourced recommendations. Keep
-            // their relative order within local relevance groups, including
-            // when restoring older caches written before local refinement.
-            let ranked = preserveSourceOrder ? HomeRecommendationPolicy.rank(
-                mergeVideos(nonShortVideos(videos)),
-                subscriptions: subscriptions,
-                history: recentlyWatched,
-                liked: locallyLikedVideos,
-                saved: savedVideos
-            ) : RecommendationRanker.rank(
+            // Web recommendations retain YouTube's ranking, including on
+            // restoration. Local scoring is reserved for fallback candidates.
+            let ranked = preserveSourceOrder ? HomeRecommendationPolicy.sourceOrdered(videos) : RecommendationRanker.rank(
                 videos,
                 subscriptions: subscriptions,
                 history: recentlyWatched,

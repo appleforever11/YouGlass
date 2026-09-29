@@ -7,6 +7,7 @@ struct YouGlassSurfaceModifier: ViewModifier {
     let palette: Palette
     let cornerRadius: CGFloat
     let interactive: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @AppStorage(YouGlassVisualDefaults.glassIntensity) private var glassIntensity = 0.72
 
     func body(content: Content) -> some View {
@@ -19,10 +20,13 @@ struct YouGlassSurfaceModifier: ViewModifier {
             ? (palette.isDark ? 0.055 : 0.030) * glassScale
             : (palette.isDark ? 0.038 : 0.020) * glassScale
 
-        // Keep the glass treatment available to every supported SDK. The
-        // material and layered tint provide the same translucent visual
-        // language without requiring a newer SwiftUI SDK at build time.
-        return content
+        if reduceTransparency {
+            content.background(palette.window, in: shape)
+                .overlay(shape.stroke(palette.stroke, lineWidth: 1).allowsHitTesting(false))
+        } else if #available(macOS 26.0, *) {
+            content.glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+        } else {
+            content
             .background(.ultraThinMaterial, in: shape)
             .overlay {
                 shape
@@ -58,6 +62,20 @@ struct YouGlassSurfaceModifier: ViewModifier {
                     .allowsHitTesting(false)
             }
             .clipShape(shape)
+        }
+    }
+}
+
+/// Related controls share one glass sampling domain on modern macOS.
+struct YouGlassSurfaceGroup<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: 16, content: content)
+        } else {
+            content()
+        }
     }
 }
 

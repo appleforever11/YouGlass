@@ -25,14 +25,19 @@ struct HomeDashboardHeader: View {
 
     private var heading: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("HOME / DISCOVER")
+            Text("YOUGLASS / DISCOVER")
                 .font(.system(size: 10, weight: .bold, design: .monospaced))
                 .tracking(2)
                 .foregroundStyle(palette.accent)
-            Text("Your next great watch.")
+            Text("Made for your curiosity.")
                 .font(.system(size: compact ? 26 : 34, weight: .bold))
                 .tracking(-0.8)
                 .foregroundStyle(palette.text)
+            Text(store.homeRecommendationsAreFromYouTube
+                 ? "Your YouTube Home feed. A clearer view."
+                 : "Discover, save, and pick up where you left off.")
+                .font(.system(size: 12))
+                .foregroundStyle(palette.secondaryText)
         }
         .accessibilityAddTraits(.isHeader)
     }
@@ -94,10 +99,7 @@ struct DashboardActionStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .foregroundStyle(palette.text)
-                .background(
-                    hovered || configuration.isPressed ? palette.selected : palette.card,
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                )
+                .youGlassSurface(palette: palette, cornerRadius: 16, interactive: true)
                 .overlay {
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(hovered ? palette.accent.opacity(0.65) : palette.stroke, lineWidth: 1)

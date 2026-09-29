@@ -115,15 +115,51 @@ enum YouTubeHomepageParser {
         let contentMetadata = (metadata["metadata"] as? [String: Any])?["contentMetadataViewModel"] as? [String: Any]
         let rows = contentMetadata?["metadataRows"] as? [[String: Any]] ?? []
         let parts = rows.map { ($0["metadataParts"] as? [[String: Any]] ?? []).map { text($0["text"]) } }
+        let metadataParts = parts.flatMap { $0 }.filter { !$0.isEmpty }
         let thumbnail = (node["contentImage"] as? [String: Any])?["thumbnailViewModel"] as? [String: Any] ?? [:]
         let overlays = thumbnail["overlays"] as? [[String: Any]] ?? []
-        let badges = overlays.compactMap { $0["thumbnailOverlayBadgeViewModel"] as? [String: Any] }
-            .flatMap { $0["thumbnailBadges"] as? [[String: Any]] ?? [] }
-        let duration = badges.compactMap { ($0["thumbnailBadgeViewModel"] as? [String: Any])?["text"] as? String }.first ?? ""
-        return VideoItem(id: id, title: title, channel: parts.first?.first ?? "YouTube",
-                         views: parts.dropFirst().first?.first ?? "Recommended",
-                         age: parts.dropFirst().first?.dropFirst().first ?? "", duration: duration,
-                         imageURL: imageURL(thumbnail["image"]), verified: false)
+        let duration = thumbnailDuration(in: overlays) ?? ""
+        let channelID = browseID(in: rows.first ?? [:])
+        return VideoItem(id: id, title: title, channel: metadataParts.first ?? "YouTube",
+                         views: metadataParts.dropFirst().first ?? "Recommended",
+                         age: metadataParts.dropFirst(2).first ?? "", duration: duration,
+                         imageURL: imageURL(thumbnail["image"]), verified: false,
+                         channelID: channelID)
+    }
+
+    private static func thumbnailDuration(in value: Any, depth: Int = 0) -> String? {
+        guard depth < 12 else { return nil }
+        if let nodes = value as? [Any] {
+            return nodes.compactMap { thumbnailDuration(in: $0, depth: depth + 1) }.first
+        }
+        guard let node = value as? [String: Any] else { return nil }
+        let candidate = text(node["text"])
+        if candidate == "LIVE" || candidate.range(of: #"^\d{1,3}:\d{2}(:\d{2})?$"#,
+                                                    options: .regularExpression) != nil {
+            return candidate
+        }
+        for key in node.keys.sorted() {
+            if let child = node[key], let duration = thumbnailDuration(in: child, depth: depth + 1) {
+                return duration
+            }
+        }
+        return nil
+    }
+
+    /// Modern bylines carry browse commands inside attributed-text runs.
+    /// Resolve identity only from the byline, never a related-card endpoint.
+    private static func browseID(in value: Any, depth: Int = 0) -> String? {
+        guard depth < 12 else { return nil }
+        if let nodes = value as? [Any] {
+            return nodes.compactMap { browseID(in: $0, depth: depth + 1) }.first
+        }
+        guard let node = value as? [String: Any] else { return nil }
+        if let endpoint = node["browseEndpoint"] as? [String: Any],
+           let id = endpoint["browseId"] as? String, id.hasPrefix("UC") { return id }
+        for key in node.keys.sorted() {
+            if let child = node[key], let id = browseID(in: child, depth: depth + 1) { return id }
+        }
+        return nil
     }
 
     private static func containsShortsRoute(_ value: Any, depth: Int = 0) -> Bool {

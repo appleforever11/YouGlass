@@ -8,7 +8,7 @@ struct HeroSection: View {
 
     var body: some View {
         GeometryReader { geometry in
-            ZStack(alignment: .bottomLeading) {
+            ZStack(alignment: compact ? .bottomLeading : .leading) {
                 Button {
                     store.openFromUserInteraction(store.feed.hero)
                 } label: {
@@ -20,38 +20,41 @@ struct HeroSection: View {
                         .overlay {
                             LinearGradient(
                                 stops: [
-                                    .init(color: .black.opacity(0.08), location: 0),
-                                    .init(color: .black.opacity(0.48), location: 0.40),
-                                    .init(color: .black.opacity(0.96), location: 1)
+                                    .init(color: palette.window.opacity(0.98), location: 0),
+                                    .init(color: palette.window.opacity(0.86), location: compact ? 0.30 : 0.38),
+                                    .init(color: palette.window.opacity(0.12), location: 0.78),
+                                    .init(color: .clear, location: 1)
                                 ],
-                                startPoint: .topTrailing, endPoint: .bottomLeading
+                                startPoint: compact ? .bottom : .leading,
+                                endPoint: compact ? .top : .trailing
                             )
                         }
                 }
                 .buttonStyle(.plain)
+                .videoThumbnailHaptics()
                 .accessibilityLabel("Play featured video: \(store.feed.hero.title)")
                 .onHover { if $0 { store.prewarmPlayback(for: store.feed.hero) } }
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Label("THE SPOTLIGHT", systemImage: "play.rectangle.fill")
+                    Label("FIRST IN YOUR FEED", systemImage: "play.rectangle.fill")
                         .font(.system(size: 10, weight: .bold))
                         .tracking(1.6)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .background(.white.opacity(0.16), in: Capsule())
+                        .youGlassSurface(palette: palette, cornerRadius: 16)
                     Text(store.feed.hero.title)
-                        .font(.system(size: compact ? 29 : 44, weight: .bold))
+                        .font(.system(size: compact ? 26 : 34, weight: .bold))
                         .tracking(-1.0)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
-                        .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
                         .allowsHitTesting(false)
                     Text([store.feed.hero.channel, store.feed.hero.age, store.feed.hero.duration]
                         .filter { !$0.isEmpty }.joined(separator: "  ·  "))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.82))
+                        .foregroundStyle(palette.secondaryText)
                         .lineLimit(1)
                         .allowsHitTesting(false)
+                    YouGlassSurfaceGroup {
                     HStack(spacing: 10) {
                         Button {
                             store.openFromUserInteraction(store.feed.hero)
@@ -60,8 +63,8 @@ struct HeroSection: View {
                                 .font(.system(size: 13, weight: .bold))
                                 .padding(.horizontal, 18)
                                 .frame(height: 42)
-                                .foregroundStyle(.black)
-                                .background(.white, in: Capsule())
+                                .foregroundStyle(palette.window)
+                                .background(palette.text, in: Capsule())
                         }
                         .buttonStyle(.plain)
                         heroAction("Add to queue", icon: "text.badge.plus") {
@@ -72,11 +75,12 @@ struct HeroSection: View {
                             icon: store.isSaved(store.feed.hero) ? "bookmark.fill" : "bookmark"
                         ) { store.toggleSaved(store.feed.hero) }
                     }
+                    }
                     .padding(.top, 4)
                 }
-                .foregroundStyle(.white)
-                .frame(maxWidth: compact ? .infinity : min(geometry.size.width * 0.72, 820), alignment: .leading)
-                .padding(compact ? 24 : 40)
+                .foregroundStyle(palette.text)
+                .frame(maxWidth: compact ? .infinity : min(geometry.size.width * 0.55, 620), alignment: .leading)
+                .padding(compact ? 24 : 32)
             }
             .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
             .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -86,7 +90,7 @@ struct HeroSection: View {
                     .allowsHitTesting(false)
             }
         }
-        .frame(height: compact ? 380 : 460)
+        .frame(height: compact ? 320 : 340)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Featured video")
     }
@@ -96,8 +100,7 @@ struct HeroSection: View {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
                 .frame(width: 42, height: 42)
-                .background(.white.opacity(0.18), in: Circle())
-                .overlay(Circle().stroke(.white.opacity(0.3), lineWidth: 1))
+                .youGlassSurface(palette: palette, cornerRadius: 21, interactive: true)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)

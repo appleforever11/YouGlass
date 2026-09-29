@@ -10,11 +10,8 @@ struct CustomFeedStripView: View {
                 Image(systemName: "wand.and.stars")
                     .foregroundStyle(palette.accent)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Custom Feeds")
+                    Text("Your feeds")
                         .font(.system(size: 15, weight: .bold))
-                    Text("Describe what you want to watch")
-                        .font(.caption)
-                        .foregroundStyle(palette.secondaryText)
                 }
 
                 Spacer(minLength: 10)
@@ -90,11 +87,6 @@ struct CustomFeedStripView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(palette.card.opacity(palette.isDark ? 0.62 : 0.70), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
-                .stroke(palette.stroke, lineWidth: 1)
-        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Custom feeds")
     }

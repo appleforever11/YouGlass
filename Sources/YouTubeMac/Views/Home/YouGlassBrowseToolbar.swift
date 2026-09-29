@@ -6,6 +6,7 @@ struct YouGlassBrowseToolbar: View {
     let palette: Palette
 
     var body: some View {
+        YouGlassSurfaceGroup {
         GeometryReader { geometry in
             HStack(spacing: 12) {
                 SearchField(text: $store.query, focusRequestID: store.searchFocusRequestID,
@@ -80,5 +81,6 @@ struct YouGlassBrowseToolbar: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(height: 72)
+        }
     }
 }

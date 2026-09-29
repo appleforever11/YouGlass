@@ -10,7 +10,7 @@ extension YouTubeHomeView {
             // available height without giving the user a reliable way to
             // reach the lower recommendation rows on smaller displays.
             homeRefreshContainer {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(alignment: .leading, spacing: 22) {
                     if store.selectedSection == "Home" {
                         HomeDashboardHeader(palette: palette, compact: compact)
                     }
@@ -53,67 +53,7 @@ extension YouTubeHomeView {
                                 .padding(.top, 20)
                         }
                     } else {
-                        if store.feed.forYou.isEmpty && store.feed.trending.isEmpty && store.feed.more.isEmpty {
-                            if store.isLoading {
-                                HomeLoadingView(palette: palette)
-                            } else {
-                                HomeUnavailableView(store: store, palette: palette) {
-                                    Task { await store.loadHome(force: true) }
-                                }
-                            }
-                        } else {
-                            HeroSection(palette: palette, compact: compact)
-                        }
-
-                        if !store.feed.forYou.isEmpty {
-                            VideoRow(
-                                title: "For You",
-                                videos: store.feed.forYou,
-                                palette: palette,
-                                compact: compact
-                            )
-                        }
-
-                        if store.selectedSection == "Home",
-                           store.showContinueWatching,
-                           !store.continueWatching.isEmpty {
-                            ContinueWatchingRow(palette: palette, compact: compact)
-                                .environmentObject(store)
-                        }
-
-                        if !store.feed.trending.isEmpty {
-                            VideoRow(
-                                title: "Trending",
-                                videos: store.feed.trending,
-                                palette: palette,
-                                compact: compact
-                            )
-                        }
-                        if !store.feed.more.isEmpty {
-                            VideoRow(
-                                title: "More to watch",
-                                videos: store.feed.more,
-                                palette: palette,
-                                compact: compact,
-                                showsSeeAll: false
-                            )
-
-                            VStack(spacing: 10) {
-                                Text("Ready for something different?")
-                                    .font(.headline)
-                                Text("Refresh Home for another mix of videos.")
-                                Button("Discover more") {
-                                    store.showSection("Home")
-                                    Task { await store.loadHome(force: true) }
-                                }
-                                .buttonStyle(.bordered)
-                                .disabled(store.isLoading)
-                            }
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(palette.secondaryText)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                        }
+                        HomeRecommendationContent(palette: palette, compact: compact)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -123,20 +63,6 @@ extension YouTubeHomeView {
             }
             // A navigation destination gets a fresh viewport; feed updates do not.
             .id(store.selectedSection)
-        }
-        .background {
-            ZStack {
-                Rectangle().fill(.ultraThinMaterial)
-                LinearGradient(
-                    colors: [
-                        palette.purple.opacity(palette.isDark ? 0.13 : 0.07),
-                        .clear,
-                        palette.pink.opacity(palette.isDark ? 0.10 : 0.05)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
         }
     }
 

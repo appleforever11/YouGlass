@@ -48,6 +48,7 @@ struct ContinueWatchingCard: View {
                         RemoteImage(url: video.thumbnailURL)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    .videoThumbnailHaptics()
 
                     LinearGradient(
                         colors: [.clear, .black.opacity(0.32)],

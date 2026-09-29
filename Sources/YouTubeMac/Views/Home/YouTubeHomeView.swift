@@ -12,11 +12,11 @@ struct YouTubeHomeView: View {
     var body: some View {
         GeometryReader { geometry in
             let compactShell = geometry.size.width < 980
-            let shellInset: CGFloat = compactShell ? 8 : 14
-            let sidebarWidth: CGFloat = compactShell ? 76 : 236
+            let shellInset: CGFloat = compactShell ? 8 : 16
+            let sidebarWidth: CGFloat = compactShell ? 72 : 220
             let mainContentWidth = max(
                 1,
-                geometry.size.width - shellInset * 2 - sidebarWidth
+                geometry.size.width - shellInset * 2 - sidebarWidth - 12
             )
             // Base the content breakpoint on the space left after the
             // sidebar. This keeps medium windows from forcing desktop-sized
@@ -37,15 +37,16 @@ struct YouTubeHomeView: View {
                 YouGlassAmbientBackdrop(
                     palette: palette,
                     ambientPalette: store.ambientPalette,
-                    intensity: 1.15,
+                    intensity: 0.65,
                     animated: false
                 )
                     .ignoresSafeArea()
 
-                HStack(spacing: 0) {
+                HStack(spacing: 12) {
                     SidebarView(palette: palette, compact: compactShell)
                         .frame(width: sidebarWidth)
                         .frame(maxHeight: .infinity, alignment: .top)
+                        .youGlassSurface(palette: palette, cornerRadius: 24)
 
                     ZStack(alignment: .topLeading) {
                         if store.selectedChannelItem != nil {
@@ -108,12 +109,7 @@ struct YouTubeHomeView: View {
                 }
             }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(palette.stroke, lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.45 : 0.12), radius: 24, y: 10)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                 // The main window is full-size under its hidden title bar. Give
                 // the regular feed a small shell inset, but let the expanded
                 // player header reach the top edge so no separate title-bar cap

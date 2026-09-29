@@ -7,42 +7,38 @@ final class HomeRecommendationPolicyTests: XCTestCase {
                   duration: "12:00", imageURL: nil, verified: false)
     }
 
-    func testDefaultHomePromotesInterestsWithoutDiversifyingIntoUnrelatedTopics() {
-        let history = [video("watched", "Astronomy telescope", channel: "Space")]
+    func testLocalInterestsDoNotOverrideYouTubeRanking() {
         let unrelated = video("unrelated", "Cooking pasta", channel: "Kitchen")
         let first = video("first", "Astronomy telescope guide", channel: "Space")
         let second = video("second", "Astronomy telescope comparison", channel: "Space")
-        let result = HomeRecommendationPolicy.rank([unrelated, first, second],
-            subscriptions: [], history: history, liked: [], saved: [])
-        XCTAssertEqual(result.map(\.id), [first.id, second.id, unrelated.id])
+        let result = HomeRecommendationPolicy.sourceOrdered([unrelated, first, second])
+        XCTAssertEqual(result.map(\.id), [unrelated.id, first.id, second.id])
     }
 
-    func testSubscribedChannelsMoveAheadOfGenericWebSuggestions() {
-        let subscription = SubscriptionItem(id: "space", name: "Space", avatarURL: nil, isLive: false)
+    func testSubscriptionsDoNotOverrideYouTubeRanking() {
         let generic = video("generic", "Cooking pasta")
         let subscribed = video("subscribed", "Tonight's sky", channel: "Space")
-        XCTAssertEqual(HomeRecommendationPolicy.rank([generic, subscribed],
-            subscriptions: [subscription], history: [], liked: [], saved: []).first?.id, subscribed.id)
+        XCTAssertEqual(HomeRecommendationPolicy.sourceOrdered([generic, subscribed]).first?.id, generic.id)
     }
 
-    func testCacheRestorationIsStableAndUnwatchedSuggestionsPrecedeReplays() {
+    func testCacheRestorationPreservesReplaysInYouTubeOrder() {
         let watched = video("watched", "Astronomy telescope", channel: "Space")
         let related = video("related", "Astronomy telescope guide", channel: "Science")
         let discovery = video("discovery", "Cooking pasta", channel: "Kitchen")
-        let first = HomeRecommendationPolicy.rank([watched, discovery, related],
-            subscriptions: [], history: [watched], liked: [], saved: [])
-        let restored = HomeRecommendationPolicy.rank(first,
-            subscriptions: [], history: [watched], liked: [], saved: [])
-        XCTAssertEqual(first.map(\.id), [related.id, discovery.id, watched.id])
+        let first = HomeRecommendationPolicy.sourceOrdered([watched, discovery, related])
+        let restored = HomeRecommendationPolicy.sourceOrdered(first)
+        XCTAssertEqual(first.map(\.id), [watched.id, discovery.id, related.id])
         XCTAssertEqual(restored.map(\.id), first.map(\.id))
     }
 
     func testNoSignalsPreserveYouTubeOrderAndBoundContent() {
         let videos = [video("one", "Cooking pasta"), video("two", "Astronomy telescope")]
         let shorts = video("short", "Quick tip #shorts")
-        XCTAssertEqual(HomeRecommendationPolicy.rank([shorts] + videos + videos,
-            subscriptions: [], history: [], liked: [], saved: []).map(\.id), videos.map(\.id))
-        XCTAssertEqual(HomeRecommendationPolicy.rank(videos,
-            subscriptions: [], history: [], liked: [], saved: [], limit: 1).count, 1)
+        XCTAssertEqual(HomeRecommendationPolicy.sourceOrdered([shorts] + videos + videos).map(\.id), videos.map(\.id))
+        XCTAssertEqual(HomeRecommendationPolicy.sourceOrdered(videos, limit: 1).count, 1)
+        XCTAssertTrue(HomeRecommendationPolicy.sourceOrdered(videos, limit: 0).isEmpty)
+        XCTAssertEqual(HomeRecommendationPolicy.sourceOrdered((0..<60).map {
+            video("video\($0)", "Long form video")
+        }, limit: 80).count, 40)
     }
 }

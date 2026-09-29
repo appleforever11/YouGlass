@@ -87,6 +87,7 @@ final class YouTubeStore: ObservableObject {
     @Published var subscriptionGroupEditorPresented = false
     @Published var editingSubscriptionGroup: SubscriptionGroup?
     @Published var homeRecommendationsAreFromYouTube = false
+    @Published var homeWebSessionNeedsSignIn = false
 
     var client = YouTubeAPIClient()
     let oauth = YouTubeOAuthClient.shared

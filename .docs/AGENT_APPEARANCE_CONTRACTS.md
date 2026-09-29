@@ -16,4 +16,6 @@ Read when changing themes, command palette, icons, settings, or shared appearanc
 
 - Keep SwiftUI as the source of truth and use the smallest AppKit bridge necessary for behavior SwiftUI cannot provide reliably on this macOS release.
 
+- Shared content/control surfaces use native `glassEffect` on macOS 26+, with material fallback on older systems and an opaque palette surface under Reduce Transparency. Related browse controls share `YouGlassSurfaceGroup`/`GlassEffectContainer`. Home uses a floating sidebar and a stable, quieter backdrop; avoid restoring stacked material/tint panels behind the browse document. The spotlight uses theme-aware foreground and directional contrast rather than fixed white-on-black chrome.
+
 - Settings uses a sidebar/detail layout. The Appearance page is intentionally taller than the default settings window and must open at the top while remaining scrollable. Its detail viewport uses a stock `NSScrollView` with an `NSHostingController` document measured by `sizeThatFits(in:)`; keep the document top-leading, do not add a max-height fill or custom scroll-view layout callback, and reset the scroll position only when the selected page changes.

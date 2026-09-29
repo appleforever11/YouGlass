@@ -11,6 +11,8 @@ Read when changing persistence, credentials, content policy, image loading, or n
 
 - The YouTube Data API key is runtime-only state managed by `YouGlassCredentialStore` in the macOS Keychain under the stable YouGlass service/account identity. It prefers data-protection storage and keeps a login-Keychain compatibility copy so rebuilds and updates can recover it; it may migrate from the legacy service, but must never enter source, diagnostics, Git commits, Sparkle artifacts, or `.docs/`.
 
+- Keychain queries fail without authentication UI when an item requires approval. Rebuilt/ad-hoc binaries must not repeatedly prompt for the login-Keychain password during startup, refresh, token renewal or compatibility migration. Keep protected items and ACLs intact; a denied read may leave API/OAuth credentials unavailable while browser-session Home and cached/local data remain usable.
+
 - Network recovery uses `NWPathMonitor`, cached feed data, and the bounded `RemoteImage` cache. Offline states must remain usable and must not erase local library or playback data.
 
 - Remote thumbnail/avatar loading belongs in the actor-owned `YouGlassImageLoader` service. Cache by URL and decode size, eagerly downsample off the main actor (800 pixels for cards, 160 for avatars, up to 1600 for the hero/loading surface), and account decoded row bytes times height against the 32 MB/120-entry cache. UI consumers check cancellation before publishing; failures remain retryable. This applies to preview images, never video stream resolution.

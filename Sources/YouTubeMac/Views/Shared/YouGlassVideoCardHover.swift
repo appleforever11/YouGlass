@@ -15,7 +15,8 @@ extension EnvironmentValues {
 private struct YouGlassVideoCardHover: ViewModifier {
     @Binding var isHovered: Bool
     let videoID: String
-    let prewarm: () -> Void
+    let prewarm: (() -> Void)?
+    var haptic = false
     @State private var cardFrame: CGRect = .zero
     @Environment(\.cardPointerUsesDocumentSpace) private var usesDocumentSpace
     @Environment(\.isEnabled) private var isEnabled
@@ -41,7 +42,7 @@ private struct YouGlassVideoCardHover: ViewModifier {
                 }
             }
             .task(id: isHovered && isEnabled ? videoID : nil) {
-                guard isHovered, isEnabled else { return }
+                guard isHovered, isEnabled, let prewarm else { return }
                 do {
                     try await Task.sleep(for: .milliseconds(150))
                 } catch { return }
@@ -60,10 +61,24 @@ private struct YouGlassVideoCardHover: ViewModifier {
         var transaction = Transaction(animation: nil)
         transaction.disablesAnimations = true
         withTransaction(transaction) { isHovered = active }
+        if active && haptic { YouGlassHoverHaptics.thumbnailEntered() }
+    }
+}
+
+private struct YouGlassThumbnailHoverFeedback: ViewModifier {
+    @State private var hovered = false
+
+    func body(content: Content) -> some View {
+        content.modifier(YouGlassVideoCardHover(
+            isHovered: $hovered, videoID: "thumbnail", prewarm: nil, haptic: true
+        ))
     }
 }
 
 extension View {
+    func videoThumbnailHaptics() -> some View {
+        modifier(YouGlassThumbnailHoverFeedback())
+    }
     func videoCardHover(isHovered: Binding<Bool>, videoID: String, prewarm: @escaping () -> Void) -> some View {
         modifier(YouGlassVideoCardHover(isHovered: isHovered, videoID: videoID, prewarm: prewarm))
     }

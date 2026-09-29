@@ -51,6 +51,30 @@ final class HomepageParserTests: XCTestCase {
         XCTAssertEqual(YouTubeHomepageParser.parse(html, limit: 1).videos.count, 1)
     }
 
+    func testModernBylineKeepsChannelIdentityAndLiveBadge() throws {
+        let card: [String: Any] = ["lockupViewModel": [
+            "contentId": "livecard123", "contentType": "LOCKUP_CONTENT_TYPE_VIDEO",
+            "metadata": ["lockupMetadataViewModel": [
+                "title": ["content": "Live broadcast"],
+                "metadata": ["contentMetadataViewModel": ["metadataRows": [[
+                    "metadataParts": [["text": ["content": "Channel", "commandRuns": [[
+                        "onTap": ["innertubeCommand": ["browseEndpoint": ["browseId": "UCchannel"]]]
+                    ]]]], ["text": ["content": "100 watching"]]]
+                ]]]]
+            ]],
+            "contentImage": ["thumbnailViewModel": ["overlays": [[
+                "thumbnailOverlayBadgeViewModel": ["thumbnailBadges": [[
+                    "thumbnailBadgeViewModel": ["text": "LIVE"]
+                ]]]
+            ]]]]
+        ]]
+        let result = YouTubeHomepageParser.parse(try page([card]), limit: 40)
+        XCTAssertEqual(result.videos.first?.channelID, "UCchannel")
+        XCTAssertEqual(result.videos.first?.channel, "Channel")
+        XCTAssertEqual(result.videos.first?.duration, "LIVE")
+        XCTAssertEqual(result.videos.first?.views, "100 watching")
+    }
+
     func testShortsRoutesInsideOrdinaryCardsAreExcluded() throws {
         var short = renderer("short123456")
         var node = short["videoRenderer"] as! [String: Any]

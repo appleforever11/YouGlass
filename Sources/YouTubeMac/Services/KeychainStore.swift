@@ -102,7 +102,11 @@ enum KeychainStore {
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            // Background refresh and rebuilt app launches must never ask for
+            // a login-Keychain password. If access needs approval, fail closed
+            // and use the browser/cached feed; leave the protected item intact.
+            kSecUseAuthenticationUI as String: kSecUseAuthenticationUIFail
         ]
         if dataProtection {
             query[kSecUseDataProtectionKeychain as String] = true
