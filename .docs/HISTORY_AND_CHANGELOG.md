@@ -1,5 +1,13 @@
 # YouGlass local history and change record
 
+## 2026-09-29 — Search recovery and queue controls
+
+- Offline search uses real library and cached videos immediately, matches words across titles and channels, and preserves Home recommendations on empty results.
+- Search headings identify the query, result count, and result source.
+- Queue menus support adjacent reordering and Play Next; queue thumbnails use haptics.
+- Playback settings expose a saved thumbnail-haptics preference, enabled by default.
+- Validation: all 115 tests passed; rebuilt bundle and signature verification passed. Computer Use inspected Playback settings and queue menus, moved an item later and back while playback continued. Physical haptics and offline runtime remain unverified.
+
 This file records durable project context, not every line edit. The local Git history remains the authoritative detailed record.
 
 ## 2026-09-29 — 3.0 browsing, native glass and recommendation fidelity

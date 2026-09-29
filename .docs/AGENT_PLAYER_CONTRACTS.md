@@ -1,5 +1,7 @@
 # YouGlass player contracts
 
+- Queue rows expose Play Next, Move Earlier, and Move Later in a native menu. Adjacent moves persist queue order, retain the selected video identity, and leave playback ownership intact.
+
 - `YouGlassBoundedScrollView.sizeThatFits` returns the parent-proposed viewport without asking AppKit to fit the hosted document's constraint subtree. The coordinator measures the document separately. Preserve this separation: default representable fitting caused a verified 100-percent-CPU expanded-player layout stall on macOS 27.
 - The inline WebKit representable also consumes the proposed media viewport. Deferred detach and script messages must match the controller's currently attached WebView; an older surface may not cancel the replacement surface's watchdog/bootstrap or publish stale transport state.
 - Compact/expanded/desktop PiP share the store-owned playback controller and retain one WebKit page during handoffs. Remove the source host before reparenting that page after the existing teardown delay; rebind the coordinator without navigation or transport reset. Retired host teardown checks the WebView's actual superview. Stop/new selection cancels handoffs and releases the page. Compact dimensions come from the Home shell viewport, without a nested GeometryReader.

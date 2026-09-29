@@ -122,9 +122,14 @@ struct SearchContentView: View {
             .frame(maxWidth: .infinity, minHeight: 260)
         } else if !store.searchResults.isEmpty {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Search")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .padding(.top, 16)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Results for “\(store.query)”")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text("\(store.searchResults.count) videos · \(store.connectionMessage)")
+                        .font(.subheadline)
+                        .foregroundStyle(palette.secondaryText)
+                }
+                .padding(.top, 16)
                 VideoRow(
                     title: "Search results",
                     videos: store.searchResults,

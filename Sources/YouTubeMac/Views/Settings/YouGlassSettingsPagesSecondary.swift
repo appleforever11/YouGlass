@@ -51,6 +51,8 @@ extension YouGlassSettingsView {
             VStack(alignment: .leading, spacing: 24) {
                 settingsHeader(.playback)
 
+                ThumbnailFeedbackSettings()
+
                 settingsGroup("Player behavior", footer: "Native YouTube playback is hosted inside the YouGlass player surface. Audio remains controlled by the player, not by a separate browser window.") {
                     Toggle(
                         "Start videos muted",
@@ -193,4 +195,21 @@ extension YouGlassSettingsView {
                 }
             }
         }
+}
+
+private struct ThumbnailFeedbackSettings: View {
+    @AppStorage("YouGlass.thumbnailHaptics") private var enabled = true
+
+    var body: some View {
+        GroupBox("Thumbnail feedback") {
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Haptics when hovering over video thumbnails", isOn: $enabled)
+                Text("Subtle feedback on supported trackpads. Your preference is saved on this Mac.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
 }

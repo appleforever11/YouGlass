@@ -1,5 +1,8 @@
 # YouGlass home contracts
 
+- Offline search skips API credential checks and web requests, searches real cached/library/queue videos with the shared word-matching policy, and caps results at 40. Local recovery search never includes sample videos or clears Home on an empty result.
+- Thumbnail haptics default to enabled and use the saved `YouGlass.thumbnailHaptics` preference in Playback settings; queue thumbnails share the same rate-limited feedback.
+
 - Toolbar, command palette, and Command-R route through `refreshCurrentDestination`. Library, Explore, Notifications, and open channel/playlist detail surfaces do not refresh the underlying Home feed. Search and Custom Feeds retain their own loaders.
 - The 3.0 browsing foundation uses a compact editorial Home heading, resume action, personal-destination menu, and a larger cinematic spotlight. Secondary toolbar actions remain reachable through the overflow menu and application commands. Existing theme choices remain supported.
 

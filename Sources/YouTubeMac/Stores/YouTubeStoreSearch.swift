@@ -57,6 +57,11 @@ extension YouTubeStore {
                 return
             }
 
+            if !isNetworkAvailable {
+                applyLocalSearch(searchTerm, failure: "You are offline. No matching videos were found in your library or cached feed.")
+                return
+            }
+
             let hasCredentials = await client.hasCredentials()
             guard canPublishSectionLoad(sectionGeneration) else { return }
             guard hasCredentials else {
@@ -126,6 +131,11 @@ extension YouTubeStore {
                 return
             }
 
+            let failure = searchFailureMessage(apiError: apiError, webDiagnostics: webResult.diagnostics)
+            applyLocalSearch(searchTerm, failure: failure)
+        }
+
+        private func applyLocalSearch(_ searchTerm: String, failure: String) {
             var localPoolSource = feed.forYou
             localPoolSource += feed.trending
             localPoolSource += feed.more
@@ -133,24 +143,19 @@ extension YouTubeStore {
             localPoolSource += recentlyWatched
             localPoolSource += savedVideos
             localPoolSource += locallyLikedVideos
-            localPoolSource += VideoItem.samples
+            localPoolSource += playbackQueue
             let localPool = mergeVideos(localPoolSource)
-            guard canPublishSectionLoad(sectionGeneration) else { return }
-            let matches = localPool.filter { video in
-                video.title.localizedCaseInsensitiveContains(searchTerm) ||
-                video.channel.localizedCaseInsensitiveContains(searchTerm)
-            }
+            let matches = YouGlassLibrarySearch.videos(matching: searchTerm, in: localPool)
             if !matches.isEmpty {
-                applySearchResults(matches, message: "Showing saved results while YouTube search recovers")
+                sectionEmptyMessage = nil
+                searchResults = Array(matches.prefix(40))
+                connectionMessage = isNetworkAvailable
+                    ? "Showing library and cached results while YouTube search recovers"
+                    : "Offline results from your library and cached feed"
                 return
             }
 
-            feed.forYou = []
-            feed.trending = []
-            feed.more = []
-            feed.queue = []
             searchResults = []
-            let failure = searchFailureMessage(apiError: apiError, webDiagnostics: webResult.diagnostics)
             sectionEmptyMessage = failure
             connectionMessage = failure
         }

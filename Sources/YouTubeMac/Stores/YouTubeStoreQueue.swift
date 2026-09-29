@@ -82,6 +82,14 @@ extension YouTubeStore {
         persistPlaybackQueue()
     }
 
+    func moveQueuedVideo(_ video: VideoItem, by offset: Int) {
+        guard let index = playbackQueue.firstIndex(where: { $0.id == video.id }) else { return }
+        let destination = index + offset
+        guard playbackQueue.indices.contains(destination), destination != index else { return }
+        playbackQueue.swapAt(index, destination)
+        persistPlaybackQueue()
+    }
+
     func clearPlaybackQueue(keepingCurrent: Bool = true) {
         playbackQueue = keepingCurrent ? selectedVideo.map { [$0] } ?? [] : []
         persistPlaybackQueue()

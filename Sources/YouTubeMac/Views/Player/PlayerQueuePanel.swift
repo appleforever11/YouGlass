@@ -38,7 +38,7 @@ struct PlayerQueuePanel: View {
             )
             .font(.caption)
 
-            Text("Select a video to jump ahead. Add more from any video card.")
+            Text("Select a video to play it. Use its menu to change the queue order.")
                 .font(.caption)
                 .foregroundStyle(palette.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -82,6 +82,7 @@ struct PlayerQueuePanel: View {
                     RemoteImage(url: video.thumbnailURL)
                         .frame(width: 70, height: 40)
                         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .videoThumbnailHaptics()
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(video.title)
@@ -108,6 +109,21 @@ struct PlayerQueuePanel: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Play \(video.title)")
             .accessibilityValue(isCurrent ? "Now playing" : "Queued")
+
+            Menu {
+                Button("Play Next") { store.enqueueNext(video) }
+                    .disabled(isCurrent)
+                Button("Move Earlier") { store.moveQueuedVideo(video, by: -1) }
+                    .disabled(store.playbackQueue.first?.id == video.id)
+                Button("Move Later") { store.moveQueuedVideo(video, by: 1) }
+                    .disabled(store.playbackQueue.last?.id == video.id)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(width: 24, height: 24)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .accessibilityLabel("Queue options for \(video.title)")
 
             Button {
                 store.removeFromPlaybackQueue(video)
