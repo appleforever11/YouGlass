@@ -1,5 +1,8 @@
 # YouGlass home contracts
 
+- Route identity carries channel/playlist IDs and custom-feed/group UUIDs; do not key scroll restoration by a display title. Destination changes retire competing section, channel, playlist, and custom-feed work through `beginNavigation`. Account changes invalidate session generations before responses may publish.
+- Search owns `YouGlassSearchState` and an injectable service. Search publication, including excluded Shorts and empty results, must never rewrite Home. Keep production credential access out of isolated test initialization.
+
 - Offline search skips API credential checks and web requests, searches real cached/library/queue videos with the shared word-matching policy, and caps results at 40. Local recovery search never includes sample videos or clears Home on an empty result.
 - Thumbnail haptics default to enabled and use the saved `YouGlass.thumbnailHaptics` preference in Playback settings; queue thumbnails share the same rate-limited feedback.
 

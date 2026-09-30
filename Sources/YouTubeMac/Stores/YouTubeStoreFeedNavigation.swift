@@ -46,12 +46,11 @@ extension YouTubeStore {
         }
 
         func canPublishSectionLoad(_ generation: Int?) -> Bool {
-            !Task.isCancelled && (generation == nil || generation == sectionLoadGeneration)
+            sectionRequests.accepts(generation)
         }
 
         private func finishSectionLoad(_ generation: Int) {
-            guard generation == sectionLoadGeneration else { return }
-            sectionLoadTask = nil
+            sectionRequests.finish(generation)
         }
 
         func handleScenePhaseChange(_ phase: ScenePhase) {
@@ -69,32 +68,7 @@ extension YouTubeStore {
         }
 
         func showSection(_ title: String, query: String? = nil) {
-            sectionLoadTask?.cancel()
-            sectionLoadGeneration &+= 1
-            let generation = sectionLoadGeneration
-
-            // A sidebar selection is a navigation boundary. Invalidate any
-            // channel request before replacing the channel surface so a slow
-            // API or WebKit fallback cannot reopen an older channel afterward.
-            channelLoadTask?.cancel()
-            channelLoadTask = nil
-            channelLoadGeneration &+= 1
-            selectedChannelItem = nil
-            channelPage = nil
-            channelError = nil
-            channelLoading = false
-
-            playlistLoadTask?.cancel()
-            playlistLoadTask = nil
-            playlistLoadGeneration &+= 1
-
-            if selectedVideo != nil {
-                isPlayerCompact = true
-            }
-            selectedPlaylist = nil
-            playlistItems = []
-            playlistError = nil
-            clearSelectedCustomFeed()
+            let generation = beginNavigation()
             if title != "Subscription Group" {
                 selectedSubscriptionGroupID = nil
                 subscriptionGroupVideos = []

@@ -37,6 +37,9 @@ final class YouTubeInlinePlayerHostView: NSView {
         webView.wantsLayer = true
         webView.layer?.masksToBounds = true
         webView.layer?.cornerRadius = PlayerMediaMetrics.cornerRadius
+        // Finish the old native attachment before moving WebKit's remote
+        // layer tree into another window. Keep the same page and controller.
+        webView.removeFromSuperview()
         addSubview(webView)
     }
 
@@ -50,8 +53,21 @@ final class YouTubeInlinePlayerHostView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         webView.frame = bounds
-        webView.layer?.frame = webView.bounds
         CATransaction.commit()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.window != nil, self.webView.superview === self else { return }
+            self.needsLayout = true
+            self.layoutSubtreeIfNeeded()
+            self.webView.needsLayout = true
+            self.webView.layoutSubtreeIfNeeded()
+            self.webView.needsDisplay = true
+            self.webView.evaluateJavaScript("window.dispatchEvent(new Event('resize'))", completionHandler: nil)
+        }
     }
 
     // The WebKit surface is playback-only. Native YouGlass controls sit above

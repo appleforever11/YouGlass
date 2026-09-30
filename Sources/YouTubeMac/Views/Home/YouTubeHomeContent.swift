@@ -29,6 +29,12 @@ extension YouTubeHomeView {
                             .environmentObject(store)
                     } else if store.selectedSection == "Search" {
                         SearchContentView(store: store, palette: palette, compact: compact)
+                    } else if store.selectedSection == "Notifications" {
+                        YouGlassEmptyState(title: "YouTube notifications",
+                            message: "Open your YouTube session and select the notification bell to review account updates.",
+                            symbol: "bell", palette: palette, actionTitle: "Open YouTube") {
+                            store.openYouTube()
+                        }
                     } else if store.selectedCustomFeed != nil {
                         CustomFeedDetailView(palette: palette, compact: compact)
                             .environmentObject(store)
@@ -62,7 +68,7 @@ extension YouTubeHomeView {
                 .padding(.bottom, compact ? 72 : 88)
             }
             // A navigation destination gets a fresh viewport; feed updates do not.
-            .id(store.selectedSection)
+            .id(store.route)
         }
     }
 

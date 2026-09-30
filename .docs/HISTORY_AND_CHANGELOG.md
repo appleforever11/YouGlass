@@ -1,5 +1,14 @@
 # YouGlass local history and change record
 
+## 2026-09-29 — 3.0 local release completion
+
+- Set the local release identity to 3.0.0 (300001); public assets remain unchanged.
+- Added typed route identities, shared navigation cancellation, account generation guards, injectable search services and independently observed search state. Search no longer replaces Home.
+- Added legacy-compatible versioned queue restoration, bounded checkpoint persistence, and non-destructive corrupt/future payload handling at startup.
+- Added ten reliability tests using isolated defaults and fake services, bringing the suite to 125 passing tests.
+- Fixed floating WebKit video visibility and sizing by neutralizing responsive page visibility/transforms; retained the existing player surface during handoffs.
+- Inspected compact scrolling, comfortable browsing, both appearance modes, signed-in feed, resume, speed, mini-player and floating video/captions. Keychain prompts did not appear. Detailed verification limits are recorded in `YOUGLASS_3_0.md`.
+
 ## 2026-09-29 — Search recovery and queue controls
 
 - Offline search uses real library and cached videos immediately, matches words across titles and channels, and preserves Home recommendations on empty results.

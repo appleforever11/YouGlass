@@ -59,18 +59,18 @@ struct CommandPaletteView: View {
                 },
                 at: 0
             )
-            result.insert(
+            if store.nextQueuedVideo != nil { result.insert(
                 command("next", "Play next in queue", "Advance to the next queued video", "forward.fill", "N") {
                     store.playNextInQueue()
                 },
                 at: 1
-            )
-            result.insert(
+            ) }
+            if store.previousQueuedVideo != nil { result.insert(
                 command("previous", "Play previous in queue", "Return to the previous queued video", "backward.fill", "P") {
                     store.playPreviousInQueue()
                 },
-                at: 2
-            )
+                at: min(2, result.count)
+            ) }
             result.insert(
                 command("save", store.isSaved(store.selectedVideo!) ? "Remove from Watch Later" : "Save to Watch Later", "Keep this video in your local library", "bookmark.fill") {
                     store.toggleSaved(store.selectedVideo!)

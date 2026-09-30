@@ -41,7 +41,7 @@ extension YouTubeStore {
         if selectedVideo != nil {
             dismissPlayer()
         }
-        selectedChannelItem = nil
+        if selectedChannelItem != nil { showSection("Home") }
         searchFocusRequestID = UUID()
     }
 

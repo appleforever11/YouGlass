@@ -1,5 +1,7 @@
 # YouGlass player contracts
 
+- Playback-only page CSS keeps player ancestors visible and neutralizes responsive transforms; the fixed player fills its viewport even at floating-window widths. AppKit owns the WebView root-layer frame. Remount requests layout/resize without navigating or replacing the active page.
+
 - Queue rows expose Play Next, Move Earlier, and Move Later in a native menu. Adjacent moves persist queue order, retain the selected video identity, and leave playback ownership intact.
 
 - `YouGlassBoundedScrollView.sizeThatFits` returns the parent-proposed viewport without asking AppKit to fit the hosted document's constraint subtree. The coordinator measures the document separately. Preserve this separation: default representable fitting caused a verified 100-percent-CPU expanded-player layout stall on macOS 27.

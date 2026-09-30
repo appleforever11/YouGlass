@@ -3,6 +3,30 @@ import Foundation
 struct YouGlassPlaybackQueueState: Codable, Equatable {
     var videos: [VideoItem]
     var autoplay = true
+
+    init(videos: [VideoItem], autoplay: Bool = true) {
+        self.videos = videos
+        self.autoplay = autoplay
+    }
+
+    private enum CodingKeys: String, CodingKey { case version, videos, autoplay }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let version = try values.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        guard version == 1 else {
+            throw DecodingError.dataCorruptedError(forKey: .version, in: values, debugDescription: "Unsupported queue version")
+        }
+        videos = try values.decode([VideoItem].self, forKey: .videos)
+        autoplay = try values.decodeIfPresent(Bool.self, forKey: .autoplay) ?? true
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(1, forKey: .version)
+        try values.encode(videos, forKey: .videos)
+        try values.encode(autoplay, forKey: .autoplay)
+    }
 }
 
 enum YouGlassPlaybackQueuePolicy {

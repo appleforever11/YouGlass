@@ -173,8 +173,8 @@ final class YouGlassDesktopPIPWindowController: NSObject, NSWindowDelegate {
         panel.contentAspectRatio = NSSize(width: 16, height: 9)
         panel.resizeIncrements = NSSize(width: 16, height: 9)
         panel.hasShadow = true
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
+        panel.isOpaque = true
+        panel.backgroundColor = .black
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.standardWindowButton(.closeButton)?.isHidden = true

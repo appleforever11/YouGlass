@@ -127,6 +127,12 @@ extension YouTubeInlinePlayerView {
         #movie_player,
         #player-full-bleed-container {
           width: 100% !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          content-visibility: visible !important;
+          transform: none !important;
+          scale: none !important;
+          translate: none !important;
           height: 100% !important;
           max-width: none !important;
           max-height: none !important;
@@ -198,6 +204,8 @@ extension YouTubeInlinePlayerView {
         #movie_player video,
         .html5-main-video,
         video.video-stream.html5-main-video {
+          visibility: visible !important;
+          opacity: 1 !important;
           position: absolute !important;
           inset: 0 !important;
           top: 0 !important;

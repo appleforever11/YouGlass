@@ -100,9 +100,17 @@ struct HomeUnavailableView: View {
 }
 
 struct SearchContentView: View {
-    @ObservedObject var store: YouTubeStore
+    let store: YouTubeStore
+    @ObservedObject private var state: YouGlassSearchState
     let palette: Palette
     let compact: Bool
+
+    init(store: YouTubeStore, palette: Palette, compact: Bool) {
+        self.store = store
+        self.state = store.searchState
+        self.palette = palette
+        self.compact = compact
+    }
 
     var body: some View {
         searchContent
@@ -111,37 +119,37 @@ struct SearchContentView: View {
 
     @ViewBuilder
     private var searchContent: some View {
-        if store.isLoading {
+        if state.isLoading {
             VStack(spacing: 12) {
                 ProgressView()
                 Text("Searching YouTube…")
                     .font(.headline)
-                Text("Finding videos for “\(store.query)”")
+                Text("Finding videos for “\(state.query)”")
                     .foregroundStyle(palette.secondaryText)
             }
             .frame(maxWidth: .infinity, minHeight: 260)
-        } else if !store.searchResults.isEmpty {
+        } else if !state.results.isEmpty {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Results for “\(store.query)”")
+                    Text("Results for “\(state.query)”")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
-                    Text("\(store.searchResults.count) videos · \(store.connectionMessage)")
+                    Text("\(state.results.count) videos · \(state.message)")
                         .font(.subheadline)
                         .foregroundStyle(palette.secondaryText)
                 }
                 .padding(.top, 16)
                 VideoRow(
                     title: "Search results",
-                    videos: store.searchResults,
+                    videos: state.results,
                     palette: palette,
                     compact: compact,
                     showsSeeAll: false
                 )
                 .environmentObject(store)
             }
-        } else if let message = store.sectionEmptyMessage {
+        } else if let message = state.emptyMessage {
                 SearchEmptyStateView(
-                    query: store.query,
+                    query: state.query,
                     message: message,
                     palette: palette,
                     clear: {

@@ -4,8 +4,8 @@ import SwiftUI
 
 extension YouTubeStore {
         func openPlaylist(_ playlist: YouTubePlaylist) {
-            playlistLoadTask?.cancel()
-            playlistLoadGeneration &+= 1
+            _ = beginNavigation()
+            selectedSubscriptionGroupID = nil
             let generation = playlistLoadGeneration
 
             if selectedVideo != nil {

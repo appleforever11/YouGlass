@@ -41,13 +41,9 @@ extension YouTubeStore {
         locallyLikedVideos = decodeVideos(forKey: DefaultsKey.locallyLikedVideos)
         customCollections = decodeCollections()
         videoNotes = decodeVideoNotes()
-        if let data = defaults.data(forKey: DefaultsKey.playbackQueue),
-           let state = try? JSONDecoder().decode(YouGlassPlaybackQueueState.self, from: data) {
+        if let state = queueRepository.restore() {
             playbackQueue = nonShortVideos(state.videos)
             queueAutoplay = state.autoplay
-            if playbackQueue.count != state.videos.count {
-                persistPlaybackQueue()
-            }
         }
         let cachedPersonalizedVideos = decodeVideos(forKey: DefaultsKey.cachedPersonalizedFeed)
         if !cachedPersonalizedVideos.isEmpty {
@@ -72,7 +68,9 @@ extension YouTubeStore {
         playbackPositions = decodePlaybackPositions()
         playbackDurations = decodePlaybackDurations()
         playbackPositionUpdatedAt = decodePlaybackPositionDates()
-        persistPlaybackPositions()
+        // Preserve unreadable bytes for recovery instead of replacing them
+        // with an empty checkpoint cache during an otherwise normal launch.
+        if playbackCheckpointPayloadsAreReadable { persistPlaybackPositions() }
 
     }
 

@@ -50,30 +50,8 @@ extension YouTubeStore {
                         return
                     }
 
-                    // Keep the offline catalog interactive when no API key/feed is
-                    // available. This is the official IFrame API sample video.
-                    if let fallback = VideoItem.fromYouTubeInput("M7lc1UVf-VE") {
-                        guard !Task.isCancelled, self.videoResolutionGeneration == generation else { return }
-                        let playableFallback = VideoItem(
-                            id: fallback.id,
-                            title: "YouTube player test video",
-                            channel: "YouTube",
-                            views: "Official player sample",
-                            age: "",
-                            duration: "",
-                            imageURL: fallback.imageURL,
-                            verified: true
-                        )
-                        preparePlaybackQueue(for: playableFallback)
-                        isPlayerCompact = false
-                        selectedVideo = playableFallback
-                        syncNowPlaying(video: playableFallback)
-                        connectionMessage = "Playing the offline YouTube player sample"
-                        return
-                    }
-
                     guard !Task.isCancelled, self.videoResolutionGeneration == generation else { return }
-                    connectionMessage = "This card does not contain a valid YouTube video ID"
+                    connectionMessage = "This video is unavailable. Search for its title to find it on YouTube."
                 }
                 return
             }
@@ -197,14 +175,15 @@ extension YouTubeStore {
         }
 
         func openChannel(_ item: SubscriptionItem) {
-            channelLoadTask?.cancel()
-            channelLoadGeneration &+= 1
+            _ = beginNavigation()
+            selectedSubscriptionGroupID = nil
             let generation = channelLoadGeneration
 
             if selectedVideo != nil {
                 minimizePlayer()
             }
             selectedChannelItem = item
+            selectedSection = item.name
             channelPage = nil
             channelError = nil
             channelLoading = true
@@ -255,13 +234,6 @@ extension YouTubeStore {
         }
 
         func closeChannel() {
-            channelLoadTask?.cancel()
-            channelLoadTask = nil
-            channelLoadGeneration &+= 1
-            selectedChannelItem = nil
-            channelPage = nil
-            channelError = nil
-            channelLoading = false
-            selectedSection = "Home"
+            showSection("Home")
         }
 }

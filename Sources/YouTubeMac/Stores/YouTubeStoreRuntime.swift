@@ -22,6 +22,7 @@ extension YouTubeStore {
                     .flatMap(URL.init(string:))
                 Task { @MainActor in
                     guard let self else { return }
+                    self.invalidateAccountRequests()
                     self.isSignedIn = true
                     self.connectionMessage = "Signed in to YouTube"
                     self.defaults.set(true, forKey: DefaultsKey.isSignedIn)
@@ -43,6 +44,7 @@ extension YouTubeStore {
                 queue: .main
             ) { [weak self] _ in
                 Task { @MainActor in
+                    self?.invalidateAccountRequests()
                     self?.isSignedIn = false
                     self?.subscriptions = []
                     self?.selectedSubscriptionGroupID = nil

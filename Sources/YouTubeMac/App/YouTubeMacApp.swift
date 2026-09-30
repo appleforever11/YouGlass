@@ -14,7 +14,7 @@ struct YouTubeMacApp: App {
                 // The shell switches to its compact navigation mode below
                 // this size, so the window remains usable on small displays
                 // instead of forcing a clipped default minimum.
-                .frame(minWidth: 560, minHeight: 400)
+                .frame(minWidth: YouGlassLayout.minimumWindowWidth, minHeight: YouGlassLayout.minimumWindowHeight)
                 .preferredColorScheme(store.colorScheme)
                 .background(YouGlassWindowSizingView())
                 .task {
@@ -114,6 +114,11 @@ struct YouTubeMacApp: App {
                     store.toggleMainWindowFullScreen()
                 }
                 .keyboardShortcut("f", modifiers: [.command, .control])
+
+                Menu("Window Size") {
+                    Button("Compact") { YouGlassWindowActions.resize(compact: true) }
+                    Button("Comfortable") { YouGlassWindowActions.resize(compact: false) }
+                }
 
                 Menu("Playback Speed") {
                     ForEach([0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { rate in

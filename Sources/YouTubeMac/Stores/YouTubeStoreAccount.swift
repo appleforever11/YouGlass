@@ -5,10 +5,12 @@ import SwiftUI
 extension YouTubeStore {
         func refreshProfileImage() async {
             guard isSignedIn else { return }
+            let sessionGeneration = accountSessionGeneration
 
             do {
                 guard let url = try await client.myChannelProfileImageURL(),
-                      !Task.isCancelled else { return }
+                      !Task.isCancelled, isSignedIn,
+                      accountSessionGeneration == sessionGeneration else { return }
                 profileImageURL = url
                 defaults.set(url.absoluteString, forKey: DefaultsKey.profileImageURL)
             } catch {
@@ -80,6 +82,7 @@ extension YouTubeStore {
         }
 
         func loadSubscriptions(force: Bool) async {
+            let sessionGeneration = accountSessionGeneration
             guard !subscriptionLoadInProgress else {
                 if force { subscriptionReloadPending = true }
                 await withCheckedContinuation { continuation in
@@ -132,7 +135,7 @@ extension YouTubeStore {
             let webSubscriptions = apiRequestSucceeded
                 ? []
                 : await subscriptionBridge.loadSubscriptions(maxResults: 200)
-            guard !Task.isCancelled, isSignedIn else { return }
+            guard !Task.isCancelled, isSignedIn, accountSessionGeneration == sessionGeneration else { return }
 
             let mergedSubscriptions = mergeSubscriptions(apiSubscriptions + webSubscriptions)
             if !mergedSubscriptions.isEmpty {

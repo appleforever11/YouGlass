@@ -98,6 +98,7 @@ extension YouTubeStore {
 
     func selectCustomFeed(_ feed: YouGlassCustomFeed, force: Bool = false) {
         guard customFeeds.contains(where: { $0.id == feed.id }) else { return }
+        _ = beginNavigation()
         selectedSubscriptionGroupID = nil
         subscriptionGroupVideos = []
         selectedSection = "Home"

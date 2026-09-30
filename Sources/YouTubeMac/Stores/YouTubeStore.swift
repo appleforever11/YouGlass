@@ -43,7 +43,11 @@ final class YouTubeStore: ObservableObject {
     @Published var locallyLikedVideos: [VideoItem] = []
     @Published var customCollections: [YouGlassLibraryCollection] = []
     @Published var videoNotes: [YouGlassVideoNote] = []
-    @Published var searchResults: [VideoItem] = []
+    let searchState = YouGlassSearchState()
+    var searchResults: [VideoItem] {
+        get { searchState.results }
+        set { searchState.results = newValue }
+    }
     var playbackPositions: [String: Double] = [:]
     var playbackDurations: [String: Double] = [:]
     var playbackPositionUpdatedAt: [String: Date] = [:]
@@ -89,7 +93,8 @@ final class YouTubeStore: ObservableObject {
     @Published var homeRecommendationsAreFromYouTube = false
     @Published var homeWebSessionNeedsSignIn = false
 
-    var client = YouTubeAPIClient()
+    var client: YouTubeAPIClient
+    var searchService: any YouGlassSearchService
     let oauth = YouTubeOAuthClient.shared
     let safariHomeFeed = SafariHomeFeedClient()
     let subscriptionBridge = YouTubeSubscriptionBridge.shared
@@ -104,8 +109,13 @@ final class YouTubeStore: ObservableObject {
     var lastHomeLoadDate: Date?
     var scheduledHomeReloadTask: Task<Void, Never>?
     var homeRefreshTask: Task<Void, Never>?
-    var sectionLoadTask: Task<Void, Never>?
-    var sectionLoadGeneration = 0
+    let sectionRequests = YouGlassRequestLifecycle()
+    var sectionLoadTask: Task<Void, Never>? {
+        get { sectionRequests.task }
+        set { sectionRequests.task = newValue }
+    }
+    var sectionLoadGeneration: Int { sectionRequests.generation }
+    var accountSessionGeneration = 0
     var accountSyncTask: Task<Void, Never>?
     var accountSyncGeneration = 0
     var channelLoadTask: Task<Void, Never>?
@@ -131,7 +141,7 @@ final class YouTubeStore: ObservableObject {
     var pipTransitionTask: Task<Void, Never>?
     var inlinePlayerTransitionTask: Task<Void, Never>?
     var networkMonitor: YouGlassNetworkMonitor?
-    let defaults = UserDefaults.standard
+    let defaults: UserDefaults
     let playbackLogger = Logger(subsystem: "com.kevinhowe.YouGlass", category: "playback")
     var excludedShortFormIDs: Set<String> = []
     var customFeedTask: Task<Void, Never>?
@@ -141,8 +151,16 @@ final class YouTubeStore: ObservableObject {
         pipTransitionState.isTransitioning
     }
 
-    init() {
+    init(defaults: UserDefaults = .standard, client: YouTubeAPIClient? = nil,
+         searchService: (any YouGlassSearchService)? = nil, connectRuntime: Bool = true) {
+        self.defaults = defaults
+        let resolvedClient = client ?? YouTubeAPIClient()
+        self.client = resolvedClient
+        self.searchService = searchService ?? YouGlassLiveSearchService(client: { resolvedClient })
+        if searchService == nil {
+            self.searchService = YouGlassLiveSearchService(client: { [weak self] in self?.client ?? resolvedClient })
+        }
         restorePersistedState()
-        connectRuntimeServices()
+        if connectRuntime { connectRuntimeServices() }
     }
 }

@@ -115,14 +115,32 @@ extension YouTubeStore {
 
         func persistPlaybackPositions() {
             playbackPositions = playbackPositions.filter { !excludedShortFormIDs.contains($0.key) }
-            playbackDurations = playbackDurations.filter { !excludedShortFormIDs.contains($0.key) }
-            playbackPositionUpdatedAt = playbackPositionUpdatedAt.filter { !excludedShortFormIDs.contains($0.key) }
+            if playbackPositions.count > PlaybackCheckpointPolicy.maxEntries {
+                let retained = Set(playbackPositions.keys.sorted {
+                    let left = playbackPositionUpdatedAt[$0] ?? .distantPast
+                    let right = playbackPositionUpdatedAt[$1] ?? .distantPast
+                    return left == right ? $0 < $1 : left > right
+                }.prefix(PlaybackCheckpointPolicy.maxEntries))
+                playbackPositions = playbackPositions.filter { retained.contains($0.key) }
+            }
+            playbackDurations = playbackDurations.filter { playbackPositions[$0.key] != nil }
+            playbackPositionUpdatedAt = playbackPositionUpdatedAt.filter { playbackPositions[$0.key] != nil }
             guard let positionsData = try? JSONEncoder().encode(playbackPositions),
                   let durationsData = try? JSONEncoder().encode(playbackDurations),
                   let datesData = try? JSONEncoder().encode(playbackPositionUpdatedAt) else { return }
             defaults.set(positionsData, forKey: DefaultsKey.playbackPositions)
             defaults.set(durationsData, forKey: DefaultsKey.playbackDurations)
             defaults.set(datesData, forKey: DefaultsKey.playbackPositionUpdatedAt)
+        }
+
+        var playbackCheckpointPayloadsAreReadable: Bool {
+            for key in [DefaultsKey.playbackPositions, DefaultsKey.playbackDurations] {
+                if let data = defaults.data(forKey: key),
+                   (try? JSONDecoder().decode([String: Double].self, from: data)) == nil { return false }
+            }
+            if let data = defaults.data(forKey: DefaultsKey.playbackPositionUpdatedAt),
+               (try? JSONDecoder().decode([String: Date].self, from: data)) == nil { return false }
+            return true
         }
 
         func decodeCollections() -> [YouGlassLibraryCollection] {
@@ -179,11 +197,13 @@ extension YouTubeStore {
         }
 
         func persistPlaybackQueue() {
-            playbackQueue = nonShortVideos(playbackQueue)
+            playbackQueue = Array(mergeVideos(playbackQueue).prefix(YouGlassPlaybackQueuePolicy.maxEntries))
             let state = YouGlassPlaybackQueueState(videos: playbackQueue, autoplay: queueAutoplay)
-            if let data = try? JSONEncoder().encode(state) {
-                defaults.set(data, forKey: DefaultsKey.playbackQueue)
-            }
+            queueRepository.save(state)
+        }
+
+        var queueRepository: YouGlassQueueRepository {
+            .init(defaults: defaults, key: DefaultsKey.playbackQueue)
         }
 
         func persistSubscriptions(_ items: [SubscriptionItem]) {

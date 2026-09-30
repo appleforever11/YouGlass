@@ -119,6 +119,7 @@ extension YouTubeStore {
         }
 
         func resetYouTubeCredentials() {
+            invalidateAccountRequests()
             oauth.clearStoredCredentials()
             YouGlassCredentialStore.removeDataAPIKey()
             client = YouTubeAPIClient(oauth: oauth)

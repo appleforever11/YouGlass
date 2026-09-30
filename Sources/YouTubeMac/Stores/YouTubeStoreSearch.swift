@@ -4,9 +4,9 @@ import SwiftUI
 
 extension YouTubeStore {
         func startSearch(_ term: String? = nil) {
-            sectionLoadTask?.cancel()
-            sectionLoadGeneration &+= 1
-            let generation = sectionLoadGeneration
+            let generation = beginNavigation()
+            selectedSubscriptionGroupID = nil
+            subscriptionGroupVideos = []
             sectionLoadTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 await self.search(term, sectionGeneration: generation)
@@ -15,8 +15,7 @@ extension YouTubeStore {
         }
 
         private func finishSearch(_ generation: Int) {
-            guard generation == sectionLoadGeneration else { return }
-            sectionLoadTask = nil
+            sectionRequests.finish(generation)
         }
 
         func search(_ term: String? = nil, sectionGeneration: Int? = nil) async {
@@ -27,6 +26,10 @@ extension YouTubeStore {
             // Navigate immediately so a slow API or web-session fallback cannot
             // leave the user looking at the previous Home surface.
             query = searchTerm
+            searchState.query = searchTerm
+            searchState.emptyMessage = nil
+            searchState.message = "Searching YouTube…"
+            searchState.isLoading = true
             selectedSection = "Search"
             selectedPlaylist = nil
             selectedChannelItem = nil
@@ -39,6 +42,7 @@ extension YouTubeStore {
             defer {
                 if canPublishSectionLoad(sectionGeneration) {
                     isLoading = false
+                    searchState.isLoading = false
                 }
             }
 
@@ -51,8 +55,8 @@ extension YouTubeStore {
             if YouGlassContentPolicy.isShortsURL(searchTerm)
                 || YouGlassContentPolicy.isShortsSearch(searchTerm) {
                 searchResults = []
-                feed = VideoItem.loadingFeed
                 sectionEmptyMessage = "YouTube Shorts are disabled in YouGlass"
+                searchState.emptyMessage = sectionEmptyMessage
                 connectionMessage = "Short-form YouTube content is excluded"
                 return
             }
@@ -62,7 +66,7 @@ extension YouTubeStore {
                 return
             }
 
-            let hasCredentials = await client.hasCredentials()
+            let hasCredentials = await searchService.hasCredentials()
             guard canPublishSectionLoad(sectionGeneration) else { return }
             guard hasCredentials else {
                 await applySearchFallback(
@@ -74,7 +78,7 @@ extension YouTubeStore {
             }
 
             do {
-                let videos = try await client.searchVideos(query: searchTerm, maxResults: 12)
+                let videos = try await searchService.search(searchTerm)
                 guard canPublishSectionLoad(sectionGeneration) else { return }
                 if !videos.isEmpty {
                     applySearchResults(videos, message: "Connected to YouTube")
@@ -102,15 +106,13 @@ extension YouTubeStore {
             guard !merged.isEmpty else {
                 searchResults = []
                 sectionEmptyMessage = "No matching YouTube videos were found."
+                searchState.emptyMessage = sectionEmptyMessage
                 return
             }
             sectionEmptyMessage = nil
             searchResults = merged
-            feed.hero = merged.first ?? feed.hero
-            feed.forYou = Array(merged.prefix(8))
-            feed.trending = Array(merged.dropFirst(8).prefix(8))
-            feed.more = Array(merged.dropFirst(16).prefix(8))
-            feed.queue = Array(merged.suffix(min(4, merged.count)))
+            searchState.emptyMessage = nil
+            searchState.message = message
             connectionMessage = message
         }
 
@@ -119,7 +121,8 @@ extension YouTubeStore {
             apiError: Error?,
             sectionGeneration: Int? = nil
         ) async {
-            let webResult = await YouTubeWebFeedBridge.shared.searchVideos(query: searchTerm, maxResults: 20)
+            guard canPublishSectionLoad(sectionGeneration) else { return }
+            let webResult = await searchService.webSearch(searchTerm)
             guard canPublishSectionLoad(sectionGeneration) else { return }
             if !webResult.videos.isEmpty {
                 applySearchResults(
@@ -152,11 +155,15 @@ extension YouTubeStore {
                 connectionMessage = isNetworkAvailable
                     ? "Showing library and cached results while YouTube search recovers"
                     : "Offline results from your library and cached feed"
+                searchState.message = connectionMessage
+                searchState.emptyMessage = nil
                 return
             }
 
             searchResults = []
             sectionEmptyMessage = failure
+            searchState.emptyMessage = failure
+            searchState.message = failure
             connectionMessage = failure
         }
 

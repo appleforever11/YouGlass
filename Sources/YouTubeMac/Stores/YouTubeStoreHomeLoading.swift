@@ -4,7 +4,12 @@ import SwiftUI
 
 extension YouTubeStore {
         func loadHome(force: Bool = false, sectionGeneration: Int? = nil) async {
-            guard canPublishSectionLoad(sectionGeneration) else { return }
+            let sessionGeneration = accountSessionGeneration
+            let navigationGeneration = sectionGeneration ?? sectionLoadGeneration
+            func canPublishHome() -> Bool {
+                canPublishSectionLoad(navigationGeneration) && accountSessionGeneration == sessionGeneration
+            }
+            guard canPublishHome() else { return }
             guard !homeLoadInProgress else {
                 homeReloadPending = true
                 homeReloadPendingForce = homeReloadPendingForce || force
@@ -56,7 +61,7 @@ extension YouTubeStore {
                 )
             }
             defer {
-                if canPublishSectionLoad(sectionGeneration) {
+                if canPublishHome() {
                     isLoading = false
                 }
                 homeLoadInProgress = false
@@ -81,17 +86,17 @@ extension YouTubeStore {
             }
 
             if !isNetworkAvailable {
-                guard canPublishSectionLoad(sectionGeneration) else { return }
+                guard canPublishHome() else { return }
                 connectionMessage = "Offline — showing saved recommendations"
                 return
             }
 
-            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard canPublishHome() else { return }
             connectionMessage = force
                 ? "Refreshing fresh YouTube recommendations..."
                 : "Loading YouTube homepage recommendations..."
             let hasOAuthSession = (try? await oauth.validAccessToken()) != nil
-            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard canPublishHome() else { return }
             if hasOAuthSession && !isSignedIn {
                 isSignedIn = true
                 defaults.set(true, forKey: DefaultsKey.isSignedIn)
@@ -100,7 +105,7 @@ extension YouTubeStore {
             // Read the actual web homepage without a hidden rendering surface.
             // OAuth alone does not provide YouTube Home's recommendation order.
             let webResult = await YouTubeHomepageClient().load(maxResults: 40)
-            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard canPublishHome() else { return }
             // OAuth account access and the website's recommendation session
             // are independent. Only a successfully parsed page establishes
             // whether the website needs sign-in; a timeout cannot sign it out.
@@ -150,12 +155,12 @@ extension YouTubeStore {
                         scheduleSubscriptionsLoad(force: false)
                     }
                 }
-                guard canPublishSectionLoad(sectionGeneration) else { return }
+                guard canPublishHome() else { return }
                 let personalized = await personalizedAccountFeed(
                     webHomepageVideos: webResult.isSignedIn ? webResult.videos : [],
                     forceFresh: force
                 )
-                guard canPublishSectionLoad(sectionGeneration) else { return }
+                guard canPublishHome() else { return }
                 if !personalized.isEmpty,
                    applyPrimaryHomeVideos(
                         personalized,
@@ -168,10 +173,10 @@ extension YouTubeStore {
             }
 
             let hasCredentials = await client.hasCredentials()
-            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard canPublishHome() else { return }
             guard hasCredentials else {
                 let safariSignals = await safariHomeFeed.loadFeed(maxResultsPerChannel: 5)
-                guard canPublishSectionLoad(sectionGeneration) else { return }
+                guard canPublishHome() else { return }
                 if !safariSignals.isEmpty,
                    applyPrimaryHomeVideos(
                         safariSignals,
@@ -209,7 +214,7 @@ extension YouTubeStore {
                 accountSignals,
                 popular
             )
-            guard canPublishSectionLoad(sectionGeneration) else { return }
+            guard canPublishHome() else { return }
             let candidates = accountSignalVideos + personalizedVideos + popularVideos
             if !applyPrimaryHomeVideos(
                 candidates,
