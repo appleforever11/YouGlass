@@ -95,6 +95,9 @@ extension YouTubeStore {
             connectionMessage = force
                 ? "Refreshing fresh YouTube recommendations..."
                 : "Loading YouTube homepage recommendations..."
+            // Website recommendations and OAuth are independent sessions. Start
+            // the Home request now instead of waiting for token refresh first.
+            async let homepage = YouTubeHomepageClient().load(maxResults: 40)
             let hasOAuthSession = (try? await oauth.validAccessToken()) != nil
             guard canPublishHome() else { return }
             if hasOAuthSession && !isSignedIn {
@@ -104,7 +107,7 @@ extension YouTubeStore {
 
             // Read the actual web homepage without a hidden rendering surface.
             // OAuth alone does not provide YouTube Home's recommendation order.
-            let webResult = await YouTubeHomepageClient().load(maxResults: 40)
+            let webResult = await homepage
             guard canPublishHome() else { return }
             // OAuth account access and the website's recommendation session
             // are independent. Only a successfully parsed page establishes

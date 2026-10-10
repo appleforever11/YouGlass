@@ -57,7 +57,10 @@ struct YouTubePlayerOverlay: View {
                         .fill(.ultraThinMaterial)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: isCompact ? 18 : 0, style: .continuous))
+            .clipShape(RoundedRectangle(
+                cornerRadius: isCompact ? 18 : YouGlassLayout.shellRadius,
+                style: .continuous
+            ))
             .overlay(alignment: .topLeading) {
                 if isCompact {
                     HStack(spacing: 8) {

@@ -1,5 +1,7 @@
 # YouGlass home contracts
 
+- Start the YouTube Home website fetch alongside OAuth token validation; these sessions are independent, and token refresh must not delay the primary recommendation source.
+
 - Route identity carries channel/playlist IDs and custom-feed/group UUIDs; do not key scroll restoration by a display title. Destination changes retire competing section, channel, playlist, and custom-feed work through `beginNavigation`. Account changes invalidate session generations before responses may publish.
 - Search owns `YouGlassSearchState` and an injectable service. Search publication, including excluded Shorts and empty results, must never rewrite Home. Keep production credential access out of isolated test initialization.
 

@@ -1,5 +1,12 @@
 # YouGlass local history and change record
 
+## 2026-10-10 — Watch layout and recommendation responsiveness
+
+- Rounded the expanded player shell beside the sidebar and softened the sidebar boundary during playback.
+- Removed the expanded-player column gap and made Up Next rows lazy to reduce watch-page layout work.
+- Started the YouTube Home request without waiting for OAuth refresh; Up Next now prefers ordered suggestions from the YouTube watch page, with the existing API/local fallback.
+- Started player metadata, comments, and recommendation loading together so slower requests do not hold the Up Next rail.
+
 ## 2026-09-29 — 3.0 local release completion
 
 - Set the local release identity to 3.0.0 (300001); public assets remain unchanged.

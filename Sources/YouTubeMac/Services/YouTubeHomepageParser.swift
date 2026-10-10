@@ -1,6 +1,27 @@
 import Foundation
 
 enum YouTubeHomepageParser {
+    static func parseRelated(_ html: String, limit: Int) -> [VideoItem] {
+        guard let data = initialData(in: html),
+              let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let contents = root["contents"] as? [String: Any],
+              let watch = contents["twoColumnWatchNextResults"] as? [String: Any],
+              let secondary = watch["secondaryResults"] as? [String: Any],
+              let results = secondary["secondaryResults"] as? [String: Any],
+              let entries = results["results"] as? [[String: Any]] else { return [] }
+        var videos: [VideoItem] = []
+        var seen = Set<String>()
+        for entry in entries {
+            let renderer = (entry["compactVideoRenderer"] as? [String: Any])
+                ?? (entry["videoRenderer"] as? [String: Any])
+            guard let renderer, let item = video(renderer),
+                  YouGlassContentPolicy.allows(item), seen.insert(item.id).inserted else { continue }
+            videos.append(item)
+            if videos.count >= max(1, limit) { break }
+        }
+        return videos
+    }
+
     static func parse(_ html: String, limit: Int) -> YouTubeWebFeedResult {
         guard let data = initialData(in: html),
               let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else { return .empty }

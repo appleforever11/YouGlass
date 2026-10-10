@@ -85,4 +85,20 @@ final class HomepageParserTests: XCTestCase {
         XCTAssertFalse(result.isSignedIn)
         XCTAssertEqual(result.videos.map(\.id), ["normal12345"])
     }
+
+    func testWatchSuggestionsPreserveYouTubeOrderAndExcludeShorts() throws {
+        var short = renderer("short123456")["videoRenderer"] as! [String: Any]
+        short["navigationEndpoint"] = ["reelWatchEndpoint": ["videoId": "short123456"]]
+        let root: [String: Any] = ["contents": ["twoColumnWatchNextResults": [
+            "secondaryResults": ["secondaryResults": ["results": [
+                ["compactVideoRenderer": renderer("bbbbbbbbbbb")["videoRenderer"]!],
+                ["compactVideoRenderer": short],
+                ["compactVideoRenderer": renderer("aaaaaaaaaaa")["videoRenderer"]!],
+                ["compactVideoRenderer": renderer("bbbbbbbbbbb")["videoRenderer"]!]
+            ]]]]]]
+        let data = try JSONSerialization.data(withJSONObject: root)
+        let html = "<script>var ytInitialData = \(String(decoding: data, as: UTF8.self));</script>"
+        XCTAssertEqual(YouTubeHomepageParser.parseRelated(html, limit: 10).map(\.id),
+                       ["bbbbbbbbbbb", "aaaaaaaaaaa"])
+    }
 }

@@ -132,7 +132,7 @@ extension NativeWatchScreen {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(palette.secondaryText)
                 } else {
-                    VStack(alignment: .leading, spacing: 10) {
+                    LazyVStack(alignment: .leading, spacing: 10) {
                         ForEach(playerRecommendations) { item in
                             Button(action: { store.openFromUserInteraction(item) }) {
                                 RelatedVideoCard(video: item, palette: palette)

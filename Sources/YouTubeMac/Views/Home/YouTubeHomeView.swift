@@ -14,17 +14,18 @@ struct YouTubeHomeView: View {
             let compactShell = geometry.size.width < YouGlassLayout.compactShellThreshold
             let shellInset: CGFloat = compactShell ? 8 : 16
             let sidebarWidth = compactShell ? YouGlassLayout.compactSidebarWidth : YouGlassLayout.sidebarWidth
+            let fullPlayerPresented = store.selectedVideo != nil &&
+                !store.isDesktopPIPActive &&
+                !store.isPlayerCompact
+            let shellGap: CGFloat = fullPlayerPresented ? 0 : YouGlassLayout.shellGap
             let mainContentWidth = max(
                 1,
-                geometry.size.width - shellInset * 2 - sidebarWidth - YouGlassLayout.shellGap
+                geometry.size.width - shellInset * 2 - sidebarWidth - shellGap
             )
             // Base the content breakpoint on the space left after the
             // sidebar. This keeps medium windows from forcing desktop-sized
             // grids into a layout that cannot hold them.
             let compactContent = mainContentWidth < 1_000
-            let fullPlayerPresented = store.selectedVideo != nil &&
-                !store.isDesktopPIPActive &&
-                !store.isPlayerCompact
             let shellTopInset: CGFloat = fullPlayerPresented
                 ? 0
                 : (compactShell ? 8 : 12)
@@ -42,11 +43,24 @@ struct YouTubeHomeView: View {
                 )
                     .ignoresSafeArea()
 
-                HStack(spacing: YouGlassLayout.shellGap) {
+                HStack(spacing: shellGap) {
                     SidebarView(palette: palette, compact: compactShell)
                         .frame(width: sidebarWidth)
                         .frame(maxHeight: .infinity, alignment: .top)
                         .youGlassSurface(palette: palette, cornerRadius: YouGlassLayout.shellRadius)
+                        .mask {
+                            if fullPlayerPresented {
+                                LinearGradient(
+                                    stops: [.init(color: .white, location: 0),
+                                            .init(color: .white, location: 0.94),
+                                            .init(color: .clear, location: 1)],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            } else {
+                                Color.white
+                            }
+                        }
 
                     ZStack(alignment: .topLeading) {
                         if store.selectedChannelItem != nil {

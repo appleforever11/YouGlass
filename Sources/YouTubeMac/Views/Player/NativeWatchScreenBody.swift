@@ -150,23 +150,23 @@ extension NativeWatchScreen {
                 // Resolve account state before slower comments/details requests. A
                 // stalled public-data request must never leave this control at
                 // "Checking..." when the signed-in subscription list is ready.
+                async let loadedComments = store.loadCommentPage(for: video)
+                async let loadedRecommendations = store.loadRecommendations(for: video)
+                async let loadedDetails = store.loadVideoDetails(for: video)
                 subscribed = await store.resolveSubscriptionStatus(
                     channelID: video.channelID,
                     channelName: video.channel
                 )
                 subscriptionStatusResolved = true
 
-                async let loadedComments = store.loadCommentPage(for: video)
-                async let loadedRecommendations = store.loadRecommendations(for: video)
-                async let loadedDetails = store.loadVideoDetails(for: video)
-                commentPage = await loadedComments
-                commentChannelID = commentPage.channelID
-                commentsLoading = false
                 let nextRecommendations = await loadedRecommendations
                 guard !Task.isCancelled, store.selectedVideo?.id == video.id else { return }
                 recommendations = nextRecommendations
                 store.appendPlaybackCandidates(nextRecommendations)
                 advanceAfterPlaybackFinishesIfPossible()
+                commentPage = await loadedComments
+                commentChannelID = commentPage.channelID
+                commentsLoading = false
                 details = await loadedDetails
                 let channelID = details?.channelID ?? commentChannelID ?? video.channelID
                 if channelID != video.channelID {

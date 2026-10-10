@@ -20,6 +20,10 @@ extension YouTubeStore {
 
         func loadRecommendations(for video: VideoItem) async -> [VideoItem] {
             let localFallback = relatedVideos(for: video)
+            let websiteSuggestions = await YouTubeHomepageClient().loadRelated(videoID: video.id)
+            if !websiteSuggestions.isEmpty {
+                return Array(websiteSuggestions.filter { $0.id != video.id }.prefix(10))
+            }
             guard await client.hasCredentials() else {
                 return localFallback
             }

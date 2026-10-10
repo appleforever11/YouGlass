@@ -6,6 +6,23 @@ import Foundation
 @MainActor
 final class YouTubeHomepageClient {
     func load(maxResults: Int = 40) async -> YouTubeWebFeedResult {
+        let html = await loadHTML(url: URL(string: "https://www.youtube.com/")!)
+        guard let html else { return .empty }
+        return await Task.detached(priority: .userInitiated) {
+            YouTubeHomepageParser.parse(html, limit: maxResults)
+        }.value
+    }
+
+    func loadRelated(videoID: String, maxResults: Int = 10) async -> [VideoItem] {
+        guard videoID.range(of: #"^[A-Za-z0-9_-]{11}$"#, options: .regularExpression) != nil,
+              let url = URL(string: "https://www.youtube.com/watch?v=\(videoID)"),
+              let html = await loadHTML(url: url) else { return [] }
+        return await Task.detached(priority: .userInitiated) {
+            YouTubeHomepageParser.parseRelated(html, limit: maxResults)
+        }.value
+    }
+
+    private func loadHTML(url: URL) async -> String? {
         let cookies = await WKWebsiteDataStore.default().httpCookieStore.allCookies()
         let now = Date()
         let homeCookies = cookies.filter {
@@ -20,7 +37,7 @@ final class YouTubeHomepageClient {
         configuration.timeoutIntervalForResource = 8
         let session = URLSession(configuration: configuration, delegate: HomepageRedirectPolicy(), delegateQueue: nil)
         defer { session.invalidateAndCancel() }
-        var request = URLRequest(url: URL(string: "https://www.youtube.com/")!, cachePolicy: .reloadIgnoringLocalCacheData)
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         request.httpShouldHandleCookies = false
         request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
         for (key, value) in HTTPCookie.requestHeaderFields(with: homeCookies) {
@@ -29,12 +46,10 @@ final class YouTubeHomepageClient {
         do {
             let (data, response) = try await session.data(for: request)
             guard !Task.isCancelled, (response as? HTTPURLResponse)?.statusCode == 200,
-                  data.count <= 8_000_000, let html = String(data: data, encoding: .utf8) else { return .empty }
-            return await Task.detached(priority: .userInitiated) {
-                YouTubeHomepageParser.parse(html, limit: maxResults)
-            }.value
+                  data.count <= 8_000_000 else { return nil }
+            return String(data: data, encoding: .utf8)
         } catch {
-            return .empty
+            return nil
         }
     }
 }

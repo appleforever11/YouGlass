@@ -1,5 +1,8 @@
 # YouGlass player contracts
 
+- Expanded watch surfaces round their outer shell corners, including the top-left edge beside the sidebar. Keep the media and scroll view clips independent from this outer shell clip.
+- Up Next uses the YouTube watch page's ordered video suggestions when available; API search and local ranking remain bounded fallbacks. Keep Shorts and duplicate video IDs excluded.
+
 - Playback-only page CSS keeps player ancestors visible and neutralizes responsive transforms; the fixed player fills its viewport even at floating-window widths. AppKit owns the WebView root-layer frame. Remount requests layout/resize without navigating or replacing the active page.
 
 - Queue rows expose Play Next, Move Earlier, and Move Later in a native menu. Adjacent moves persist queue order, retain the selected video identity, and leave playback ownership intact.
