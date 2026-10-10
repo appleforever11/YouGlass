@@ -21,7 +21,7 @@
     <key>CFBundleShortVersionString</key>
     <string>3.0.0</string>
     <key>CFBundleVersion</key>
-	<string>300001</string>
+    <string>300002</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>

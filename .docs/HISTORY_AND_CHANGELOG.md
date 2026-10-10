@@ -1,5 +1,9 @@
 # YouGlass local history and change record
 
+## 2026-10-10 — Prepare public 3.0.0 update
+
+- Added 3.0.0 release notes and advanced the numeric build to 300002 so Sparkle can update local 3.0.0 build 300001 installations.
+
 ## 2026-10-10 — Watch layout and recommendation responsiveness
 
 - Rounded the expanded player shell beside the sidebar and softened the sidebar boundary during playback.
